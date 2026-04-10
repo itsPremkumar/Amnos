@@ -1,29 +1,20 @@
 (function() {
-    const config = window._privacyConfig || {
-        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
-        platform: "Win32",
-        languages: ["en-US", "en"],
-        screen: { width: 1920, height: 1080, availWidth: 1920, availHeight: 1040, colorDepth: 24, pixelDepth: 24 },
-        timeZone: "UTC",
-        noiseSeed: 42
-    };
+    const config = window._privacyConfig || {};
 
-    // 1. Global Privacy Control (GPC) - Inspired by DuckDuckGo
+    // 1. Global Privacy Control (GPC)
     Object.defineProperty(navigator, 'globalPrivacyControl', {
-        value: true,
-        writable: false,
-        configurable: false
+        value: true, writable: false, configurable: false
     });
 
-    // 2. Obfuscate Navigator Properties
+    // 2. Coherent Navigator Spoofing
     const proxyNavigator = new Proxy(navigator, {
         get: (target, prop) => {
             if (prop === 'userAgent') return config.userAgent;
             if (prop === 'platform') return config.platform;
             if (prop === 'language') return config.languages[0];
             if (prop === 'languages') return config.languages;
-            if (prop === 'hardwareConcurrency') return config.hardwareConcurrency || 4;
-            if (prop === 'deviceMemory') return config.deviceMemory || 8;
+            if (prop === 'hardwareConcurrency') return config.hardwareConcurrency;
+            if (prop === 'deviceMemory') return config.deviceMemory;
             if (prop === 'webdriver') return false;
             
             let val = target[prop];
@@ -31,25 +22,53 @@
             return val;
         }
     });
-    Object.defineProperty(window, 'navigator', {
-        value: proxyNavigator,
-        configurable: false,
-        enumerable: true,
-        writable: false
-    });
 
-    // 3. Canvas Fingerprinting Protection (Noise Injection)
+    // 3. Geolocation Protection (Silent Block)
+    if (navigator.geolocation) {
+        const geoError = (errorCallback) => {
+            if (errorCallback) {
+                errorCallback({
+                    code: 1,
+                    message: "User denied Geolocation",
+                    PERMISSION_DENIED: 1,
+                    POSITION_UNAVAILABLE: 2,
+                    TIMEOUT: 3
+                });
+            }
+        };
+        navigator.geolocation.getCurrentPosition = (success, error) => geoError(error);
+        navigator.geolocation.watchPosition = (success, error) => geoError(error);
+    }
+
+    // 4. WebGL Fingerprinting Protection (GPU Spoofing)
+    const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
+    WebGLRenderingContext.prototype.getParameter = function(parameter) {
+        // UNMASKED_VENDOR_WEBGL = 0x9245, UNMASKED_RENDERER_WEBGL = 0x9246
+        if (parameter === 0x9245) return config.gpuVendor;
+        if (parameter === 0x9246) return config.gpuRenderer;
+        return originalGetParameter.apply(this, arguments);
+    };
+
+    const originalGetExtension = WebGLRenderingContext.prototype.getExtension;
+    WebGLRenderingContext.prototype.getExtension = function(name) {
+        if (name === 'WEBGL_debug_renderer_info') return {
+            UNMASKED_VENDOR_WEBGL: 0x9245,
+            UNMASKED_RENDERER_WEBGL: 0x9246
+        };
+        return originalGetExtension.apply(this, arguments);
+    };
+
+    // 5. Canvas Protection (Noise)
     const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
     CanvasRenderingContext2D.prototype.getImageData = function() {
         const imageData = originalGetImageData.apply(this, arguments);
-        // Inject stable noise based on seed to break fingerprinting while keeping rendering consistent
         for (let i = 0; i < imageData.data.length; i += 4) {
             imageData.data[i] = imageData.data[i] ^ (config.noiseSeed % 3);
         }
         return imageData;
     };
 
-    // 4. Web Audio Fingerprinting Protection
+    // 6. Audio Protection (Noise)
     const originalGetChannelData = AudioBuffer.prototype.getChannelData;
     AudioBuffer.prototype.getChannelData = function() {
         const data = originalGetChannelData.apply(this, arguments);
@@ -59,26 +78,16 @@
         return data;
     };
 
-    // 5. Battery Status API Protection
+    // 7. Battery Status API Protection
     if (navigator.getBattery) {
-        const originalGetBattery = navigator.getBattery;
-        navigator.getBattery = function() {
-            return Promise.resolve({
-                level: 0.9,
-                charging: true,
-                chargingTime: 0,
-                dischargingTime: Infinity,
-                addEventListener: () => {},
-                removeEventListener: () => {},
-                onlevelchange: null,
-                onchargingchange: null,
-                onchargingtimechange: null,
-                ondischargingtimechange: null
-            });
-        };
+        navigator.getBattery = () => Promise.resolve({
+            level: 0.76, charging: true, chargingTime: 0, dischargingTime: Infinity,
+            addEventListener: () => {}, removeEventListener: () => {},
+            onlevelchange: null, onchargingchange: null, onchargingtimechange: null, ondischargingtimechange: null
+        });
     }
 
-    // 6. Obfuscate Screen Properties
+    // 8. Screen & UI Resolution Spoofing
     const proxyScreen = new Proxy(screen, {
         get: (target, prop) => {
             if (config.screen[prop]) return config.screen[prop];
@@ -87,39 +96,24 @@
             return val;
         }
     });
-    Object.defineProperty(window, 'screen', {
-        value: proxyScreen,
-        configurable: false,
-        enumerable: true,
-        writable: false
-    });
+    
+    // Inject proxies
+    Object.defineProperty(window, 'navigator', { value: proxyNavigator, writable: false });
+    Object.defineProperty(window, 'screen', { value: proxyScreen, writable: false });
+    Object.defineProperty(window, 'devicePixelRatio', { value: config.screen.devicePixelRatio, writable: false });
 
-    // 8. Clipboard Protection: Prevent websites from reading/writing system clipboard
+    // 9. Clipboard & Font Protections (v2)
     if (navigator.clipboard) {
-        const blockClipboard = () => {
-            console.log("Privacy Guard: BLOCKING Clipboard Access.");
-            return Promise.reject(new Error("Clipboard access blocked by Privacy Guard."));
-        };
-        Object.defineProperty(navigator, 'clipboard', {
-            value: {
-                readText: blockClipboard,
-                read: blockClipboard,
-                writeText: blockClipboard,
-                write: blockClipboard
-            },
-            writable: false
+        const block = () => Promise.reject(new Error("Blocked"));
+        Object.defineProperty(navigator, 'clipboard', { 
+            value: { readText: block, read: block, writeText: block, write: block }, 
+            writable: false 
         });
     }
 
-    // 9. Font Fingerprinting Protection: Masking with generic system fonts
     const style = document.createElement('style');
-    style.innerHTML = `
-        * { 
-            font-family: sans-serif !important; 
-            -webkit-font-smoothing: antialiased !important;
-        }
-    `;
+    style.innerHTML = `* { font-family: sans-serif !important; }`;
     document.documentElement.appendChild(style);
 
-    console.log("Architecture v2 Active: Clipboard=Locked, FontMask=Active");
+    console.log("Modular Identity Engine Active: Profile=" + config.userAgent);
 })();

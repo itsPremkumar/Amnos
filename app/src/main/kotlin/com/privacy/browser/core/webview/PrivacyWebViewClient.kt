@@ -5,21 +5,18 @@ import android.graphics.Bitmap
 import android.util.Log
 import android.webkit.*
 import com.privacy.browser.core.adblock.AdBlocker
-import com.privacy.browser.core.session.SessionConfig
+import com.privacy.browser.core.fingerprint.DeviceProfile
 import com.privacy.browser.core.network.UrlSanitizer
 import java.io.ByteArrayInputStream
 
 class PrivacyWebViewClient(
     private val context: Context,
     private val adBlocker: AdBlocker,
-    private val sessionConfig: SessionConfig,
+    private val deviceProfile: DeviceProfile,
+    private val injectionScript: String,
     private val onTrackerBlocked: () -> Unit,
     private val onStateChanged: (String) -> Unit
 ) : WebViewClient() {
-
-    private val fingerprintScript: String by lazy {
-        context.assets.open("FingerprintObfuscator.js").bufferedReader().use { it.readText() }
-    }
 
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
         val url = request?.url.toString()
@@ -47,7 +44,7 @@ class PrivacyWebViewClient(
         // 3. Ad & Tracker Blocking
         if (adBlocker.shouldBlock(url)) {
             Log.d("PrivacyClient", "Blocked Tracker: $url")
-            onTrackerBlocked() // Signal to UI
+            onTrackerBlocked()
             return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream("".toByteArray()))
         }
 
@@ -57,12 +54,10 @@ class PrivacyWebViewClient(
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
         
-        // 5. Anti-Fingerprinting & GPC Injection
-        val configJson = sessionConfig.toJsonString()
-        val injection = "window._privacyConfig = $configJson; $fingerprintScript"
-        
-        view?.evaluateJavascript(injection) {
-            Log.d("PrivacyClient", "Privacy protections injected for $url")
+        // 4. Identity Injection (Fingerprinting Guard)
+        // This is injected at the start of every page load
+        view?.evaluateJavascript(injectionScript) {
+            Log.d("PrivacyClient", "Modular Identity injected for $url")
         }
     }
 
@@ -73,6 +68,6 @@ class PrivacyWebViewClient(
 
     override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) {
         Log.e("PrivacyClient", "SSL ERROR: ${error?.url}. Blocking.")
-        handler?.cancel() // NEVER ignore SSL errors
+        handler?.cancel()
     }
 }

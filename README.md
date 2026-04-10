@@ -1,45 +1,44 @@
-# 🛡️ Privacy Browser: God-Tier Security Engine
+# 🛡️ Privacy Browser: God-Tier Modular Security Engine
 
-A high-performance, **RAM-Only** Android web browser designed for absolute anonymity. This is a **God-Tier** implementation featuring enterprise-grade security protocols used by investigative journalists and security researchers.
+A high-performance, **RAM-Only** Android web browser designed for absolute anonymity. This browser features a **Modular Fingerprint Management System** that ensures all browser-exposed properties match a single, realistic "Device Identity" for maximum deniability.
 
 ---
 
-## 🔒 Built-In Security Shield
+## 🔒 Coherent Security Shield
 
-### 1. 🧠 RAM-Only Volatile Architecture (Total Amnesia)
-*   **Disposable Session Silos**: Every launch creates a unique, randomized Session UUID silo. Your browsing path is 100% isolated and never linked.
-*   **Zero-Disk Footprint**: Hardware-locked settings prevent site data (LocalStorage, Cookies, Databases) from ever touching your physical storage chip.
-*   **Dead Man's Switch (Idle Wipe)**: Automatically performs a total forensic memory scrub and kills the process if the app is minimized or the screen is locked.
+### 1. 🧬 Modular Fingerprint Management (Identity Coherence)
+Unlike standard browsers that randomize properties, our engine uses a **FingerprintManager** to generate a single, coherent "Device Identity" (personality).
+*   **Property Consistency**: If your User-Agent is Windows, your `navigator.platform` is `Win32`, and your hardware/screen specs are automatically aligned.
+*   **Hardware Spoofing**: Overrides WebGL `getParameter` (GPU Vendor/Renderer) to return fake profiles (e.g., Intel, Apple, NVIDIA).
+*   **Silent Perms**: Overrides `navigator.geolocation` so sites receive a clean "Permission Denied" without ever triggering a system-level popup.
 
-### 2. 🛡️ Network & Protocol Hardening
-*   **DNS-over-HTTPS (DoH)**: All domain lookups are encrypted via **Cloudflare (1.1.1.1)**, making your browsing invisible even to your Internet Service Provider.
+### 2. 🧠 Architecture v2: Real-Time Tactical Defense
+*   **Security Cockpit**: A real-time dashboard to toggle **JavaScript**, **WebGL**, and **Hardware Acceleration** on the fly.
+*   **Live Tracker Intelligence**: A Top-Bar indicator showing exactly how many trackers are being killed in real-time.
+*   **Incognito PIN Lock**: Secures your active RAM session with a 4-digit PIN (Default: `1111`) to prevent physical snooping.
+
+### 3. 🛡️ Network & Protocol Hardening
+*   **DNS-over-HTTPS (DoH)**: All lookups are encrypted via **Cloudflare (1.1.1.1)**, making your browsing invisible to your ISP.
 *   **Strict HTTPS-Only Mode**: Force-blocks all insecure `http://` traffic.
-*   **URL Tracking Sanitizer**: Automatically scrubs tracking IDs (UTM, FBCLID, GCLID) from links before they are even processed.
+*   **URL Tracking Sanitizer**: Automatically scrubs tracking IDs (UTM, FBCLID, GCLID) from links before they are processed.
 
-### 3. 🎭 Forensic-Level Anonymity (Zero-Fingerprinting)
-*   **Multi-Vector Protection**:
-    - **Canvas Poisoning**: Injects noise into rendering to break hardware identification.
-    - **Web Audio Spoofing**: Masks your device's unique audio hardware signature.
-    - **Battery Masking**: Spoofs battery data to prevent its use as an ID.
-*   **Tracking API Stubbing**: Disables `navigator.sendBeacon` and other exfiltration APIs trackers use to "phone home."
-*   **Global Privacy Control (GPC)**: Injects "Do Not Track/Sell" signals into every request.
-
-### 4. 🧹 Deep-Wipe Kill Switch
-*   **Deterministic Purge**: A one-tap button that performs a multi-stage forensic scrub of hardware caches, session silos, and temporary process memory.
-*   **WebRTC Leak Protection**: Hardware-locked to prevent IP leakage behind VPNs/Proxies.
+### 4. 🧠 RAM-Only "Amnesia" Architecture
+*   **Disposable Session Silos**: Every launch creates a unique, randomized Session UUID silo.
+*   **Dead Man's Switch (Idle Wipe)**: Automatically performs a total forensic memory scrub and kills the process if the app is minimized.
+*   **Forensics-Proof**: Zero persistent data remains on the physical device.
 
 ---
 
-## 📁 Optimized Project Structure
+## 📁 Modular Project Structure
 
-- **`core/network`**: Encrypted DNS-over-HTTPS & URL sanitation.
-- **`core/session`**: RAM-only volatile container & lifecycle security.
-- **`core/webview`**: Hardened browser clients with strict permission gates.
-- **`ui/`**: Modern, professional Material 3 navigation system.
+- **`core/fingerprint`**: Coherent Identity generation (`FingerprintManager`, `ScriptInjector`).
+- **`core/webview`**: Hardened browser engine (`SecureWebView`, `PrivacyWebViewClient`).
+- **`core/network`**: Encrypted DNS-over-HTTPS and Tracking Sanitization.
+- **`ui/`**: Professional, state-driven Material 3 navigation and Security Cockpit.
 
 ## 🏗️ Build & Requirements
 - **Android API 28+**
-- **100% Free / Zero-Cost Features**
+- **Giraffe / Hedgehog+**
 
 ## 📜 License
-Released under the MIT License.
+Released under the MIT License. A 100% free, zero-cost professional privacy tool.

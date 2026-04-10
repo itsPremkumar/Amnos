@@ -1,8 +1,9 @@
 package com.privacy.browser.core.session
 
-import android.webkit.WebView
+import com.privacy.browser.core.fingerprint.DeviceProfile
+import com.privacy.browser.core.webview.SecureWebView
 
 data class TabInstance(
-    val config: SessionConfig,
-    val webView: WebView
+    val profile: DeviceProfile,
+    val webView: SecureWebView
 )
