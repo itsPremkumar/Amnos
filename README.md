@@ -1,6 +1,6 @@
-# 🛡️ Privacy Browser: God-Tier Modular Security Engine
+# 🛡️ Amnos Browser: God-Tier Modular Security Engine
 
-A high-performance, **RAM-Only** Android web browser designed for absolute anonymity. This browser features a **Modular Fingerprint Management System** that ensures all browser-exposed properties match a single, realistic "Device Identity" for maximum deniability.
+A high-performance, **RAM-Only** Android web browser designed for absolute anonymity. **Amnos** features a **Modular Fingerprint Management System** that ensures all browser-exposed properties match a single, realistic "Device Identity" for maximum deniability.
 
 ---
 
