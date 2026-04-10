@@ -17,13 +17,11 @@ class PrivacyWebChromeClient(
     }
 
     override fun onPermissionRequest(request: PermissionRequest?) {
-        // Production Hardening: Automatically deny all permission requests (Camera, Mic, etc.)
-        Log.d("PrivacyChromeClient", "BLOCKING Permission Request: ${request?.resources?.joinToString()}")
-        request?.deny()
+        com.privacy.browser.core.security.PermissionSentinel.handlePermissionRequest(request)
     }
 
     override fun onGeolocationPermissionsShowPrompt(origin: String?, callback: GeolocationPermissions.Callback?) {
-        // Production Hardening: Automatically deny Geolocation
+        // Production Hardening: Automatically deny Geolocation via callback
         Log.d("PrivacyChromeClient", "BLOCKING Geolocation Request from $origin")
         callback?.invoke(origin, false, false)
     }

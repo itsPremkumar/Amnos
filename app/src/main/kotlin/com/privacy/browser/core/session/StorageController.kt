@@ -30,17 +30,10 @@ class StorageController(private val context: Context) {
     }
 
     /**
-     * Wipes the system clipboard for privacy.
+     * Wipes the system clipboard for privacy using the modular Sentinel.
      */
     fun wipeClipboard() {
-        try {
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            @Suppress("DEPRECATION")
-            clipboard.text = ""
-            Log.d("StorageController", "System clipboard scrubbed.")
-        } catch (e: Exception) {
-            Log.e("StorageController", "Failed to wipe clipboard", e)
-        }
+        com.privacy.browser.core.security.ClipboardSentinel.wipe(context)
     }
 
     private fun deleteRecursive(file: File) {
