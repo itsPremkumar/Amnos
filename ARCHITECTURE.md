@@ -38,6 +38,22 @@ Built with **Jetpack Compose** and **Material 3**:
 
 ---
 
-## 🔒 Security Guarantees
-- **No Disk Persistence**: All WebView databases, cache, and cookies are locked to RAM.
-- **Forensic-Proof**: Process termination on background ensures no RAM residue can be extracted.
+## 🔒 Security Guarantees & Threat Model
+
+### What Amnos Protects Against:
+- **Local Browser Forensics**: No data survives in the app directory or RAM after a "Deep Wipe."
+- **Fingerprinting**: Neutralizes web-based hardware enumeration and font identification.
+- **Cross-Site Tracking**: Strict third-party isolation and Referer stripping.
+- **WebSocket Tracking**: Blocks the initial handshake for real-time tracking streams.
+
+### What is Out of Scope (Requires a VPN/Tor):
+- **IP Address Privacy**: Amnos blocks IP leaks via WebRTC, but it does *not* hide your public IP from the website you visit.
+- **ISP Monitoring**: Your ISP can still see *that* you are connecting to a specific domain (use DoH + a VPN for full network anonymity).
+- **Physical Memory Extraction**: While we wipe RAM on exit, a sophisticated physical attacker with specialized hardware could potentially capture data from an unlocked device *before* the wipe occurs.
+
+---
+
+## 🏁 Future Roadmap
+- [ ] Integration of a built-in Proxy/SOCKS5 manager.
+- [ ] Customizable user-agent profile presets.
+- [ ] Full per-domain JavaScript permission manager.

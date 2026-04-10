@@ -56,10 +56,31 @@ Amnos features a real-time **Security Inspector**:
 
 ---
 
-## 🏗️ Build Requirements
-- **Android API 28+**
-- **Architecture**: Modular Kotlin Components.
-- **Data Policy**: 100% Volatile. Zero-Data Persistence.
+## 🚀 Getting Started for Developers
+
+### 🛠️ Build Requirements
+- **Android Studio Giraffe+**
+- **JDK 17**
+- **Gradle 8.0+**
+
+### 📦 Installation
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/yourusername/amnos-browser.git
+   ```
+2. **Open the project** in Android Studio.
+3. **Synchronize Gradle** and wait for dependencies to download.
+4. **Run** on a physical device or emulator (API 28+).
+
+---
+
+## 🤝 Community & Support
+- **Contributing**: Please see [CONTRIBUTING.md](file:///c:/one/browser/CONTRIBUTING.md) for our coding standards.
+- **Reporting Bugs**: Open an [Issue](https://github.com/yourusername/amnos-browser/issues).
+- **Security**: Please see [SECURITY.md](file:///c:/one/browser/SECURITY.md) for responsible disclosure.
+
+## 🏁 Future Roadmap
+Check our [Architecture Draft](file:///c:/one/browser/ARCHITECTURE.md) for planned features like **Proxy Integration** and **Per-Domain JS Permissions**.
 
 ## 📜 License
-Released under the MIT License. A 100% free, zero-cost professional privacy tool.
+Released under the **MIT License**. See [LICENSE](file:///c:/one/browser/LICENSE) for details. (Note: Please add a LICENSE file to the root).
