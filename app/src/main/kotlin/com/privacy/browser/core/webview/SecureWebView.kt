@@ -7,6 +7,7 @@ import android.webkit.WebView
 
 class SecureWebView(context: Context) : WebView(context) {
 
+    @Suppress("DEPRECATION")
     fun applyHardening(userAgent: String) {
         settings.apply {
             // 1. RAM-Only / Volatile Hardware Lockdown
@@ -41,8 +42,8 @@ class SecureWebView(context: Context) : WebView(context) {
         // (Note: Already covered by permission denial in ChromeClient)
     }
 
-    fun applyVolatileSettings(jsEnabled: Boolean, webGLEnabled: Boolean) {
+    fun applyVolatileSettings(jsEnabled: Boolean) {
         settings.javaScriptEnabled = jsEnabled
-        // WebGL is handled via script injection layering
+        // WebGL is handled via script injection layering in the JS engine
     }
 }

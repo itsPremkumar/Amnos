@@ -86,7 +86,7 @@ fun BrowsingView(viewModel: BrowserViewModel) {
                 // Progress Indicator
                 if (viewModel.loadingProgress.value in 1..99) {
                     LinearProgressIndicator(
-                        progress = { viewModel.loadingProgress.value / 100f },
+                        progress = viewModel.loadingProgress.value / 100f,
                         modifier = Modifier.fillMaxWidth().height(2.dp),
                         color = AccentBlue,
                         trackColor = Color.Transparent,

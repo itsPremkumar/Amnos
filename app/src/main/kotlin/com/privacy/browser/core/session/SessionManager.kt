@@ -38,7 +38,7 @@ class SessionManager(private val context: Context) {
         val profile = FingerprintManager.generateCoherentProfile()
         val webView = SecureWebView(context)
         webView.applyHardening(profile.userAgent)
-        webView.applyVolatileSettings(isJavaScriptEnabled, isWebGLEnabled)
+        webView.applyVolatileSettings(isJavaScriptEnabled)
 
         // Ephemeral Download Integration
         webView.setDownloadListener { url, _, _, _, _ ->
@@ -71,7 +71,18 @@ class SessionManager(private val context: Context) {
     }
 
     fun updateAllSettings() {
-        tabs.forEach { it.webView.applyVolatileSettings(isJavaScriptEnabled, isWebGLEnabled) }
+        tabs.forEach { it.webView.applyVolatileSettings(isJavaScriptEnabled) }
+    }
+
+    fun removeTab(tab: TabInstance) {
+        tab.webView.apply {
+            stopLoading()
+            loadUrl("about:blank")
+            clearCache(true)
+            clearHistory()
+            destroy()
+        }
+        tabs.remove(tab)
     }
 
     fun killAll() {
