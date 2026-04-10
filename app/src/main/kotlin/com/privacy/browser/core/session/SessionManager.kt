@@ -8,15 +8,20 @@ import android.webkit.WebViewDatabase
 import com.privacy.browser.core.adblock.AdBlocker
 import com.privacy.browser.core.fingerprint.FingerprintManager
 import com.privacy.browser.core.fingerprint.ScriptInjector
+import com.privacy.browser.core.network.NetworkSecurityManager
 import com.privacy.browser.core.webview.PrivacyWebChromeClient
 import com.privacy.browser.core.webview.PrivacyWebViewClient
 import com.privacy.browser.core.webview.SecureWebView
-import java.io.File
 
 class SessionManager(private val context: Context) {
     private val adBlocker = AdBlocker(context)
     private val tabs = mutableListOf<TabInstance>()
     
+    // Elite Modular Managers
+    val securityController = SecurityController()
+    val storageController = StorageController(context)
+    private val networkSecurityManager = NetworkSecurityManager()
+
     // Architecture v2 Settings
     var isJavaScriptEnabled = true
     var isWebGLEnabled = false
@@ -30,15 +35,18 @@ class SessionManager(private val context: Context) {
         onProgressChanged: (progress: Int) -> Unit,
         onTrackerBlocked: () -> Unit
     ): TabInstance {
-        // 1. Generate Coherent Profile
         val profile = FingerprintManager.generateCoherentProfile()
-        
-        // 2. Create and Harden WebView
         val webView = SecureWebView(context)
         webView.applyHardening(profile.userAgent)
         webView.applyVolatileSettings(isJavaScriptEnabled, isWebGLEnabled)
 
-        // 3. Prepare Script Injection
+        // Ephemeral Download Integration
+        webView.setDownloadListener { url, _, _, _, _ ->
+            Log.d("SessionManager", "EPHEMERAL DOWNLOAD TRIGGERED: $url")
+            // In a production app, we would launch a download manager here 
+            // targeting StorageController.getVolatileDownloadPath()
+        }
+
         val injector = ScriptInjector(profile)
         val finalScript = injector.wrapScript(baseObfuscatorScript)
 
@@ -47,6 +55,8 @@ class SessionManager(private val context: Context) {
             adBlocker = adBlocker,
             deviceProfile = profile,
             injectionScript = finalScript,
+            networkSecurityManager = networkSecurityManager,
+            securityController = securityController,
             onTrackerBlocked = onTrackerBlocked
         ) { url ->
             onStateChanged(url, webView.canGoBack(), webView.canGoForward())
@@ -64,19 +74,17 @@ class SessionManager(private val context: Context) {
         tabs.forEach { it.webView.applyVolatileSettings(isJavaScriptEnabled, isWebGLEnabled) }
     }
 
-    fun removeTab(tab: TabInstance) {
-        tab.webView.apply {
-            stopLoading()
-            loadUrl("about:blank")
-            clearCache(true)
-            clearHistory()
-            destroy()
-        }
-        tabs.remove(tab)
-    }
-
     fun killAll() {
-        Log.d("SessionManager", "RAM-ONLY DEEP WIPE ACTIVATED")
+        Log.d("SessionManager", "AMNOS GHOST WIPE ACTIVATED")
+        
+        // 1. Wipe Clipboard & Downloads
+        storageController.wipeClipboard()
+        storageController.clearVolatileDownloads()
+        
+        // 2. Wipe Request Log
+        securityController.clearLog()
+
+        // 3. Wipe WebViews
         tabs.forEach { tab ->
             tab.webView.apply {
                 stopLoading()
@@ -89,9 +97,10 @@ class SessionManager(private val context: Context) {
         }
         tabs.clear()
 
+        // 4. Wipe Global Storage
         val cookieManager = CookieManager.getInstance()
         cookieManager.setAcceptCookie(false)
-        cookieManager.removeAllCookies { Log.d("SessionManager", "In-memory cookies wiped") }
+        cookieManager.removeAllCookies { Log.d("SessionManager", "Cookies purged") }
         cookieManager.flush()
         
         WebStorage.getInstance().deleteAllData()
@@ -101,32 +110,6 @@ class SessionManager(private val context: Context) {
         @Suppress("DEPRECATION")
         webViewDB.clearFormData()
 
-        clearApplicationData()
         android.os.Process.killProcess(android.os.Process.myPid())
-    }
-
-    private fun clearApplicationData() {
-        val cache = context.cacheDir ?: return
-        val appDir = cache.parentFile ?: return
-        if (appDir.exists()) {
-            val children = appDir.list()
-            children?.forEach { child ->
-                if (child != "lib") { 
-                    val fileToDelete = File(appDir, child)
-                    deleteDir(fileToDelete)
-                }
-            }
-        }
-    }
-
-    private fun deleteDir(dir: File?): Boolean {
-        if (dir != null && dir.isDirectory) {
-            val children = dir.list()
-            children?.forEach { child ->
-                val success = deleteDir(File(dir, child))
-                if (!success) return false
-            }
-        }
-        return dir?.delete() ?: true
     }
 }

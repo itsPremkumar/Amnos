@@ -111,13 +111,18 @@
         });
     }
 
+    // Advanced Font Blocking (Prevent Font Fingerprinting)
     const style = document.createElement('style');
-    style.innerHTML = `* { font-family: sans-serif !important; }`;
+    style.innerHTML = `
+        @font-face { font-family: 'BlockedFont'; src: local('Arial'); }
+        * { font-family: sans-serif, Arial, Helvetica !important; }
+    `;
     document.documentElement.appendChild(style);
 
     // 10. Media Devices Enumeration Blocking (Zero-Device Policy)
-    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+    if (navigator.mediaDevices) {
         navigator.mediaDevices.enumerateDevices = () => Promise.resolve([]);
+        Object.defineProperty(navigator.mediaDevices, 'ondevicechange', { value: null, writable: false });
     }
 
     // 11. Network Information API Spoofing (Connection Masking)
@@ -144,7 +149,11 @@
         Object.defineProperty(navigator, 'idle', { value: undefined, writable: false });
     }
 
-    // 13. Audio Temporal Jitter (Timing Attack Protection)
+    // 13. JS Restricted Mode (Anti-Eval)
+    window.eval = function() { throw new Error("Amnos: Dynamic execution (eval) is blocked for your safety."); };
+    window.Function = function() { throw new Error("Amnos: Function constructor is blocked."); };
+
+    // 14. Audio Temporal Jitter (Timing Attack Protection)
     if (window.AudioContext) {
         const originalCreateOscillator = AudioContext.prototype.createOscillator;
         AudioContext.prototype.createOscillator = function() {
@@ -158,5 +167,5 @@
         };
     }
 
-    console.log("Elite Security Shields Active: Media=Blocked, Network=Spoofed, Timing=Jittered");
+    console.log("Amnos Elite Hardening Active: Eval=Blocked, Fonts=Restricted, WebRTC=Shielded");
 })();

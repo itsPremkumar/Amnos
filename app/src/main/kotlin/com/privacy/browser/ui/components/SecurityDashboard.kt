@@ -2,6 +2,8 @@ package com.privacy.browser.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shield
@@ -11,8 +13,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.privacy.browser.core.session.SecurityController
 import com.privacy.browser.ui.screens.browser.BrowserViewModel
 import com.privacy.browser.ui.theme.AccentBlue
 import com.privacy.browser.ui.theme.KillRed
@@ -38,65 +42,141 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
             ) {
                 Icon(Icons.Default.Shield, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(32.dp))
                 Spacer(Modifier.width(12.dp))
-                Text("Security Cockpit", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("Amnos Elite Cockpit", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
 
-            // Stats Section
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
+            // Tabs for Toggles vs Inspector
+            val tabs = listOf("SHIELDS", "INSPECTOR")
+            var selectedTab = androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+
+            TabRow(
+                selectedTabIndex = selectedTab.intValue,
+                containerColor = Color.Transparent,
+                contentColor = AccentBlue,
+                divider = {}
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text("Active Defense", color = Color.Gray, fontSize = 12.sp)
-                        Text("${viewModel.blockedTrackersCount.value} Trackers Blocked", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .background(KillRed.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text("STRICT", color = KillRed, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
-                    }
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab.intValue == index,
+                        onClick = { selectedTab.intValue = index },
+                        text = { Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                    )
                 }
             }
 
-            // Toggles
-            SecurityToggle(
-                title = "JavaScript",
-                description = "Enable for functionality, Disable for maximum security.",
-                checked = viewModel.isJavaScriptEnabled.value,
-                onCheckedChange = { viewModel.toggleJavaScript(it) }
-            )
-
-            SecurityToggle(
-                title = "WebGL / 3D Graphics",
-                description = "Prevents hardware-based graphics fingerprinting.",
-                checked = viewModel.isWebGLEnabled.value,
-                onCheckedChange = { viewModel.toggleWebGL(it) }
-            )
-
-            SecurityToggle(
-                title = "Strict Font Masking",
-                description = "Prevents identification via your system fonts.",
-                checked = true, // Force on for now
-                onCheckedChange = { },
-                enabled = false
-            )
-            
             Spacer(Modifier.height(16.dp))
+
+            if (selectedTab.intValue == 0) {
+                Column {
+                    // Stats Section
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Active Defense", color = Color.Gray, fontSize = 12.sp)
+                                Text("${viewModel.blockedTrackersCount.value} Trackers Blocked", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .background(KillRed.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text("GHOST", color = KillRed, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                            }
+                        }
+                    }
+
+                    SecurityToggle(
+                        title = "JavaScript Engine",
+                        description = "Enable for sites, Disable for full ghosting.",
+                        checked = viewModel.isJavaScriptEnabled.value,
+                        onCheckedChange = { viewModel.toggleJavaScript(it) }
+                    )
+
+                    SecurityToggle(
+                        title = "WebGL Masking",
+                        description = "Spoofs GPU to prevent hardware fingerprints.",
+                        checked = viewModel.isWebGLEnabled.value,
+                        onCheckedChange = { viewModel.toggleWebGL(it) }
+                    )
+
+                    SecurityToggle(
+                        title = "Elite Font Shield",
+                        description = "Blocks all non-system fonts.",
+                        checked = true,
+                        onCheckedChange = { },
+                        enabled = false
+                    )
+                }
+            } else {
+                // Request Inspector UI
+                RequestInspectorList(viewModel.requestLog)
+            }
+            
+            Spacer(Modifier.height(24.dp))
             
             Text(
-                "Architecture v2 - God-Tier Volatility Active",
+                "Amnos v1.0.0 - Modular Elite Hardening Active",
                 color = Color.Gray,
                 fontSize = 10.sp,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }
+    }
+}
+
+@Composable
+fun RequestInspectorList(logs: List<SecurityController.RequestEntry>) {
+    Column(modifier = Modifier.height(250.dp)) {
+        Text("Volatile Request Log (Last 50)", color = Color.Gray, fontSize = 11.sp, modifier = Modifier.padding(bottom = 8.dp))
+        if (logs.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No active requests recorded.", color = Color.DarkGray, fontSize = 12.sp)
+            }
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(logs.reversed()) { entry ->
+                    RequestItem(entry)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RequestItem(entry: SecurityController.RequestEntry) {
+    val color = when(entry.type) {
+        SecurityController.RequestType.TRACKER -> KillRed
+        SecurityController.RequestType.WEBSOCKET -> Color.Yellow
+        else -> Color.Gray
+    }
+    
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            entry.type.name,
+            color = color,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(60.dp).background(color.copy(alpha = 0.1f), RoundedCornerShape(4.dp)).padding(2.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            entry.url,
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

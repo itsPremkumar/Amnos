@@ -23,6 +23,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var isJavaScriptEnabled = mutableStateOf(sessionManager.isJavaScriptEnabled)
     var isWebGLEnabled = mutableStateOf(sessionManager.isWebGLEnabled)
     var showSecurityDashboard = mutableStateOf(false)
+    val requestLog = sessionManager.securityController.requestLog
     
     // PIN Lock
     var isLocked = mutableStateOf(false) // Start unlocked for now, or true for auto-lock
