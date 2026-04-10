@@ -1,12 +1,25 @@
 package com.privacy.browser.core.session
 
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import com.privacy.browser.core.network.RequestKind
+import com.privacy.browser.core.security.FingerprintProtectionLevel
 
 class SecurityController {
 
     private val _requestLog = mutableStateListOf<RequestEntry>()
     val requestLog: List<RequestEntry> = _requestLog
+    private val _activeConnections = mutableStateListOf<ConnectionEntry>()
+    val activeConnections: List<ConnectionEntry> = _activeConnections
+
+    val proxyStatus = mutableStateOf("Inactive")
+    val dohStatus = mutableStateOf("Partial")
+    val webRtcStatus = mutableStateOf("Blocked")
+    val webSocketStatus = mutableStateOf("Blocked")
+    val fingerprintLevel = mutableStateOf(FingerprintProtectionLevel.STRICT)
+    val webRtcAttemptCount = mutableStateOf(0)
+    val webSocketAttemptCount = mutableStateOf(0)
+    val warningMessage = mutableStateOf("Strong privacy protections enabled. Network anonymity is not guaranteed.")
 
     data class RequestEntry(
         val url: String,
@@ -16,6 +29,14 @@ class SecurityController {
         val thirdParty: Boolean = false,
         val reason: String? = null,
         val timestamp: Long = System.currentTimeMillis()
+    )
+
+    data class ConnectionEntry(
+        val id: String,
+        val host: String,
+        val port: Int,
+        val type: String,
+        val openedAt: Long = System.currentTimeMillis()
     )
 
     enum class RequestType {
@@ -51,6 +72,48 @@ class SecurityController {
         )
     }
 
+    fun updateProxyStatus(active: Boolean, dohGlobal: Boolean, port: Int?) {
+        proxyStatus.value = if (active && port != null) "Loopback proxy active on 127.0.0.1:$port" else "Inactive"
+        dohStatus.value = if (active && dohGlobal) "Global via loopback proxy" else "Partial via request proxying"
+    }
+
+    fun setFingerprintLevel(level: FingerprintProtectionLevel) {
+        fingerprintLevel.value = level
+    }
+
+    fun recordWebRtcAttempt(detail: String, blocked: Boolean) {
+        webRtcAttemptCount.value += 1
+        webRtcStatus.value = if (blocked) "Blocked and spoofed" else "Observed"
+        logRequest(
+            url = detail,
+            method = "JS",
+            type = RequestType.OTHER,
+            disposition = if (blocked) RequestDisposition.BLOCKED else RequestDisposition.ALLOWED,
+            reason = "webrtc"
+        )
+    }
+
+    fun recordWebSocketAttempt(detail: String, blocked: Boolean) {
+        webSocketAttemptCount.value += 1
+        webSocketStatus.value = if (blocked) "Blocked" else "Allowed"
+        logRequest(
+            url = detail,
+            method = "JS",
+            type = RequestType.WEBSOCKET,
+            disposition = if (blocked) RequestDisposition.BLOCKED else RequestDisposition.ALLOWED,
+            reason = "websocket"
+        )
+    }
+
+    fun addConnection(id: String, host: String, port: Int, type: String) {
+        _activeConnections.removeAll { it.id == id }
+        _activeConnections.add(ConnectionEntry(id = id, host = host, port = port, type = type))
+    }
+
+    fun removeConnection(id: String) {
+        _activeConnections.removeAll { it.id == id }
+    }
+
     fun mapKind(kind: RequestKind): RequestType = when (kind) {
         RequestKind.DOCUMENT -> RequestType.DOCUMENT
         RequestKind.SCRIPT -> RequestType.SCRIPT
@@ -78,5 +141,8 @@ class SecurityController {
 
     fun clearLog() {
         _requestLog.clear()
+        _activeConnections.clear()
+        webRtcAttemptCount.value = 0
+        webSocketAttemptCount.value = 0
     }
 }

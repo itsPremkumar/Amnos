@@ -8,17 +8,24 @@ import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebStorage
 import android.webkit.WebViewDatabase
+import androidx.core.content.ContextCompat
+import androidx.webkit.ProxyConfig
+import androidx.webkit.ProxyController
+import androidx.webkit.WebViewFeature
 import com.privacy.browser.core.adblock.AdBlocker
 import com.privacy.browser.core.fingerprint.DeviceProfile
 import com.privacy.browser.core.fingerprint.FingerprintManager
 import com.privacy.browser.core.fingerprint.ScriptInjector
+import com.privacy.browser.core.network.LoopbackProxyServer
 import com.privacy.browser.core.network.NetworkSecurityManager
+import com.privacy.browser.core.security.FingerprintProtectionLevel
 import com.privacy.browser.core.security.JavaScriptMode
 import com.privacy.browser.core.security.PrivacyPolicy
 import com.privacy.browser.core.security.WebGlMode
 import com.privacy.browser.core.webview.PrivacyWebChromeClient
 import com.privacy.browser.core.webview.PrivacyWebViewClient
 import com.privacy.browser.core.webview.SecureWebView
+import org.json.JSONObject
 
 class SessionManager(private val context: Context) {
     private val adBlocker = AdBlocker(context)
@@ -31,12 +38,26 @@ class SessionManager(private val context: Context) {
     val securityController = SecurityController()
     val storageController = StorageController(context)
     private val networkSecurityManager = NetworkSecurityManager { privacyPolicy }
+    private val loopbackProxyServer = LoopbackProxyServer(
+        networkSecurityManager = networkSecurityManager,
+        onTunnelOpened = { id, host, port ->
+            securityController.addConnection(id, host, port, "TUNNEL")
+        },
+        onTunnelClosed = { id ->
+            securityController.removeConnection(id)
+        }
+    )
 
     var privacyPolicy: PrivacyPolicy = PrivacyPolicy()
         private set
 
     private val baseObfuscatorScript: String by lazy {
         context.assets.open("FingerprintObfuscator.js").bufferedReader().use { it.readText() }
+    }
+
+    init {
+        securityController.setFingerprintLevel(privacyPolicy.fingerprintProtectionLevel)
+        configureProxy()
     }
 
     val sessionId: String
@@ -58,13 +79,18 @@ class SessionManager(private val context: Context) {
     fun createTab(
         onStateChanged: (url: String, canGoBack: Boolean, canGoForward: Boolean) -> Unit,
         onProgressChanged: (progress: Int) -> Unit,
-        onTrackerBlocked: () -> Unit
+        onTrackerBlocked: () -> Unit,
+        onNavigationRequested: (String) -> Boolean
     ): TabInstance {
         val tabId = FingerprintManager.newTabId()
-        val profile = FingerprintManager.generateCoherentProfile(activeSessionId, tabId)
+        val profile = FingerprintManager.generateCoherentProfile(
+            activeSessionId,
+            tabId,
+            privacyPolicy.fingerprintProtectionLevel
+        )
         val webView = SecureWebView(context)
         val finalScript = buildInjectionScript(profile)
-        webView.applyHardening(profile, privacyPolicy, finalScript)
+        webView.applyHardening(profile, privacyPolicy, finalScript, ::handleSecurityEvent)
         webView.resumeTimers()
 
         webView.setDownloadListener { url, _, _, _, _ ->
@@ -77,11 +103,13 @@ class SessionManager(private val context: Context) {
             deviceProfile = profile,
             networkSecurityManager = networkSecurityManager,
             securityController = securityController,
-            onTrackerBlocked = onTrackerBlocked
-        ) { url ->
-            touchSession()
-            onStateChanged(url, webView.canGoBack(), webView.canGoForward())
-        }
+            onTrackerBlocked = onTrackerBlocked,
+            onStateChanged = { url ->
+                touchSession()
+                onStateChanged(url, webView.canGoBack(), webView.canGoForward())
+            },
+            onNavigationRequested = onNavigationRequested
+        )
 
         webView.webViewClient = client
         webView.webChromeClient = PrivacyWebChromeClient(onProgressChanged)
@@ -101,12 +129,18 @@ class SessionManager(private val context: Context) {
         tab: TabInstance,
         onStateChanged: (url: String, canGoBack: Boolean, canGoForward: Boolean) -> Unit,
         onProgressChanged: (progress: Int) -> Unit,
-        onTrackerBlocked: () -> Unit
+        onTrackerBlocked: () -> Unit,
+        onNavigationRequested: (String) -> Boolean
     ): TabInstance {
         val previousUrl = tab.currentUrl
         val previousIndex = tabs.indexOf(tab).coerceAtLeast(0)
         removeTab(tab)
-        val replacement = createTab(onStateChanged, onProgressChanged, onTrackerBlocked)
+        val replacement = createTab(
+            onStateChanged = onStateChanged,
+            onProgressChanged = onProgressChanged,
+            onTrackerBlocked = onTrackerBlocked,
+            onNavigationRequested = onNavigationRequested
+        )
         tabs.remove(replacement)
         tabs.add(previousIndex.coerceAtMost(tabs.size), replacement)
         previousUrl?.let { loadUrl(replacement, it) }
@@ -115,8 +149,15 @@ class SessionManager(private val context: Context) {
 
     fun updatePrivacyPolicy(update: (PrivacyPolicy) -> PrivacyPolicy) {
         privacyPolicy = update(privacyPolicy)
+        securityController.setFingerprintLevel(privacyPolicy.fingerprintProtectionLevel)
+        configureProxy()
         tabs.forEach { tab ->
-            tab.webView.updateRuntimePolicy(tab.profile, privacyPolicy, buildInjectionScript(tab.profile))
+            tab.webView.updateRuntimePolicy(
+                tab.profile,
+                privacyPolicy,
+                buildInjectionScript(tab.profile),
+                ::handleSecurityEvent
+            )
         }
         touchSession()
     }
@@ -131,9 +172,21 @@ class SessionManager(private val context: Context) {
         }
     }
 
+    fun setFingerprintProtectionLevel(level: FingerprintProtectionLevel) {
+        updatePrivacyPolicy { current ->
+            current.copy(
+                fingerprintProtectionLevel = level,
+                webGlMode = if (level == FingerprintProtectionLevel.STRICT) WebGlMode.DISABLED else current.webGlMode,
+                blockInlineScripts = if (level == FingerprintProtectionLevel.STRICT) true else current.blockInlineScripts,
+                strictFirstPartyIsolation = true
+            )
+        }
+    }
+
     fun loadUrl(tab: TabInstance, rawUrl: String): Boolean {
         val sanitizedUrl = networkSecurityManager.sanitizeNavigationUrl(rawUrl) ?: return false
         tab.currentUrl = sanitizedUrl
+        tab.siteKey = networkSecurityManager.siteKeyForUrl(sanitizedUrl)
         if (sanitizedUrl == "about:blank") {
             tab.webView.loadUrl(sanitizedUrl)
             return true
@@ -146,6 +199,16 @@ class SessionManager(private val context: Context) {
         tab.webView.loadUrl(sanitizedUrl, headers)
         touchSession()
         return true
+    }
+
+    fun shouldRecreateForTopLevelNavigation(tab: TabInstance, nextUrl: String): Boolean {
+        if (!privacyPolicy.strictFirstPartyIsolation) {
+            return false
+        }
+        if (tab.currentUrl.isNullOrBlank()) {
+            return false
+        }
+        return networkSecurityManager.isCrossSiteNavigation(tab.currentUrl, nextUrl)
     }
 
     fun removeTab(tab: TabInstance) {
@@ -171,6 +234,7 @@ class SessionManager(private val context: Context) {
         tabs.clear()
         purgeGlobalStorage()
         activeSessionId = FingerprintManager.newSessionId()
+        configureProxy()
 
         if (terminateProcess) {
             android.os.Process.killProcess(android.os.Process.myPid())
@@ -198,5 +262,57 @@ class SessionManager(private val context: Context) {
 
     private fun buildInjectionScript(profile: DeviceProfile): String {
         return ScriptInjector(profile, privacyPolicy).wrapScript(baseObfuscatorScript)
+    }
+
+    private fun configureProxy() {
+        if (!privacyPolicy.enforceLoopbackProxy || !WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+            securityController.updateProxyStatus(active = false, dohGlobal = false, port = null)
+            return
+        }
+
+        val port = loopbackProxyServer.start()
+        val proxyConfig = ProxyConfig.Builder()
+            .removeImplicitRules()
+            .addProxyRule("http://127.0.0.1:$port", ProxyConfig.MATCH_ALL_SCHEMES)
+            .build()
+
+        ProxyController.getInstance().setProxyOverride(
+            proxyConfig,
+            ContextCompat.getMainExecutor(context)
+        ) {
+            securityController.updateProxyStatus(active = true, dohGlobal = true, port = port)
+        }
+    }
+
+    private fun handleSecurityEvent(rawMessage: String) {
+        try {
+            val payload = JSONObject(rawMessage)
+            when (payload.optString("type")) {
+                "webrtc" -> {
+                    securityController.recordWebRtcAttempt(
+                        detail = payload.optString("detail", "webrtc"),
+                        blocked = payload.optBoolean("blocked", true)
+                    )
+                }
+                "websocket" -> {
+                    val detail = payload.optString("url", payload.optString("detail", "websocket"))
+                    val blocked = payload.optBoolean("blocked", true)
+                    securityController.recordWebSocketAttempt(detail, blocked)
+
+                    val socketId = payload.optString("id")
+                    when (payload.optString("state")) {
+                        "open" -> securityController.addConnection(
+                            id = socketId,
+                            host = payload.optString("host"),
+                            port = payload.optInt("port", 443),
+                            type = "WEBSOCKET"
+                        )
+                        "close", "blocked" -> securityController.removeConnection(socketId)
+                    }
+                }
+            }
+        } catch (error: Exception) {
+            Log.w("SessionManager", "Failed to parse security event: $rawMessage", error)
+        }
     }
 }

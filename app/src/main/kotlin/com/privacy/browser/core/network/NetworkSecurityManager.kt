@@ -14,14 +14,20 @@ import java.util.Locale
 class NetworkSecurityManager(
     private val policyProvider: () -> PrivacyPolicy
 ) {
-    private val secureClient by lazy { DnsManager.secureClient(blockIpv6 = true) }
-
     fun sanitizeNavigationUrl(rawUrl: String): String? {
         val trimmed = rawUrl.trim()
         if (trimmed.isEmpty()) return null
+        if (trimmed.equals("about:blank", ignoreCase = true)) return trimmed
+
+        val explicitScheme = Regex("^[a-zA-Z][a-zA-Z0-9+.-]*:")
+        if (explicitScheme.containsMatchIn(trimmed) &&
+            !trimmed.startsWith("https://", ignoreCase = true) &&
+            !trimmed.startsWith("http://", ignoreCase = true)
+        ) {
+            return null
+        }
 
         val normalized = when {
-            trimmed.equals("about:blank", ignoreCase = true) -> trimmed
             trimmed.startsWith("https://", ignoreCase = true) -> trimmed
             trimmed.startsWith("http://", ignoreCase = true) -> "https://${trimmed.removePrefix("http://")}"
             trimmed.contains("://") -> null
@@ -133,6 +139,7 @@ class NetworkSecurityManager(
         profile: DeviceProfile,
         topLevelHost: String?
     ): WebResourceResponse? {
+        val policy = policyProvider()
         val httpUrl = decision.sanitizedUrl.toHttpUrlOrNull() ?: return null
         if (!request.method.equals("GET", ignoreCase = true) && !request.method.equals("HEAD", ignoreCase = true)) {
             return null
@@ -144,7 +151,7 @@ class NetworkSecurityManager(
             .method(request.method, null)
             .build()
 
-        val response = secureClient.newCall(okHttpRequest).execute()
+        val response = DnsManager.secureClient(policy.blockIpv6).newCall(okHttpRequest).execute()
         val contentType = response.body?.contentType()
         val mimeType = contentType?.type + "/" + contentType?.subtype
         val charset = contentType?.charset(Charsets.UTF_8)?.name() ?: "UTF-8"
@@ -172,6 +179,37 @@ class NetworkSecurityManager(
 
     fun isWebSocketUrl(url: String): Boolean {
         return url.startsWith("ws://", ignoreCase = true) || url.startsWith("wss://", ignoreCase = true)
+    }
+
+    fun siteKeyForUrl(url: String?): String? {
+        val host = url?.toHttpUrlOrNull()?.host ?: return null
+        return siteKeyForHost(host)
+    }
+
+    fun siteKeyForHost(host: String?): String? {
+        val normalizedHost = host?.lowercase(Locale.US)?.trim()?.removeSuffix(".") ?: return null
+        if (normalizedHost.isBlank()) return null
+        if (normalizedHost == "localhost" || normalizedHost.contains(":")) return normalizedHost
+
+        val labels = normalizedHost.split(".").filter { it.isNotBlank() }
+        return if (labels.size >= 2) {
+            labels.takeLast(2).joinToString(".")
+        } else {
+            normalizedHost
+        }
+    }
+
+    fun isCrossSiteNavigation(currentUrl: String?, nextUrl: String): Boolean {
+        val currentSite = siteKeyForUrl(currentUrl)
+        val nextSite = siteKeyForUrl(nextUrl)
+        return currentSite != null && nextSite != null && currentSite != nextSite
+    }
+
+    fun isTunnelAllowed(host: String, port: Int): Boolean {
+        val policy = policyProvider()
+        if (port <= 0 || port > 65535) return false
+        if (policy.httpsOnlyEnabled && port == 80) return false
+        return !isLocalNetworkHost(host)
     }
 
     private fun sanitizeUrlIfEnabled(url: String): String {
@@ -327,7 +365,7 @@ class NetworkSecurityManager(
             !normalizedTopLevel.endsWith(".$normalizedHost")
     }
 
-    private fun isLocalNetworkHost(host: String): Boolean {
+    fun isLocalNetworkHost(host: String): Boolean {
         val normalizedHost = host.lowercase(Locale.US)
         if (normalizedHost == "localhost" || normalizedHost.endsWith(".local")) {
             return true

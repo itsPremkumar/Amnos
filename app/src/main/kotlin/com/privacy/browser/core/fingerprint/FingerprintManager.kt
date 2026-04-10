@@ -1,5 +1,6 @@
 package com.privacy.browser.core.fingerprint
 
+import com.privacy.browser.core.security.FingerprintProtectionLevel
 import java.util.UUID
 import kotlin.math.abs
 import kotlin.random.Random
@@ -50,11 +51,17 @@ private data class DeviceTemplate(
 )
 
 object FingerprintManager {
-    private val localePresets = listOf(
+    private val balancedLocalePresets = listOf(
         LocalePreset(listOf("en-US", "en"), "America/New_York", 300),
         LocalePreset(listOf("en-GB", "en"), "Europe/London", 0),
         LocalePreset(listOf("de-DE", "de"), "Europe/Berlin", -60),
         LocalePreset(listOf("fr-FR", "fr"), "Europe/Paris", -60)
+    )
+
+    private val strictLocalePreset = LocalePreset(
+        languages = listOf("en-US", "en"),
+        timeZone = "UTC",
+        timezoneOffsetMinutes = 0
     )
 
     private val androidTemplates = listOf(
@@ -89,8 +96,8 @@ object FingerprintManager {
             ),
             platform = "Linux armv8l",
             screen = ScreenSpecs(393, 873, 393, 829, 24, 24, 2.75),
-            hardwareConcurrency = 12,
-            deviceMemory = 12,
+            hardwareConcurrency = 8,
+            deviceMemory = 8,
             gpuVendor = "ARM",
             gpuRenderer = "Mali-G710"
         )
@@ -100,13 +107,26 @@ object FingerprintManager {
 
     fun newTabId(): String = UUID.randomUUID().toString()
 
-    fun generateCoherentProfile(sessionId: String, tabId: String): DeviceProfile {
+    fun generateCoherentProfile(
+        sessionId: String,
+        tabId: String,
+        level: FingerprintProtectionLevel
+    ): DeviceProfile {
         val sessionRandom = seededRandom(sessionId)
         val tabRandom = seededRandom(sessionId, tabId)
 
-        val template = androidTemplates[abs(sessionRandom.nextInt()) % androidTemplates.size]
-        val locale = localePresets[abs(tabRandom.nextInt()) % localePresets.size]
-        val userAgent = template.userAgents[abs(tabRandom.nextInt()) % template.userAgents.size]
+        val template = when (level) {
+            FingerprintProtectionLevel.BALANCED -> androidTemplates[abs(sessionRandom.nextInt()) % androidTemplates.size]
+            FingerprintProtectionLevel.STRICT -> androidTemplates[abs(tabRandom.nextInt()) % 2]
+        }
+        val locale = when (level) {
+            FingerprintProtectionLevel.BALANCED -> balancedLocalePresets[abs(tabRandom.nextInt()) % balancedLocalePresets.size]
+            FingerprintProtectionLevel.STRICT -> strictLocalePreset
+        }
+        val userAgent = when (level) {
+            FingerprintProtectionLevel.BALANCED -> template.userAgents[abs(tabRandom.nextInt()) % template.userAgents.size]
+            FingerprintProtectionLevel.STRICT -> template.userAgents.first()
+        }
 
         return DeviceProfile(
             sessionId = sessionId,
@@ -114,8 +134,8 @@ object FingerprintManager {
             userAgent = userAgent,
             platform = template.platform,
             languages = locale.languages,
-            hardwareConcurrency = template.hardwareConcurrency,
-            deviceMemory = template.deviceMemory,
+            hardwareConcurrency = 8,
+            deviceMemory = 8,
             timeZone = locale.timeZone,
             timezoneOffsetMinutes = locale.timezoneOffsetMinutes,
             screen = template.screen,

@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.privacy.browser.core.security.FingerprintProtectionLevel
 import com.privacy.browser.core.security.JavaScriptMode
 import com.privacy.browser.core.session.SecurityController
 import com.privacy.browser.ui.screens.browser.BrowserViewModel
@@ -122,6 +123,7 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
+                                Text("${viewModel.activeConnections.size} Active Connections", color = Color.Gray, fontSize = 11.sp)
                                 Text("${viewModel.requestLog.size} Volatile Events", color = Color.Gray, fontSize = 11.sp)
                             }
                             Box(
@@ -134,9 +136,24 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
                         }
                     }
 
+                    StatusCard(
+                        title = "Transport",
+                        lines = listOf(
+                            "Proxy: ${viewModel.proxyStatus.value}",
+                            "DoH: ${viewModel.dohStatus.value}",
+                            "WebRTC: ${viewModel.webRtcStatus.value} (${viewModel.webRtcAttemptCount.value} events)",
+                            "WebSocket: ${viewModel.webSocketStatus.value} (${viewModel.webSocketAttemptCount.value} events)"
+                        )
+                    )
+
                     JavaScriptModeSelector(
                         selectedMode = viewModel.javaScriptMode.value,
                         onModeSelected = viewModel::setJavaScriptMode
+                    )
+
+                    FingerprintLevelSelector(
+                        selectedLevel = viewModel.fingerprintProtectionLevel.value,
+                        onLevelSelected = viewModel::setFingerprintProtectionLevel
                     )
 
                     SecurityToggle(
@@ -168,6 +185,13 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
                     )
 
                     SecurityToggle(
+                        title = "First-Party Isolation",
+                        description = "Rebuild the browsing silo when top-level site identity changes.",
+                        checked = policy.strictFirstPartyIsolation,
+                        onCheckedChange = viewModel::toggleStrictFirstPartyIsolation
+                    )
+
+                    SecurityToggle(
                         title = "WebGL Spoofing",
                         description = "Disable or spoof GPU surfaces to reduce fingerprint entropy.",
                         checked = viewModel.isWebGLEnabled.value,
@@ -187,7 +211,15 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
 
             Spacer(Modifier.height(24.dp))
             Text(
-                "Amnos v1.1.0 - Local-only privacy controls active",
+                viewModel.privacyWarning.value,
+                color = Color(0xFFFFD166),
+                fontSize = 11.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Amnos v1.2.0 - Loopback privacy controls active",
                 color = Color.Gray,
                 fontSize = 10.sp,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -214,6 +246,27 @@ fun RequestInspectorList(logs: List<SecurityController.RequestEntry>) {
                 items(logs.reversed()) { entry ->
                     RequestItem(entry)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun StatusCard(
+    title: String,
+    lines: List<String>
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(title, color = Color.White, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(8.dp))
+            lines.forEach { line ->
+                Text(line, color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(bottom = 2.dp))
             }
         }
     }
@@ -289,6 +342,36 @@ fun JavaScriptModeSelector(
                     selected = selectedMode == mode,
                     onClick = { onModeSelected(mode) },
                     label = { Text(mode.name) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = AccentBlue.copy(alpha = 0.2f),
+                        selectedLabelColor = Color.White
+                    )
+                )
+            }
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun FingerprintLevelSelector(
+    selectedLevel: FingerprintProtectionLevel,
+    onLevelSelected: (FingerprintProtectionLevel) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+    ) {
+        Text("Fingerprint Protection", color = Color.White, fontWeight = FontWeight.Medium)
+        Text("Balanced favors compatibility. Strict normalizes values and timing more aggressively.", color = Color.Gray, fontSize = 12.sp)
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FingerprintProtectionLevel.values().forEach { level ->
+                FilterChip(
+                    selected = selectedLevel == level,
+                    onClick = { onLevelSelected(level) },
+                    label = { Text(level.name) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = AccentBlue.copy(alpha = 0.2f),
                         selectedLabelColor = Color.White

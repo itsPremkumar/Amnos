@@ -1,86 +1,85 @@
-# 🛡️ Amnos Browser: The God-Tier Privacy Engine
+# Amnos
 
-**Amnos** (derived from *Amnesia* / *The Void*) is an ultra-premium, RAM-only Android web browser engineered for absolute anonymity and forensic-proof session handling. Amnos doesn't just block trackers—it erases the very memory of your existence on the web.
+Amnos is a privacy-focused Android browser built on top of `WebView` and hardened as far as the platform realistically allows. It is designed for local-only browsing sessions, zero persistent footprint, aggressive tracker blocking, and reduced browser fingerprint entropy.
 
----
+Amnos does **not** provide Tor-class anonymity. It is a hardened WebView browser, not an anonymity network client.
 
-## 💎 The Identity Philosophy
+## Current privacy model
 
-### 📛 Why "Amnos"?
-The name **Amnos** is rooted in the concept of **Linguistic Amnesia**. In a world where data is permanent, Amnos represents the "Total Void." It is designed with a single goal: to ensure that your digital self has no past and no future—only a fleeting, unrecorded present.
+Amnos now includes:
 
-### 🔘 The Chrome Portal Logo
-The **Chrome Portal** (a negative-space 'A' floating within a liquid mercury ring) represents the entry point to the web. 
-*   **The Ring**: Represents the fluid, high-velocity nature of RAM-only processing.
-*   **The Negative Space "A"**: Symbolizes that your identity in Amnos is a "void"—present enough to browse, but leaving zero weight or footprint behind.
-*   **The Event Horizon Glow**: A deep purple aura representing the protective boundary between your device and the public internet.
+- HTTPS-only navigation and cleartext denial
+- loopback proxy support for broader DoH coverage via `ProxyController` where supported
+- DoH-backed request proxying for intercepted traffic
+- WebRTC shutdown via document-start API replacement and fake peer connection objects
+- WebSocket blocking by default, with JS telemetry for attempted socket use
+- document-start fingerprint overrides for UA, screen, timezone, language, hardware, fonts, canvas, audio, and timing
+- RAM-only request inspection and active-connection visibility
+- strict first-party isolation that can rebuild the tab silo when top-level site identity changes
+- disabled cookies, storage, service workers, file chooser access, and persistent downloads
+- volatile internal-only download storage that is wiped with the session
 
----
+## Important limitation
 
-## ⚡ Elite Hardware & Network Hardening
+Amnos provides strong privacy protections, but **not full network anonymity**.
 
-### 1. 🧬 Modular Identity Synthesis (Anti-Fingerprinting)
-Amnos uses a **FingerprintManager** to create a coherent "Device Personality" for each tab:
-*   **Identity Coherence**: Matches User-Agent, Platform, and Screen Specs perfectly to prevent "hybrid identification."
-*   **GPU Masking**: Spoofs WebGL Vendor and Renderer (e.g., masking as an unidentifiable Intel/Apple profile).
-*   **Font Shielding**: Blocks all non-system fonts to prevent CSS-based font enumeration attacks.
-*   **Audio Jitter**: Injects micro-latency into the `AudioContext` to disrupt CPU-timing fingerprinting.
+Known WebView constraints include:
 
-### 2. 🛡️ Network-Level Tactical Defense
-*   **WebSocket Shield**: Intercepts and blocks `ws://` handshakes used for real-time tracking loops.
-*   **Strict Referer Stripping**: Automatically removes the `Referer` header from all third-party requests.
-*   **DNS-over-HTTPS (DoH)**: Encrypts all DNS queries via Cloudflare (1.1.1.1) to prevent ISP-level snooping.
-*   **GPC & DNT Enforcement**: Force-injects `Sec-GPC: 1` and `DNT: 1` headers globally.
+- Chromium internals are still underneath the browser engine
+- not every network path is as controllable as in a custom browser engine
+- encrypted WebSocket payloads inside HTTPS tunnels cannot be deeply inspected without TLS interception
+- real anonymity against network observers still requires a separate anonymity layer such as Tor or a trusted VPN
 
-### 3. 🧠 "Ghost-Grade" Data Isolation
-*   **RAM-Only Silos**: Every session launch generates a unique Randomized UUID silo.
-*   **Ephemeral Downloads**: Downloads are funneled into a volatile cache that is deep-scrubbed on session exit.
-*   **Clipboard Sentinel**: Automatically wipes the system clipboard when the app is backgrounded or killed.
-*   **Dead Man's Switch**: Instantly kills the process and purges forensic artifacts if the app is minimized.
+## Architecture highlights
 
----
+- [FingerprintManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/fingerprint/FingerprintManager.kt)
+  deterministic per-session and per-tab identity generation
+- [FingerprintObfuscator.js](/C:/one/browser/app/src/main/assets/FingerprintObfuscator.js)
+  document-start API overrides, timing mitigation, WebRTC shutdown, WebSocket telemetry
+- [NetworkSecurityManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/NetworkSecurityManager.kt)
+  HTTPS-only policy, request classification, header hardening, site-key logic
+- [LoopbackProxyServer.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/LoopbackProxyServer.kt)
+  local CONNECT proxy for broader DoH-backed resolution
+- [SessionManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/SessionManager.kt)
+  policy ownership, loopback proxy activation, tab recreation, wipe behavior
+- [SecurityDashboard.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/ui/components/SecurityDashboard.kt)
+  live status, counters, toggles, fingerprint mode, and visibility into active connections
 
-## 📊 The Security Cockpit
-Amnos features a real-time **Security Inspector**:
-- **Tracker Kill-Counter**: Live feedback on every privacy threat neutralized.
-- **Request Inspector**: A transparent, RAM-only log of every document, script, and XHR request made by the current page.
-- **Toggle Suite**: Granular control over the JavaScript Engine, WebGL Masking, and Font Shields.
+More detail lives in:
 
----
+- [ARCHITECTURE.md](/C:/one/browser/ARCHITECTURE.md)
+- [SECURITY_AUDIT.md](/C:/one/browser/SECURITY_AUDIT.md)
+- [VALIDATION.md](/C:/one/browser/VALIDATION.md)
 
-## 📁 Project Architecture
-- **`core/fingerprint`**: Coherent Identity generation and JS injection logic.
-- **`core/network`**: Hardened protocol handling (Referer, WebSockets, DoH).
-- **`core/session`**: Lifecycle management, volatile storage, and the Dead Man's Switch.
-- **`ui/`**: Professional Material 3 "Security Cockpit" and state-driven navigation.
+## Build
 
----
+Requirements:
 
-## 🚀 Getting Started for Developers
+- Android Studio Giraffe or newer
+- JDK 17
+- Android SDK for API 34
 
-### 🛠️ Build Requirements
-- **Android Studio Giraffe+**
-- **JDK 17**
-- **Gradle 8.0+**
+Commands:
 
-### 📦 Installation
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/yourusername/amnos-browser.git
-   ```
-2. **Open the project** in Android Studio.
-3. **Synchronize Gradle** and wait for dependencies to download.
-4. **Run** on a physical device or emulator (API 28+).
+```bash
+./gradlew testDebugUnitTest
+./gradlew assembleDebug
+```
 
----
+## Validation status
 
-## 🤝 Community & Support
-- **Contributing**: Please see [CONTRIBUTING.md](file:///c:/one/browser/CONTRIBUTING.md) for our coding standards.
-- **Reporting Bugs**: Open an [Issue](https://github.com/yourusername/amnos-browser/issues).
-- **Security**: Please see [SECURITY.md](file:///c:/one/browser/SECURITY.md) for responsible disclosure.
+Validated from this machine on April 10, 2026:
 
-## 🏁 Future Roadmap
-Check our [Architecture Draft](file:///c:/one/browser/ARCHITECTURE.md) for planned features like **Proxy Integration** and **Per-Domain JS Permissions**.
+- `./gradlew testDebugUnitTest` passed
 
-## 📜 License
-Released under the **MIT License**. See [LICENSE](file:///c:/one/browser/LICENSE) for details. (Note: Please add a LICENSE file to the root).
+Not completed from this machine:
+
+- physical device validation
+- emulator-based leak testing
+- on-device WebRTC, DNS, and compatibility sweeps
+
+See [VALIDATION.md](/C:/one/browser/VALIDATION.md) for the exact manual test plan and current gaps.
+
+## Security reporting
+
+See [SECURITY.md](/C:/one/browser/SECURITY.md).

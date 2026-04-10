@@ -6,15 +6,22 @@ import android.view.View
 import android.webkit.CookieManager
 import android.webkit.WebSettings
 import android.webkit.WebView
+import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.ServiceWorkerControllerCompat
+import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import androidx.webkit.ScriptHandler
 import com.privacy.browser.core.fingerprint.DeviceProfile
 import com.privacy.browser.core.security.PrivacyPolicy
+import android.net.Uri
 
 class SecureWebView(context: Context) : WebView(context) {
+    companion object {
+        private const val BRIDGE_NAME = "amnosBridge"
+    }
+
     private var scriptHandler: ScriptHandler? = null
     private var fallbackInjectionScript: String? = null
 
@@ -22,7 +29,8 @@ class SecureWebView(context: Context) : WebView(context) {
     fun applyHardening(
         profile: DeviceProfile,
         policy: PrivacyPolicy,
-        injectionScript: String
+        injectionScript: String,
+        onSecurityEvent: (String) -> Unit
     ) {
         fallbackInjectionScript = injectionScript
 
@@ -64,15 +72,17 @@ class SecureWebView(context: Context) : WebView(context) {
         configureCookies()
         configureRequestedWithHeader()
         configureServiceWorkers(policy)
+        installSecurityBridge(onSecurityEvent)
         installDocumentStartScript(policy, injectionScript)
     }
 
     fun updateRuntimePolicy(
         profile: DeviceProfile,
         policy: PrivacyPolicy,
-        injectionScript: String
+        injectionScript: String,
+        onSecurityEvent: (String) -> Unit
     ) {
-        applyHardening(profile, policy, injectionScript)
+        applyHardening(profile, policy, injectionScript, onSecurityEvent)
     }
 
     fun injectFallbackScript() {
@@ -84,6 +94,12 @@ class SecureWebView(context: Context) : WebView(context) {
     fun clearVolatileState() {
         scriptHandler?.remove()
         scriptHandler = null
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            try {
+                WebViewCompat.removeWebMessageListener(this, BRIDGE_NAME)
+            } catch (ignored: Exception) {
+            }
+        }
 
         stopLoading()
         loadUrl("about:blank")
@@ -110,6 +126,25 @@ class SecureWebView(context: Context) : WebView(context) {
                 injectionScript,
                 setOf("*")
             )
+        }
+    }
+
+    private fun installSecurityBridge(onSecurityEvent: (String) -> Unit) {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            return
+        }
+
+        try {
+            WebViewCompat.removeWebMessageListener(this, BRIDGE_NAME)
+        } catch (ignored: Exception) {
+        }
+
+        WebViewCompat.addWebMessageListener(
+            this,
+            BRIDGE_NAME,
+            setOf("*")
+        ) { _: WebView, message: WebMessageCompat, _: Uri, _: Boolean, _: JavaScriptReplyProxy ->
+            message.data?.let(onSecurityEvent)
         }
     }
 

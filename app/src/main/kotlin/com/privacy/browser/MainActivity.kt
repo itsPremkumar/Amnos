@@ -27,6 +27,7 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             Log.e("MainActivity", "Failed to set data suffix", e)
         }
+        WebView.setWebContentsDebuggingEnabled(false)
 
         window.setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,

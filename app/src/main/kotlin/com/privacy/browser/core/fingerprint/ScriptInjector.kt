@@ -1,6 +1,7 @@
 package com.privacy.browser.core.fingerprint
 
 import com.privacy.browser.core.security.PrivacyPolicy
+import com.privacy.browser.core.security.FingerprintProtectionLevel
 import com.privacy.browser.core.security.WebGlMode
 import org.json.JSONArray
 import org.json.JSONObject
@@ -43,12 +44,23 @@ class ScriptInjector(
         val policyObj = JSONObject()
         policyObj.put("blockInlineScripts", policy.blockInlineScripts)
         policyObj.put("blockWebSockets", policy.blockWebSockets)
+        policyObj.put("allowFirstPartyWebSockets", policy.allowFirstPartyWebSockets)
         policyObj.put("blockWebRtc", policy.blockWebRtc)
         policyObj.put("blockDnsPrefetch", policy.blockDnsPrefetch)
         policyObj.put("blockPreconnect", policy.blockPreconnect)
         policyObj.put("blockEval", policy.blockEval)
         policyObj.put("blockServiceWorkers", policy.blockServiceWorkers)
         policyObj.put("webGlDisabled", policy.webGlMode == WebGlMode.DISABLED)
+        policyObj.put("strictFirstPartyIsolation", policy.strictFirstPartyIsolation)
+        policyObj.put("fingerprintLevel", policy.fingerprintProtectionLevel.name)
+        policyObj.put(
+            "timingResolutionMs",
+            if (policy.fingerprintProtectionLevel == FingerprintProtectionLevel.STRICT) 100 else 16
+        )
+        policyObj.put(
+            "timingJitterMs",
+            if (policy.fingerprintProtectionLevel == FingerprintProtectionLevel.STRICT) 12 else 3
+        )
         root.put("policy", policyObj)
 
         return root.toString()

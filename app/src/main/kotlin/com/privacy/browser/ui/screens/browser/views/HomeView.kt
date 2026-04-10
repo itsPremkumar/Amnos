@@ -68,6 +68,14 @@ fun HomeView(viewModel: BrowserViewModel) {
             modifier = Modifier.padding(top = 8.dp)
         )
 
+        Text(
+            text = "Strong privacy protections, but not full network anonymity.",
+            fontSize = 12.sp,
+            color = Color(0xFFFFD166),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 10.dp)
+        )
+
         Spacer(modifier = Modifier.height(48.dp))
 
         OutlinedTextField(

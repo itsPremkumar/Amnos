@@ -2,174 +2,179 @@
 
 Audit date: April 10, 2026
 Project: Amnos Android privacy browser
-Scope: `app/` source, manifest, Gradle/build wiring, WebView/network/session/privacy layers
+Scope: Android source, WebView hardening, session lifecycle, fingerprinting defenses, local transport/privacy controls, validation artifacts
 
 ## Executive summary
 
-The original codebase had the right privacy-oriented package layout, but several protections were incomplete or inaccurately represented. The largest gaps were that DNS-over-HTTPS was not connected to WebView traffic, Referer handling did not truly strip headers, WebRTC protection relied mostly on permission denial, cleartext traffic was not denied at the manifest/network-security layer, and the in-app kill switch attempted to recreate a session after immediately killing the process.
+Amnos now goes beyond a standard hardened WebView browser by combining:
 
-The codebase has now been refactored into a stricter policy-driven browser core with:
+- manifest-level cleartext denial
+- request filtering and tracker blocking
+- loopback proxy transport hardening with DoH-backed DNS resolution
+- document-start WebRTC/WebSocket suppression and telemetry
+- normalized fingerprint protection levels
+- strict first-party isolation for top-level site transitions
+- internal-only ephemeral downloads and wipe-on-session-end behavior
 
-- HTTPS-only enforcement at both manifest and request-filter layers
-- document-start fingerprint/API override injection
-- disabled cookies, storage, service workers, and `X-Requested-With`
-- proxied GET/HEAD request fetching through a DoH-backed OkHttp client
-- third-party/tracker/script blocking with a live RAM-only request inspector
-- per-tab identity profiles with reset-on-refresh support
-- background/session wipe handling that can either purge in-process or terminate the app
-- regenerated Gradle wrapper and passing JVM tests
+The browser is materially stronger than the earlier baseline, but it still remains bound by Android WebView platform limits. It should be presented as a hardened privacy browser, not a full anonymity browser.
 
-## High-risk findings in the original code
+## Major improvements in this round
 
-1. DoH was implemented but not used by WebView.
-   `DnsManager` built an OkHttp DoH client, but WebView traffic still used Chromium's default network stack.
+### 1. WebRTC leak mitigation
 
-2. Referer stripping was incorrect.
-   `NetworkSecurityManager` replaced cross-site Referer values with `https://<domain>/` instead of removing them.
+Implemented in [FingerprintObfuscator.js](/C:/one/browser/app/src/main/assets/FingerprintObfuscator.js):
 
-3. WebRTC protection was overstated.
-   Permission denial alone does not disable `RTCPeerConnection` or WebRTC fingerprint surfaces.
+- `RTCPeerConnection` replaced with a fake implementation when blocking is enabled
+- `RTCSessionDescription` and `RTCIceCandidate` replaced with inert shims
+- ICE gathering short-circuited
+- `RTCDataChannel` creation blocked
+- `getUserMedia()` remains blocked
+- WebRTC attempts are reported to the native security controller through the WebMessage bridge
 
-4. Request interception was mostly declarative, not enforceable.
-   Tracker blocking and HTTPS-only logic blocked some URLs, but did not give Amnos control over most request headers, DNS resolution, or response policies.
+Impact:
 
-5. WebView fingerprint leakage remained exposed.
-   `X-Requested-With`, service workers, local/session storage surfaces, and several Web APIs were still available.
+- page JavaScript no longer gets a working WebRTC peer connection object
+- STUN candidate gathering is prevented at the JavaScript API layer
+- real on-device leak validation is still required to confirm Chromium does not emit any network activity outside the replaced API path
 
-6. Kill-switch flow was broken.
-   `BrowserViewModel.killSwitch()` called `killAll()` and then attempted to reinitialize a session, but `killAll()` killed the process first.
+### 2. Stronger DNS privacy
 
-7. Manifest/network configuration was incomplete.
-   Cleartext traffic was not denied by manifest or network security config.
+Implemented in:
 
-8. Repository build hygiene was incomplete.
-   `proguard-rules.pro` and `gradle-wrapper.jar` were missing, so release configuration and wrapper-driven builds were not reliable.
+- [DnsManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/DnsManager.kt)
+- [LoopbackProxyServer.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/LoopbackProxyServer.kt)
+- [SessionManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/SessionManager.kt)
 
-## Implemented remediations
+What changed:
 
-### Manifest and platform
+- a local loopback CONNECT proxy now resolves upstream hosts through DoH before opening tunnels
+- `ProxyController` is used when supported by the installed WebView
+- active proxy status and DoH coverage are surfaced to the dashboard
+- IPv6 fallback remains disabled in the DoH resolver path
 
-- Added `android:usesCleartextTraffic="false"` in [AndroidManifest.xml](/C:/one/browser/app/src/main/AndroidManifest.xml)
-- Added [network_security_config.xml](/C:/one/browser/app/src/main/res/xml/network_security_config.xml) to deny cleartext traffic
-- Kept `FLAG_SECURE` and `allowBackup="false"`
-- Regenerated the Gradle wrapper so `./gradlew` works again
+Impact:
 
-### WebView hardening
+- non-intercepted WebView traffic has a stronger chance of staying within the app-controlled DoH path
+- fallback to system DNS is reduced when proxy override is active
 
-- Centralized runtime policy in [PrivacyPolicy.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/security/PrivacyPolicy.kt)
-- Hardened [SecureWebView.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/webview/SecureWebView.kt) with:
-  - disabled cookies and third-party cookies
-  - disabled DOM storage/database/file/content access
-  - disabled `X-Requested-With` origin allowlist
-  - disabled or blocked service workers
-  - document-start script installation
-- Extended [PrivacyWebChromeClient.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/webview/PrivacyWebChromeClient.kt) to deny permissions, geolocation, popups, and file chooser access
+Remaining limit:
 
-### Network and request filtering
+- WebView proxy override support depends on the WebView implementation and platform support
+- internal Chromium behaviors may still escape full proxy control in edge cases
 
-- Replaced best-effort logic in [NetworkSecurityManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/NetworkSecurityManager.kt) with:
-  - navigation URL upgrade/sanitization
-  - per-request classification
-  - third-party blocking
-  - third-party script blocking
-  - HTTPS-only blocking
-  - local network/IP literal blocking
-  - proxied GET/HEAD fetches through a DoH-backed OkHttp client
-  - response hardening headers including `Referrer-Policy`, `Permissions-Policy`, `Cache-Control`, and CSP in restricted mode
-- Reworked [DnsManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/DnsManager.kt) to expose IPv4-filtered DoH lookups
-- Rewrote [UrlSanitizer.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/UrlSanitizer.kt) using OkHttp `HttpUrl` so it is deterministic and unit-testable
+### 3. WebSocket and background channel control
 
-### Fingerprinting and Web API protection
+Implemented in:
 
-- Rebuilt [FingerprintManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/fingerprint/FingerprintManager.kt) for deterministic per-session/per-tab Android-like device profiles
-- Reworked [ScriptInjector.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/fingerprint/ScriptInjector.kt) to carry both profile and policy flags
-- Replaced [FingerprintObfuscator.js](/C:/one/browser/app/src/main/assets/FingerprintObfuscator.js) with document-start protection for:
-  - UA/platform/language/timezone/screen spoofing
-  - storage API suppression
-  - WebRTC blocking
-  - WebSocket blocking
-  - service worker blocking
-  - sensors, camera, mic, location, battery, clipboard restrictions
-  - canvas/audio noise
-  - font restriction
-  - prefetch/preconnect suppression
-  - eval/function/WebAssembly blocking in restricted mode
+- [FingerprintObfuscator.js](/C:/one/browser/app/src/main/assets/FingerprintObfuscator.js)
+- [SecurityController.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/SecurityController.kt)
 
-### Session and storage isolation
+What changed:
 
-- Refactored [SessionManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/SessionManager.kt) to:
-  - own the active privacy policy
-  - generate per-tab identities
-  - support reset-on-refresh by recreating the tab
-  - separate purge-only wipes from process termination
-  - maintain a session timeout callback
-- Expanded [StorageController.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/StorageController.kt) with actual volatile download storage and wipe support
-- Updated [ClipboardSentinel.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/security/ClipboardSentinel.kt) to use `ClipData`
-- Expanded [SecurityController.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/SecurityController.kt) into a richer RAM-only request log with blocked/passthrough/allowed dispositions
+- WebSocket is wrapped at document start
+- blocked attempts are logged in RAM only
+- allowed connections can emit open/close/error telemetry
+- the dashboard now shows WebSocket status and event counts
 
-### UI and transparency
+Remaining limit:
 
-- Updated [BrowserViewModel.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/ui/screens/browser/BrowserViewModel.kt) so the UI controls real policy state
-- Updated [SecurityDashboard.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/ui/components/SecurityDashboard.kt) with:
-  - JS mode selection
-  - HTTPS-only toggle
-  - third-party blocking toggle
-  - inline script shield toggle
-  - WebSocket shield toggle
-  - WebGL toggle
-  - identity-reset-on-refresh toggle
-  - richer request inspector metadata
+- encrypted `wss://` traffic inside a CONNECT tunnel cannot be deep-inspected without TLS interception
+- Amnos therefore blocks at the JavaScript API boundary instead of trying to MITM traffic
 
-## Validation completed
+### 4. Advanced fingerprint resistance
 
-Executed locally on April 10, 2026:
+Implemented in:
+
+- [FingerprintManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/fingerprint/FingerprintManager.kt)
+- [ScriptInjector.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/fingerprint/ScriptInjector.kt)
+- [FingerprintObfuscator.js](/C:/one/browser/app/src/main/assets/FingerprintObfuscator.js)
+
+What changed:
+
+- added fingerprint protection levels: `BALANCED` and `STRICT`
+- strict mode normalizes timezone and hardware values more aggressively
+- `performance.now()`, `Date.now()`, and `requestAnimationFrame()` are quantized and jittered
+- `measureText()` is rounded in strict mode
+- font detection is further reduced by disabling `FontFace` in strict mode and forcing system-style fonts
+
+### 5. First-party isolation
+
+Implemented in:
+
+- [NetworkSecurityManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/NetworkSecurityManager.kt)
+- [SessionManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/SessionManager.kt)
+- [BrowserViewModel.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/ui/screens/browser/BrowserViewModel.kt)
+
+What changed:
+
+- site keys are derived from top-level URLs
+- when strict first-party isolation is enabled, a top-level cross-site navigation recreates the tab silo
+- current top-level site identity is tracked on the tab instance
+
+Impact:
+
+- Amnos now reduces cross-site continuity further than “disable storage” alone
+
+### 6. Download and file leak protection
+
+Implemented in [StorageController.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/StorageController.kt):
+
+- downloads stay in the app’s internal cache area
+- external app opening is not triggered by the browser
+- volatile downloads are wiped on session destruction
+
+### 7. Dashboard and transparency
+
+Updated [SecurityDashboard.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/ui/components/SecurityDashboard.kt) to show:
+
+- proxy status
+- DoH status
+- WebRTC status and event count
+- WebSocket status and event count
+- active connection count
+- fingerprint protection level
+- explicit warning that Amnos is not a full anonymity browser
+
+## Current residual limitations
+
+1. Full anonymity is still out of scope.
+   Amnos does not hide the user’s public IP the way Tor Browser does.
+
+2. Loopback proxy control is bounded by WebView support.
+   If `ProxyController` is unsupported or partially honored by the installed WebView, some internal Chromium paths may still avoid the proxy.
+
+3. WebRTC shutdown is strongest at the JavaScript boundary.
+   The fake peer-connection layer is intentionally aggressive, but final confirmation must come from device-side leak testing.
+
+4. Deep encrypted tunnel inspection is intentionally not performed.
+   Amnos does not MITM TLS traffic, so `wss://` inspection is limited to API-level controls and telemetry.
+
+5. First-party isolation is site-key based.
+   It meaningfully improves separation, but it is not equivalent to Tor Browser’s origin isolation model.
+
+## Validation completed from this machine
+
+Executed successfully on April 10, 2026:
 
 - `./gradlew testDebugUnitTest`
 
-Result:
+Unit coverage now includes:
 
-- build passed
-- JVM tests passed
-
-Added tests:
-
-- [UrlSanitizerTest.kt](/C:/one/browser/app/src/test/kotlin/com/privacy/browser/core/network/UrlSanitizerTest.kt)
 - [FingerprintManagerTest.kt](/C:/one/browser/app/src/test/kotlin/com/privacy/browser/core/fingerprint/FingerprintManagerTest.kt)
+- [UrlSanitizerTest.kt](/C:/one/browser/app/src/test/kotlin/com/privacy/browser/core/network/UrlSanitizerTest.kt)
+- [NetworkSecurityManagerTest.kt](/C:/one/browser/app/src/test/kotlin/com/privacy/browser/core/network/NetworkSecurityManagerTest.kt)
 
-## Residual limitations and honest scope boundaries
+## Validation not completed from this machine
 
-These are important Android WebView limitations, not hidden failures:
+Not completed because no Android device or emulator was attached:
 
-1. DoH is not universally enforceable for every Chromium-internal network path.
-   Amnos now forces DoH for proxied GET/HEAD requests and ephemeral downloads. Non-proxied methods such as POST still rely on WebView's native stack after policy checks.
+- WebRTC leak-site verification
+- DNS leak-site verification
+- live fingerprint comparison across sessions on real devices
+- login-heavy/media-heavy/manual compatibility sweeps
 
-2. Per-tab isolation is policy-based rather than process-isolated.
-   Cookies, DOM storage, service workers, and persistent storage are disabled, but separate renderer/network processes per tab are not something standard Android WebView exposes to apps.
+See [VALIDATION.md](/C:/one/browser/VALIDATION.md) for the exact manual and adb-based validation plan.
 
-3. Restricted-mode CSP and third-party blocking will break some sites by design.
-   This is an intentional privacy/security tradeoff.
+## Conclusion
 
-4. Full on-device leak validation was not executed in this environment.
-   No live device/emulator tests against real websites, WebRTC leak pages, or persistence-forensics checks were run here.
-
-5. Some protections are best-effort JavaScript/API shims.
-   They raise the cost of fingerprinting and API abuse, but WebView is still Chromium underneath and cannot match Tor Browser's anti-fingerprinting guarantees.
-
-## Recommended next validation steps
-
-- Run instrumented tests on a physical Android 13/14 device
-- Validate WebRTC leak pages with JS `FULL`, `RESTRICTED`, and `DISABLED` modes
-- Verify no cookies/storage persist after:
-  - tab close
-  - refresh identity reset
-  - background/terminate
-- Test compatibility on:
-  - simple static sites
-  - script-heavy SPAs
-  - login flows using POST
-  - pages with service workers
-- Add instrumentation around third-party blocking and request rewriting
-
-## Overall status
-
-Amnos is materially closer to a production-grade privacy-first WebView browser after this refactor, but it should be described honestly as a hardened local privacy browser with known Android WebView platform limits, not as a Tor-class anonymity browser.
+Amnos is now a more serious privacy-focused Android WebView browser with a stronger transport story, better first-party isolation, and more transparent runtime status. The project should still be documented and marketed honestly as a hardened WebView browser with explicit WebView-era limitations.

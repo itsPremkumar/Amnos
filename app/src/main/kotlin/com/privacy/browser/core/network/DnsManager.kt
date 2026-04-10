@@ -26,14 +26,18 @@ object DnsManager {
             .build()
     }
 
+    fun lookup(hostname: String, blockIpv6: Boolean): List<InetAddress> {
+        val resolved = dnsOverHttps.lookup(hostname)
+        return if (!blockIpv6) {
+            resolved
+        } else {
+            resolved.filterIsInstance<Inet4Address>().ifEmpty { resolved }
+        }
+    }
+
     fun dns(blockIpv6: Boolean): Dns = object : Dns {
         override fun lookup(hostname: String): List<InetAddress> {
-            val resolved = dnsOverHttps.lookup(hostname)
-            return if (!blockIpv6) {
-                resolved
-            } else {
-                resolved.filterIsInstance<Inet4Address>().ifEmpty { resolved }
-            }
+            return DnsManager.lookup(hostname, blockIpv6)
         }
     }
 

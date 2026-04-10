@@ -19,7 +19,8 @@ class PrivacyWebViewClient(
     private val networkSecurityManager: NetworkSecurityManager,
     private val securityController: SecurityController,
     private val onTrackerBlocked: () -> Unit,
-    private val onStateChanged: (String) -> Unit
+    private val onStateChanged: (String) -> Unit,
+    private val onNavigationRequested: (String) -> Boolean
 ) : WebViewClient() {
 
     private var currentHost: String? = null
@@ -41,12 +42,10 @@ class PrivacyWebViewClient(
         }
 
         if (sanitizedUrl == url) {
-            return false
+            return onNavigationRequested(url)
         }
 
-        val headers = networkSecurityManager.buildNavigationHeaders(sanitizedUrl, deviceProfile, currentHost)
-        view?.loadUrl(sanitizedUrl, headers)
-        return true
+        return onNavigationRequested(sanitizedUrl)
     }
 
     override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {

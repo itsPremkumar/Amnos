@@ -1,27 +1,55 @@
 # Security Policy
 
-## 🛡️ Our Commitment
-Amnos is built on a "Privacy-First" and "Zero-Trust" philosophy. Bug reports regarding data leakage, fingerprinting bypasses, or storage persistence are our highest priority.
+## Commitment
 
-## ☣️ Reporting a Vulnerability
+Amnos prioritizes privacy, storage minimization, and WebView hardening. Reports involving:
 
-**Please do not open a public Issue for security vulnerabilities.** 
+- data persistence
+- WebRTC leaks
+- DNS leaks
+- fingerprinting bypasses
+- tracker-blocking bypasses
+- unsafe external-launch or file-handling behavior
 
-Instead, please report security issues via:
-- **Email**: [Insert Your Security Email Here]
-- **Private Disclosure**: Use the GitHub "Private Vulnerability Reporting" feature if enabled on this repository.
+should be treated as high priority.
 
-### What to Include
-- A detailed description of the vulnerability.
-- Steps to reproduce (including your environment/device spec).
-- A Proof of Concept (PoC) if possible.
+## Reporting a vulnerability
 
-## 🤝 Responsible Disclosure
-We ask that you give us a reasonable amount of time to fix the issue before making it public. We will acknowledge your report within **48 hours** and provide a timeline for the fix.
+Do not open a public issue for a security vulnerability.
 
-## 🛑 Out of Scope
-- Attacks requiring physical access to an unlocked device (Though we do have a PIN lock feature, device security is ultimately the user's responsibility).
-- Issues related to third-party services (e.g., Cloudflare DNS outages).
-- Social engineering attacks against users.
+Please report privately with:
 
-Thank you for helping keep Amnos users safe!
+- a clear description of the issue
+- Android version and device model
+- installed WebView package version
+- steps to reproduce
+- whether the issue reproduces with fingerprint protection set to `BALANCED` or `STRICT`
+- whether loopback proxy support was active in the dashboard
+
+## What Amnos does and does not claim
+
+Amnos aims to provide strong local privacy protections inside Android WebView.
+
+Amnos does **not** claim:
+
+- full anonymity like Tor Browser
+- complete control over every Chromium internal network path
+- guaranteed prevention of all fingerprinting strategies
+
+If a report demonstrates one of those WebView platform boundaries more clearly, that is still useful and should be documented.
+
+## Out of scope
+
+- attacks requiring physical access to an unlocked device before the wipe occurs
+- anonymity claims that depend on Tor-like network routing, which Amnos does not provide
+- failures caused by external network services outside the app’s control, unless Amnos handles them unsafely
+
+## Validation expectation
+
+Whenever possible, privacy bugs should be reproduced on:
+
+- a physical Android device
+- at least one emulator
+- a known leak-test site or repeatable reproduction page
+
+See [VALIDATION.md](/C:/one/browser/VALIDATION.md) for the current validation workflow.

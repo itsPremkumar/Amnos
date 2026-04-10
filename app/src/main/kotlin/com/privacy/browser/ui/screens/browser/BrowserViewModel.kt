@@ -3,6 +3,7 @@ package com.privacy.browser.ui.screens.browser
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.privacy.browser.core.network.UrlSanitizer
+import com.privacy.browser.core.security.FingerprintProtectionLevel
 import com.privacy.browser.core.security.JavaScriptMode
 import com.privacy.browser.core.security.WebGlMode
 import com.privacy.browser.core.session.SessionManager
@@ -21,9 +22,18 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var privacyPolicy = mutableStateOf(sessionManager.privacyPolicy)
     var javaScriptMode = mutableStateOf(sessionManager.privacyPolicy.javascriptMode)
     var isWebGLEnabled = mutableStateOf(sessionManager.privacyPolicy.webGlMode == WebGlMode.SPOOF)
+    var fingerprintProtectionLevel = mutableStateOf(sessionManager.privacyPolicy.fingerprintProtectionLevel)
     var showSecurityDashboard = mutableStateOf(false)
     var sessionLabel = mutableStateOf(sessionManager.sessionId.take(8))
     val requestLog = sessionManager.securityController.requestLog
+    val activeConnections = sessionManager.securityController.activeConnections
+    val proxyStatus = sessionManager.securityController.proxyStatus
+    val dohStatus = sessionManager.securityController.dohStatus
+    val webRtcStatus = sessionManager.securityController.webRtcStatus
+    val webSocketStatus = sessionManager.securityController.webSocketStatus
+    val webRtcAttemptCount = sessionManager.securityController.webRtcAttemptCount
+    val webSocketAttemptCount = sessionManager.securityController.webSocketAttemptCount
+    val privacyWarning = sessionManager.securityController.warningMessage
     var isLocked = mutableStateOf(false)
     var userPin = "1111"
     var pinInput = mutableStateOf("")
@@ -59,7 +69,8 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         val tab = sessionManager.createTab(
             onStateChanged = stateChangedCallback,
             onProgressChanged = progressChangedCallback,
-            onTrackerBlocked = trackerBlockedCallback
+            onTrackerBlocked = trackerBlockedCallback,
+            onNavigationRequested = ::handleMainFrameNavigation
         )
         currentTab.value = tab
         sessionLabel.value = sessionManager.sessionId.take(8)
@@ -120,10 +131,29 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         refreshPolicyState()
     }
 
+    fun toggleStrictFirstPartyIsolation(enabled: Boolean) {
+        sessionManager.updatePrivacyPolicy { it.copy(strictFirstPartyIsolation = enabled) }
+        refreshPolicyState()
+    }
+
     fun toggleWebSockets(enabled: Boolean) {
         sessionManager.updatePrivacyPolicy { it.copy(blockWebSockets = enabled) }
         refreshPolicyState()
         reload()
+    }
+
+    fun setFingerprintProtectionLevel(level: FingerprintProtectionLevel) {
+        sessionManager.setFingerprintProtectionLevel(level)
+        refreshPolicyState()
+        currentTab.value?.let { tab ->
+            currentTab.value = sessionManager.recreateTab(
+                tab = tab,
+                onStateChanged = stateChangedCallback,
+                onProgressChanged = progressChangedCallback,
+                onTrackerBlocked = trackerBlockedCallback,
+                onNavigationRequested = ::handleMainFrameNavigation
+            )
+        }
     }
 
     fun navigate(input: String) {
@@ -141,11 +171,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
         val sanitizedUrl = UrlSanitizer.sanitize(destinationUrl)
         uiState.value = BrowserUIState.BROWSING
-        currentTab.value?.let { tab ->
-            if (sessionManager.loadUrl(tab, sanitizedUrl)) {
-                urlInput.value = tab.currentUrl ?: sanitizedUrl
-            }
-        }
+        handleMainFrameNavigation(sanitizedUrl)
     }
 
     fun goBack() {
@@ -179,7 +205,8 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
                 tab = tab,
                 onStateChanged = stateChangedCallback,
                 onProgressChanged = progressChangedCallback,
-                onTrackerBlocked = trackerBlockedCallback
+                onTrackerBlocked = trackerBlockedCallback,
+                onNavigationRequested = ::handleMainFrameNavigation
             )
             return
         }
@@ -211,6 +238,30 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         privacyPolicy.value = sessionManager.privacyPolicy
         javaScriptMode.value = sessionManager.privacyPolicy.javascriptMode
         isWebGLEnabled.value = sessionManager.privacyPolicy.webGlMode == WebGlMode.SPOOF
+        fingerprintProtectionLevel.value = sessionManager.privacyPolicy.fingerprintProtectionLevel
+        blockedTrackersCount.value = sessionManager.securityController.trackerBlockCount()
+    }
+
+    private fun handleMainFrameNavigation(url: String): Boolean {
+        uiState.value = BrowserUIState.BROWSING
+        val current = currentTab.value ?: return false
+        val activeTab = if (sessionManager.shouldRecreateForTopLevelNavigation(current, url)) {
+            sessionManager.recreateTab(
+                tab = current,
+                onStateChanged = stateChangedCallback,
+                onProgressChanged = progressChangedCallback,
+                onTrackerBlocked = trackerBlockedCallback,
+                onNavigationRequested = ::handleMainFrameNavigation
+            ).also { currentTab.value = it }
+        } else {
+            current
+        }
+
+        return sessionManager.loadUrl(activeTab, url).also { loaded ->
+            if (loaded) {
+                urlInput.value = activeTab.currentUrl ?: url
+            }
+        }
     }
 
     override fun onCleared() {

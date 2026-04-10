@@ -8,5 +8,6 @@ data class TabInstance(
     val tabId: String,
     val profile: DeviceProfile,
     val webView: SecureWebView,
-    var currentUrl: String? = null
+    var currentUrl: String? = null,
+    var siteKey: String? = null
 )
