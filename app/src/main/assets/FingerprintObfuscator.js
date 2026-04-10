@@ -115,5 +115,48 @@
     style.innerHTML = `* { font-family: sans-serif !important; }`;
     document.documentElement.appendChild(style);
 
-    console.log("Modular Identity Engine Active: Profile=" + config.userAgent);
+    // 10. Media Devices Enumeration Blocking (Zero-Device Policy)
+    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+        navigator.mediaDevices.enumerateDevices = () => Promise.resolve([]);
+    }
+
+    // 11. Network Information API Spoofing (Connection Masking)
+    if (navigator.connection) {
+        const proxyConn = new Proxy(navigator.connection, {
+            get: (target, prop) => {
+                if (prop === 'effectiveType') return '4g';
+                if (prop === 'rtt') return 50;
+                if (prop === 'downlink') return 10;
+                if (prop === 'saveData') return false;
+                let val = target[prop];
+                if (typeof val === 'function') return val.bind(target);
+                return val;
+            }
+        });
+        Object.defineProperty(navigator, 'connection', { value: proxyConn, writable: false });
+    }
+
+    // 12. Gamepad & Idle Detection Blocking
+    if (navigator.getGamepads) {
+        navigator.getGamepads = () => [];
+    }
+    if (navigator.idle) {
+        Object.defineProperty(navigator, 'idle', { value: undefined, writable: false });
+    }
+
+    // 13. Audio Temporal Jitter (Timing Attack Protection)
+    if (window.AudioContext) {
+        const originalCreateOscillator = AudioContext.prototype.createOscillator;
+        AudioContext.prototype.createOscillator = function() {
+            const osc = originalCreateOscillator.apply(this, arguments);
+            const originalStart = osc.start;
+            osc.start = function(when) {
+                const jitter = (config.noiseSeed % 100) / 1000000; 
+                return originalStart.call(this, (when || 0) + jitter);
+            };
+            return osc;
+        };
+    }
+
+    console.log("Elite Security Shields Active: Media=Blocked, Network=Spoofed, Timing=Jittered");
 })();
