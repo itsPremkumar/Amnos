@@ -1,44 +1,65 @@
-# 🛡️ Amnos Browser: God-Tier Modular Security Engine
+# 🛡️ Amnos Browser: The God-Tier Privacy Engine
 
-A high-performance, **RAM-Only** Android web browser designed for absolute anonymity. **Amnos** features a **Modular Fingerprint Management System** that ensures all browser-exposed properties match a single, realistic "Device Identity" for maximum deniability.
-
----
-
-## 🔒 Coherent Security Shield
-
-### 1. 🧬 Modular Fingerprint Management (Identity Coherence)
-Unlike standard browsers that randomize properties, our engine uses a **FingerprintManager** to generate a single, coherent "Device Identity" (personality).
-*   **Property Consistency**: If your User-Agent is Windows, your `navigator.platform` is `Win32`, and your hardware/screen specs are automatically aligned.
-*   **Hardware Spoofing**: Overrides WebGL `getParameter` (GPU Vendor/Renderer) to return fake profiles (e.g., Intel, Apple, NVIDIA).
-*   **Silent Perms**: Overrides `navigator.geolocation` so sites receive a clean "Permission Denied" without ever triggering a system-level popup.
-
-### 2. 🧠 Architecture v2: Real-Time Tactical Defense
-*   **Security Cockpit**: A real-time dashboard to toggle **JavaScript**, **WebGL**, and **Hardware Acceleration** on the fly.
-*   **Live Tracker Intelligence**: A Top-Bar indicator showing exactly how many trackers are being killed in real-time.
-*   **Incognito PIN Lock**: Secures your active RAM session with a 4-digit PIN (Default: `1111`) to prevent physical snooping.
-
-### 3. 🛡️ Network & Protocol Hardening
-*   **DNS-over-HTTPS (DoH)**: All lookups are encrypted via **Cloudflare (1.1.1.1)**, making your browsing invisible to your ISP.
-*   **Strict HTTPS-Only Mode**: Force-blocks all insecure `http://` traffic.
-*   **URL Tracking Sanitizer**: Automatically scrubs tracking IDs (UTM, FBCLID, GCLID) from links before they are processed.
-
-### 4. 🧠 RAM-Only "Amnesia" Architecture
-*   **Disposable Session Silos**: Every launch creates a unique, randomized Session UUID silo.
-*   **Dead Man's Switch (Idle Wipe)**: Automatically performs a total forensic memory scrub and kills the process if the app is minimized.
-*   **Forensics-Proof**: Zero persistent data remains on the physical device.
+**Amnos** (derived from *Amnesia* / *The Void*) is an ultra-premium, RAM-only Android web browser engineered for absolute anonymity and forensic-proof session handling. Amnos doesn't just block trackers—it erases the very memory of your existence on the web.
 
 ---
 
-## 📁 Modular Project Structure
+## 💎 The Identity Philosophy
 
-- **`core/fingerprint`**: Coherent Identity generation (`FingerprintManager`, `ScriptInjector`).
-- **`core/webview`**: Hardened browser engine (`SecureWebView`, `PrivacyWebViewClient`).
-- **`core/network`**: Encrypted DNS-over-HTTPS and Tracking Sanitization.
-- **`ui/`**: Professional, state-driven Material 3 navigation and Security Cockpit.
+### 📛 Why "Amnos"?
+The name **Amnos** is rooted in the concept of **Linguistic Amnesia**. In a world where data is permanent, Amnos represents the "Total Void." It is designed with a single goal: to ensure that your digital self has no past and no future—only a fleeting, unrecorded present.
 
-## 🏗️ Build & Requirements
+### 🔘 The Chrome Portal Logo
+The **Chrome Portal** (a negative-space 'A' floating within a liquid mercury ring) represents the entry point to the web. 
+*   **The Ring**: Represents the fluid, high-velocity nature of RAM-only processing.
+*   **The Negative Space "A"**: Symbolizes that your identity in Amnos is a "void"—present enough to browse, but leaving zero weight or footprint behind.
+*   **The Event Horizon Glow**: A deep purple aura representing the protective boundary between your device and the public internet.
+
+---
+
+## ⚡ Elite Hardware & Network Hardening
+
+### 1. 🧬 Modular Identity Synthesis (Anti-Fingerprinting)
+Amnos uses a **FingerprintManager** to create a coherent "Device Personality" for each tab:
+*   **Identity Coherence**: Matches User-Agent, Platform, and Screen Specs perfectly to prevent "hybrid identification."
+*   **GPU Masking**: Spoofs WebGL Vendor and Renderer (e.g., masking as an unidentifiable Intel/Apple profile).
+*   **Font Shielding**: Blocks all non-system fonts to prevent CSS-based font enumeration attacks.
+*   **Audio Jitter**: Injects micro-latency into the `AudioContext` to disrupt CPU-timing fingerprinting.
+
+### 2. 🛡️ Network-Level Tactical Defense
+*   **WebSocket Shield**: Intercepts and blocks `ws://` handshakes used for real-time tracking loops.
+*   **Strict Referer Stripping**: Automatically removes the `Referer` header from all third-party requests.
+*   **DNS-over-HTTPS (DoH)**: Encrypts all DNS queries via Cloudflare (1.1.1.1) to prevent ISP-level snooping.
+*   **GPC & DNT Enforcement**: Force-injects `Sec-GPC: 1` and `DNT: 1` headers globally.
+
+### 3. 🧠 "Ghost-Grade" Data Isolation
+*   **RAM-Only Silos**: Every session launch generates a unique Randomized UUID silo.
+*   **Ephemeral Downloads**: Downloads are funneled into a volatile cache that is deep-scrubbed on session exit.
+*   **Clipboard Sentinel**: Automatically wipes the system clipboard when the app is backgrounded or killed.
+*   **Dead Man's Switch**: Instantly kills the process and purges forensic artifacts if the app is minimized.
+
+---
+
+## 📊 The Security Cockpit
+Amnos features a real-time **Security Inspector**:
+- **Tracker Kill-Counter**: Live feedback on every privacy threat neutralized.
+- **Request Inspector**: A transparent, RAM-only log of every document, script, and XHR request made by the current page.
+- **Toggle Suite**: Granular control over the JavaScript Engine, WebGL Masking, and Font Shields.
+
+---
+
+## 📁 Project Architecture
+- **`core/fingerprint`**: Coherent Identity generation and JS injection logic.
+- **`core/network`**: Hardened protocol handling (Referer, WebSockets, DoH).
+- **`core/session`**: Lifecycle management, volatile storage, and the Dead Man's Switch.
+- **`ui/`**: Professional Material 3 "Security Cockpit" and state-driven navigation.
+
+---
+
+## 🏗️ Build Requirements
 - **Android API 28+**
-- **Giraffe / Hedgehog+**
+- **Architecture**: Modular Kotlin Components.
+- **Data Policy**: 100% Volatile. Zero-Data Persistence.
 
 ## 📜 License
 Released under the MIT License. A 100% free, zero-cost professional privacy tool.
