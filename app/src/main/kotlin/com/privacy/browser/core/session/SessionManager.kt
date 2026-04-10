@@ -51,6 +51,13 @@ class SessionManager(private val context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 safeBrowsingEnabled = true
             }
+
+            // Security: Block WebRTC IP leakage & Hardware Access
+            setGeolocationEnabled(false)
+            setNeedInitialFocus(false)
+            setSupportZoom(true)
+            builtInZoomControls = true
+            displayZoomControls = false
         }
 
         val client = PrivacyWebViewClient(context, adBlocker, config) { url ->

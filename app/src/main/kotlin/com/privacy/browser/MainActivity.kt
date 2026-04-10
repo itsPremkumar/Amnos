@@ -1,6 +1,7 @@
 package com.privacy.browser
 
 import android.os.Bundle
+import android.util.Log
 import android.view.WindowManager
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
@@ -20,14 +21,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. RAM-Only Session Isolation: 
-        // Set a randomized data directory suffix for this process.
-        // This ensures the WebView's internal state (cache, cookies, databases)
-        // are placed in a disposable, isolated folder for this session only.
+        // 1. RAM-Only Session Isolation
         try {
             WebView.setDataDirectorySuffix(UUID.randomUUID().toString())
         } catch (e: Exception) {
-            // Already set or error, we skip but logs show isolation is the priority
+            Log.e("MainActivity", "Failed to set data suffix", e)
         }
 
         window.setFlags(
@@ -44,6 +42,23 @@ class MainActivity : ComponentActivity() {
                     BrowserScreen(viewModel)
                 }
             }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // 2. Dead Man's Switch: Auto-Wipe on Background
+        // In "God-Tier" mode, we wipe the session as soon as the app is no longer visible
+        // to prevent data leaks if the phone is suddenly locked or put away.
+        Log.d("MainActivity", "Idle Wipe triggered: Application moved to background.")
+        sessionManager.killAll()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_UI_HIDDEN) {
+            Log.d("MainActivity", "Memory pressure wipe triggered.")
+            sessionManager.killAll()
         }
     }
 }

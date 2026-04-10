@@ -94,5 +94,13 @@
         writable: false
     });
 
-    console.log("Advanced Privacy Engine Initialized: GPC=Enabled, CanvasProtect=Active");
+    // 7. Trackers Post-Session Data Exfiltration Blocking (Beacon API)
+    if (navigator.sendBeacon) {
+        navigator.sendBeacon = function() {
+            console.log("Privacy Guard: BLOCKING sendBeacon data exfiltration.");
+            return true; // Pretend it succeeded
+        };
+    }
+
+    console.log("God-Tier Privacy Engine Initialized: DoH=Ready, BeaconBlock=Active");
 })();
