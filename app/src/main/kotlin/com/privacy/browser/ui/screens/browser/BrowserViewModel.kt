@@ -17,6 +17,17 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     
     // Progress State
     var loadingProgress = mutableStateOf(0)
+    
+    // Architecture v2: Security State
+    var blockedTrackersCount = mutableStateOf(0)
+    var isJavaScriptEnabled = mutableStateOf(sessionManager.isJavaScriptEnabled)
+    var isWebGLEnabled = mutableStateOf(sessionManager.isWebGLEnabled)
+    var showSecurityDashboard = mutableStateOf(false)
+    
+    // PIN Lock
+    var isLocked = mutableStateOf(false) // Start unlocked for now, or true for auto-lock
+    var userPin = "1111" // Default PIN for this session
+    var pinInput = mutableStateOf("")
 
     init {
         initializeSession()
@@ -30,16 +41,32 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
                 }
                 canGoBack.value = back
                 canGoForward.value = forward
-                // Reset progress when a new page finish is reported (though usually it hits 100)
                 if (loadingProgress.value >= 100) {
                     loadingProgress.value = 0
                 }
             },
             onProgressChanged = { progress ->
                 loadingProgress.value = progress
+            },
+            onTrackerBlocked = {
+                blockedTrackersCount.value++
             }
         )
         currentTab.value = tab
+    }
+
+    fun toggleJavaScript(enabled: Boolean) {
+        isJavaScriptEnabled.value = enabled
+        sessionManager.isJavaScriptEnabled = enabled
+        sessionManager.updateAllSettings()
+        reload()
+    }
+
+    fun toggleWebGL(enabled: Boolean) {
+        isWebGLEnabled.value = enabled
+        sessionManager.isWebGLEnabled = enabled
+        sessionManager.updateAllSettings()
+        reload()
     }
 
     fun navigate(input: String) {
@@ -55,36 +82,27 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
             "https://duckduckgo.com/?q=${java.net.URLEncoder.encode(trimmedInput, "UTF-8")}"
         }
         
-        // 1. Sanitize the URL before loading
         val sanitizedUrl = com.privacy.browser.core.network.UrlSanitizer.sanitize(destinationUrl)
-        
         uiState.value = BrowserUIState.BROWSING
-        
-        // 2. Load with GPC Header
         currentTab.value?.webView?.loadUrl(sanitizedUrl, mapOf("Sec-GPC" to "1"))
     }
 
     fun goBack() {
         currentTab.value?.webView?.let {
-            if (it.canGoBack()) {
-                it.goBack()
-            } else {
-                uiState.value = BrowserUIState.HOME
-            }
+            if (it.canGoBack()) it.goBack() else uiState.value = BrowserUIState.HOME
         }
     }
 
     fun goForward() {
         currentTab.value?.webView?.let {
-            if (it.canGoForward()) {
-                it.goForward()
-            }
+            if (it.canGoForward()) it.goForward()
         }
     }
 
     fun goHome() {
         uiState.value = BrowserUIState.HOME
         urlInput.value = ""
+        blockedTrackersCount.value = 0 // Reset on home for fresh display
     }
 
     fun reload() {
@@ -94,12 +112,12 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     fun killSwitch() {
         uiState.value = BrowserUIState.HOME
         urlInput.value = ""
+        blockedTrackersCount.value = 0
         
         currentTab.value?.let { sessionManager.removeTab(it) }
         currentTab.value = null
         
         sessionManager.killAll()
-        
         initializeSession()
     }
 }

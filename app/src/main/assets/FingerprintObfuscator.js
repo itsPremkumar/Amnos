@@ -94,13 +94,32 @@
         writable: false
     });
 
-    // 7. Trackers Post-Session Data Exfiltration Blocking (Beacon API)
-    if (navigator.sendBeacon) {
-        navigator.sendBeacon = function() {
-            console.log("Privacy Guard: BLOCKING sendBeacon data exfiltration.");
-            return true; // Pretend it succeeded
+    // 8. Clipboard Protection: Prevent websites from reading/writing system clipboard
+    if (navigator.clipboard) {
+        const blockClipboard = () => {
+            console.log("Privacy Guard: BLOCKING Clipboard Access.");
+            return Promise.reject(new Error("Clipboard access blocked by Privacy Guard."));
         };
+        Object.defineProperty(navigator, 'clipboard', {
+            value: {
+                readText: blockClipboard,
+                read: blockClipboard,
+                writeText: blockClipboard,
+                write: blockClipboard
+            },
+            writable: false
+        });
     }
 
-    console.log("God-Tier Privacy Engine Initialized: DoH=Ready, BeaconBlock=Active");
+    // 9. Font Fingerprinting Protection: Masking with generic system fonts
+    const style = document.createElement('style');
+    style.innerHTML = `
+        * { 
+            font-family: sans-serif !important; 
+            -webkit-font-smoothing: antialiased !important;
+        }
+    `;
+    document.documentElement.appendChild(style);
+
+    console.log("Architecture v2 Active: Clipboard=Locked, FontMask=Active");
 })();

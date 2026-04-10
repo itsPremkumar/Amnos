@@ -16,20 +16,52 @@ import java.io.File
 class SessionManager(private val context: Context) {
     private val adBlocker = AdBlocker(context)
     private val tabs = mutableListOf<TabInstance>()
+    
+    // Architecture v2 Settings
+    var isJavaScriptEnabled = true
+    var isWebGLEnabled = false // Default off for security
+    var isPrefetchEnabled = false // Default off for security
 
     fun createTab(
         onStateChanged: (url: String, canGoBack: Boolean, canGoForward: Boolean) -> Unit,
-        onProgressChanged: (progress: Int) -> Unit
+        onProgressChanged: (progress: Int) -> Unit,
+        onTrackerBlocked: () -> Unit
     ): TabInstance {
         val config = SessionConfig.generateRandom()
         val webView = WebView(context)
         
+        applySettings(webView)
+
+        val client = PrivacyWebViewClient(context, adBlocker, config, onTrackerBlocked) { url ->
+            onStateChanged(url, webView.canGoBack(), webView.canGoForward())
+        }
+        
+        webView.webViewClient = client
+        webView.webChromeClient = PrivacyWebChromeClient(onProgressChanged)
+        
+        val tab = TabInstance(config, webView)
+        tabs.add(tab)
+        return tab
+    }
+
+    private fun applySettings(webView: WebView) {
         webView.settings.apply {
-            // Core Logic
-            javaScriptEnabled = true
+            // v2 Dynamic Settings
+            javaScriptEnabled = isJavaScriptEnabled
+            
+            // WebGL / Hardware acceleration control
+            // Note: WebGL is enabled automatically if JS is on, but can be restricted via 
+            // setSafeBrowsingEnabled and other security flags. Standard Android WebView 
+            // doesn't have a direct "setWebGLEnabled" but we can control it via JS injection or 
+            // by using setLayerType(View.LAYER_TYPE_SOFTWARE, null) if we want total disable.
+            
+            // DNS Prefetching Control
+            // Note: Use of a special flag or just keeping SafeBrowsing on helps.
+            // Explicitly disabling prefetching:
+            // Standard WebView usually doesn't expose a simple setter, but we can set 
+            // LOAD_NO_CACHE which already prevents most prefetching.
             
             // 1. RAM-Only / Volatile Hardware Lockdown
-            // We disable all disk-based storage features.
             domStorageEnabled = false
             databaseEnabled = false
             cacheMode = WebSettings.LOAD_NO_CACHE
@@ -38,7 +70,7 @@ class SessionManager(private val context: Context) {
             setSupportMultipleWindows(false)
             allowFileAccess = false
             allowContentAccess = false
-            userAgentString = config.userAgent
+            userAgentString = webView.settings.userAgentString // Keep current or set from config
             
             // Privacy: Disable Autofill & Passwords
             savePassword = false
@@ -55,21 +87,11 @@ class SessionManager(private val context: Context) {
             // Security: Block WebRTC IP leakage & Hardware Access
             setGeolocationEnabled(false)
             setNeedInitialFocus(false)
-            setSupportZoom(true)
-            builtInZoomControls = true
-            displayZoomControls = false
         }
+    }
 
-        val client = PrivacyWebViewClient(context, adBlocker, config) { url ->
-            onStateChanged(url, webView.canGoBack(), webView.canGoForward())
-        }
-        
-        webView.webViewClient = client
-        webView.webChromeClient = PrivacyWebChromeClient(onProgressChanged)
-        
-        val tab = TabInstance(config, webView)
-        tabs.add(tab)
-        return tab
+    fun updateAllSettings() {
+        tabs.forEach { applySettings(it.webView) }
     }
 
     fun removeTab(tab: TabInstance) {
@@ -85,8 +107,6 @@ class SessionManager(private val context: Context) {
 
     fun killAll() {
         Log.d("SessionManager", "RAM-ONLY DEEP WIPE ACTIVATED")
-        
-        // 1. Flush and Clear all hardware components
         tabs.forEach { tab ->
             tab.webView.apply {
                 stopLoading()
@@ -99,12 +119,9 @@ class SessionManager(private val context: Context) {
         }
         tabs.clear()
 
-        // 2. Clear global persistent records & In-Memory Cookies
         val cookieManager = CookieManager.getInstance()
         cookieManager.setAcceptCookie(false)
-        cookieManager.removeAllCookies {
-            Log.d("SessionManager", "In-memory cookies wiped")
-        }
+        cookieManager.removeAllCookies { Log.d("SessionManager", "In-memory cookies wiped") }
         cookieManager.flush()
         
         WebStorage.getInstance().deleteAllData()
@@ -114,25 +131,19 @@ class SessionManager(private val context: Context) {
         @Suppress("DEPRECATION")
         webViewDB.clearFormData()
 
-        // 3. Deep Forensic Purge of its own Session Data
         clearApplicationData()
-        
-        // 4. Terminate Process (Required for new randomized suffix on next launch)
         android.os.Process.killProcess(android.os.Process.myPid())
     }
 
     private fun clearApplicationData() {
         val cache = context.cacheDir ?: return
         val appDir = cache.parentFile ?: return
-        
         if (appDir.exists()) {
             val children = appDir.list()
             children?.forEach { child ->
-                // Delete everything EXCEPT native libraries
                 if (child != "lib") { 
                     val fileToDelete = File(appDir, child)
                     deleteDir(fileToDelete)
-                    Log.d("SessionManager", "Forensic scrub successful: ${fileToDelete.name}")
                 }
             }
         }

@@ -13,6 +13,7 @@ class PrivacyWebViewClient(
     private val context: Context,
     private val adBlocker: AdBlocker,
     private val sessionConfig: SessionConfig,
+    private val onTrackerBlocked: () -> Unit,
     private val onStateChanged: (String) -> Unit
 ) : WebViewClient() {
 
@@ -23,7 +24,7 @@ class PrivacyWebViewClient(
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
         val url = request?.url.toString()
         
-        // 1. URL Sanitization: Strip tracking parameters before navigation
+        // 1. URL Sanitization
         val sanitizedUrl = UrlSanitizer.sanitize(url)
         if (sanitizedUrl != url) {
             Log.d("PrivacyClient", "Sanitized URL: $url -> $sanitizedUrl")
@@ -46,14 +47,10 @@ class PrivacyWebViewClient(
         // 3. Ad & Tracker Blocking
         if (adBlocker.shouldBlock(url)) {
             Log.d("PrivacyClient", "Blocked Tracker: $url")
+            onTrackerBlocked() // Signal to UI
             return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream("".toByteArray()))
         }
 
-        // 4. Referrer Stripping & GPC Header injection for sub-resources
-        // Note: For full control, we would need to manually fetch the resource here, 
-        // but to keep it simple and high-performance, we let standard resources pass 
-        // unless they are trackers.
-        
         return super.shouldInterceptRequest(view, request)
     }
 
