@@ -1,5 +1,6 @@
 package com.privacy.browser.core.security
 
+import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.util.Log
@@ -14,8 +15,7 @@ object ClipboardSentinel {
     fun wipe(context: Context) {
         try {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            @Suppress("DEPRECATION")
-            clipboard.text = ""
+            clipboard.setPrimaryClip(ClipData.newPlainText("", ""))
             Log.d("ClipboardSentinel", "Forensic clipboard scrub successful.")
         } catch (e: Exception) {
             Log.e("ClipboardSentinel", "Failed to scrub clipboard", e)

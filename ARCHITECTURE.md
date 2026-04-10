@@ -1,59 +1,58 @@
-# 🏗️ Amnos: Technical Architecture
+# Amnos Architecture
 
-**Amnos** is built on a modular "Zero-Trust" architecture where every component is isolated and session-bound.
+## Core layout
 
----
+- `core/fingerprint`
+  - [FingerprintManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/fingerprint/FingerprintManager.kt)
+  - [ScriptInjector.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/fingerprint/ScriptInjector.kt)
+  - [FingerprintObfuscator.js](/C:/one/browser/app/src/main/assets/FingerprintObfuscator.js)
+- `core/network`
+  - [DnsManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/DnsManager.kt)
+  - [NetworkSecurityManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/NetworkSecurityManager.kt)
+  - [UrlSanitizer.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/UrlSanitizer.kt)
+  - [RequestDecision.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/RequestDecision.kt)
+- `core/webview`
+  - [SecureWebView.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/webview/SecureWebView.kt)
+  - [PrivacyWebViewClient.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/webview/PrivacyWebViewClient.kt)
+  - [PrivacyWebChromeClient.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/webview/PrivacyWebChromeClient.kt)
+- `core/session`
+  - [SessionManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/SessionManager.kt)
+  - [SecurityController.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/SecurityController.kt)
+  - [StorageController.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/StorageController.kt)
+  - [TabInstance.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/TabInstance.kt)
+- `core/security`
+  - [PrivacyPolicy.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/security/PrivacyPolicy.kt)
+  - [PermissionSentinel.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/security/PermissionSentinel.kt)
+  - [ClipboardSentinel.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/security/ClipboardSentinel.kt)
+- `core/adblock`
+  - [AdBlocker.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/adblock/AdBlocker.kt)
+- `ui`
+  - [BrowserViewModel.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/ui/screens/browser/BrowserViewModel.kt)
+  - [SecurityDashboard.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/ui/components/SecurityDashboard.kt)
+  - Compose screens under `ui/screens/browser`
 
-## 1. 🧬 Core Components
+## Request flow
 
-### `FingerprintManager`
-Responsible for synthesizing a coherent "Device Personality." It generates matched profiles (User-Agent, Screen resolution, Hardware specs) to ensure fingerprint coherence.
+1. User navigation enters `BrowserViewModel`.
+2. `SessionManager` sanitizes the URL and loads it into the active `SecureWebView`.
+3. `PrivacyWebViewClient` evaluates each request through `NetworkSecurityManager`.
+4. Requests are:
+   - blocked immediately
+   - proxied through the DoH-backed OkHttp client for GET/HEAD
+   - or passed through when WebView-native handling is still required
+5. `SecurityController` records the event in a RAM-only inspector log.
+6. Document-start injection applies the tab-specific fingerprint and API overrides.
 
-### `ScriptInjector`
-Intercepts the WebView lifecycle to force-inject the `FingerprintObfuscator.js` before any site-scripts can execute. This ensures shields are active at the first millisecond of the page load.
+## Session model
 
-### `NetworkSecurityManager`
-A high-performance interceptor that:
-- Blocks **WebSocket** handshakes (`ws://`, `wss://`).
-- Strips **Referer** headers for all cross-domain requests.
-- Force-injects **GPC** (Global Privacy Control) and **DNT** (Do Not Track) headers.
+- One app session has a session UUID.
+- Each tab gets its own tab UUID and device profile.
+- Refresh can recreate the current tab to rotate identity.
+- Backgrounding or timeout can purge the session.
+- Cookies, DOM storage, service workers, and downloads are treated as volatile.
 
-### `StorageController`
-Manages volatile data:
-- **Ephemeral Downloads**: Funnels files into a session-only cache.
-- **Clipboard Sentinel**: Wipes the system clipboard on app pause/exit.
+## Threat-model notes
 
----
-
-## 2. 🧠 Session Lifecycle
-Amnos uses a **"Tab-Silo"** model. Each tab is a unique, isolated instance:
-1. **Creation**: Unique UUID and profile generation.
-2. **Active**: Real-time request monitoring via `SecurityController`.
-3. **Destruction**: Forensic memory scrub and process termination.
-
-## 3. 📊 UI Layer
-Built with **Jetpack Compose** and **Material 3**:
-- **Security Cockpit**: State-driven dashboard for shield management.
-- **Request Inspector**: A standard `LazyColumn` displaying the volatile RAM-log of active network requests.
-
----
-
-## 🔒 Security Guarantees & Threat Model
-
-### What Amnos Protects Against:
-- **Local Browser Forensics**: No data survives in the app directory or RAM after a "Deep Wipe."
-- **Fingerprinting**: Neutralizes web-based hardware enumeration and font identification.
-- **Cross-Site Tracking**: Strict third-party isolation and Referer stripping.
-- **WebSocket Tracking**: Blocks the initial handshake for real-time tracking streams.
-
-### What is Out of Scope (Requires a VPN/Tor):
-- **IP Address Privacy**: Amnos blocks IP leaks via WebRTC, but it does *not* hide your public IP from the website you visit.
-- **ISP Monitoring**: Your ISP can still see *that* you are connecting to a specific domain (use DoH + a VPN for full network anonymity).
-- **Physical Memory Extraction**: While we wipe RAM on exit, a sophisticated physical attacker with specialized hardware could potentially capture data from an unlocked device *before* the wipe occurs.
-
----
-
-## 🏁 Future Roadmap
-- [ ] Integration of a built-in Proxy/SOCKS5 manager.
-- [ ] Customizable user-agent profile presets.
-- [ ] Full per-domain JavaScript permission manager.
+- This architecture is built to minimize local traces, block trackers, and reduce browser fingerprint entropy.
+- It does not provide network anonymity comparable to Tor.
+- Android WebView imposes hard limits on per-tab process isolation and universal transport interception.

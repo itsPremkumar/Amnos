@@ -4,7 +4,7 @@ import android.content.Context
 import android.util.Log
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.net.URL
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 class AdBlocker(context: Context) {
     private val blockedDomains = mutableSetOf<String>()
@@ -18,10 +18,7 @@ class AdBlocker(context: Context) {
             val inputStream = context.assets.open("blocklist.txt")
             val reader = BufferedReader(InputStreamReader(inputStream))
             reader.forEachLine { line ->
-                val trimmed = line.trim()
-                if (trimmed.isNotEmpty() && !trimmed.startsWith("!")) {
-                    blockedDomains.add(trimmed)
-                }
+                normalizeRule(line)?.let { blockedDomains.add(it) }
             }
             reader.close()
             Log.d("AdBlocker", "Loaded ${blockedDomains.size} blocked domains")
@@ -30,23 +27,45 @@ class AdBlocker(context: Context) {
         }
     }
 
-    fun shouldBlock(url: String): Boolean {
-        val host = try {
-            URL(url).host.removePrefix("www.")
-        } catch (e: Exception) {
-            return false
+    private fun normalizeRule(line: String): String? {
+        val trimmed = line.trim()
+        if (trimmed.isEmpty()) return null
+        if (trimmed.startsWith("!") || trimmed.startsWith("[")) return null
+
+        val withoutOptions = trimmed.substringBefore('$')
+        val domain = when {
+            withoutOptions.startsWith("||") -> withoutOptions.removePrefix("||").substringBefore('^')
+            withoutOptions.startsWith("|http") -> withoutOptions.removePrefix("|").toHttpUrlOrNull()?.host
+            withoutOptions.contains("://") -> withoutOptions.toHttpUrlOrNull()?.host
+            else -> withoutOptions.substringBefore('^').substringBefore('/')
         }
 
+        return domain
+            ?.removePrefix("www.")
+            ?.removePrefix(".")
+            ?.lowercase()
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    fun shouldBlock(url: String): Boolean {
+        val host = url.toHttpUrlOrNull()?.host?.removePrefix("www.")?.lowercase() ?: return false
+
         var currentHost = host
-        while (currentHost.contains(".")) {
+        while (currentHost.isNotEmpty()) {
             if (blockedDomains.contains(currentHost)) {
                 Log.d("AdBlocker", "Blocked: $url (matched $currentHost)")
                 return true
             }
-            currentHost = currentHost.substringAfter(".", "")
-            if (currentHost.isEmpty()) break
+            currentHost = currentHost.substringAfter('.', "")
+            if (currentHost == host) {
+                break
+            }
+            if (!currentHost.contains('.')) {
+                if (blockedDomains.contains(currentHost)) {
+                    return true
+                }
+            }
         }
-        
         return false
     }
 }

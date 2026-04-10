@@ -2,71 +2,127 @@ package com.privacy.browser.ui.screens.browser
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import com.privacy.browser.core.network.UrlSanitizer
+import com.privacy.browser.core.security.JavaScriptMode
+import com.privacy.browser.core.security.WebGlMode
 import com.privacy.browser.core.session.SessionManager
 import com.privacy.browser.core.session.TabInstance
 
 class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel() {
-
     var currentTab = mutableStateOf<TabInstance?>(null)
     var urlInput = mutableStateOf("")
     var uiState = mutableStateOf(BrowserUIState.HOME)
-    
-    // Navigation State
+
     var canGoBack = mutableStateOf(false)
     var canGoForward = mutableStateOf(false)
-    
-    // Progress State
     var loadingProgress = mutableStateOf(0)
-    
-    // Architecture v2: Security State
+
     var blockedTrackersCount = mutableStateOf(0)
-    var isJavaScriptEnabled = mutableStateOf(sessionManager.isJavaScriptEnabled)
-    var isWebGLEnabled = mutableStateOf(sessionManager.isWebGLEnabled)
+    var privacyPolicy = mutableStateOf(sessionManager.privacyPolicy)
+    var javaScriptMode = mutableStateOf(sessionManager.privacyPolicy.javascriptMode)
+    var isWebGLEnabled = mutableStateOf(sessionManager.privacyPolicy.webGlMode == WebGlMode.SPOOF)
     var showSecurityDashboard = mutableStateOf(false)
+    var sessionLabel = mutableStateOf(sessionManager.sessionId.take(8))
     val requestLog = sessionManager.securityController.requestLog
-    
-    // PIN Lock
-    var isLocked = mutableStateOf(false) // Start unlocked for now, or true for auto-lock
-    var userPin = "1111" // Default PIN for this session
+    var isLocked = mutableStateOf(false)
+    var userPin = "1111"
     var pinInput = mutableStateOf("")
 
     init {
+        sessionManager.registerTimeoutListener {
+            handleSessionTimeout()
+        }
         initializeSession()
     }
 
-    private fun initializeSession() {
-        val tab = sessionManager.createTab(
-            onStateChanged = { url, back, forward ->
-                if (uiState.value == BrowserUIState.BROWSING) {
-                    urlInput.value = url
-                }
-                canGoBack.value = back
-                canGoForward.value = forward
-                if (loadingProgress.value >= 100) {
-                    loadingProgress.value = 0
-                }
-            },
-            onProgressChanged = { progress ->
-                loadingProgress.value = progress
-            },
-            onTrackerBlocked = {
-                blockedTrackersCount.value++
-            }
-        )
-        currentTab.value = tab
+    private val stateChangedCallback: (String, Boolean, Boolean) -> Unit = { url, back, forward ->
+        currentTab.value?.currentUrl = url
+        if (uiState.value == BrowserUIState.BROWSING) {
+            urlInput.value = url
+        }
+        canGoBack.value = back
+        canGoForward.value = forward
+        if (loadingProgress.value >= 100) {
+            loadingProgress.value = 0
+        }
     }
 
-    fun toggleJavaScript(enabled: Boolean) {
-        isJavaScriptEnabled.value = enabled
-        sessionManager.isJavaScriptEnabled = enabled
-        sessionManager.updateAllSettings()
+    private val progressChangedCallback: (Int) -> Unit = { progress ->
+        loadingProgress.value = progress
+    }
+
+    private val trackerBlockedCallback: () -> Unit = {
+        blockedTrackersCount.value = sessionManager.securityController.trackerBlockCount()
+    }
+
+    private fun initializeSession(loadUrl: String? = null) {
+        val tab = sessionManager.createTab(
+            onStateChanged = stateChangedCallback,
+            onProgressChanged = progressChangedCallback,
+            onTrackerBlocked = trackerBlockedCallback
+        )
+        currentTab.value = tab
+        sessionLabel.value = sessionManager.sessionId.take(8)
+        refreshPolicyState()
+        loadUrl?.let {
+            uiState.value = BrowserUIState.BROWSING
+            sessionManager.loadUrl(tab, it)
+        }
+    }
+
+    fun setJavaScriptMode(mode: JavaScriptMode) {
+        sessionManager.setJavaScriptMode(mode)
+        refreshPolicyState()
         reload()
     }
 
     fun toggleWebGL(enabled: Boolean) {
-        isWebGLEnabled.value = enabled
-        sessionManager.isWebGLEnabled = enabled
-        sessionManager.updateAllSettings()
+        sessionManager.setWebGlEnabled(enabled)
+        refreshPolicyState()
+        reload()
+    }
+
+    fun toggleHttpsOnly(enabled: Boolean) {
+        sessionManager.updatePrivacyPolicy { it.copy(httpsOnlyEnabled = enabled) }
+        refreshPolicyState()
+        reload()
+    }
+
+    fun toggleThirdPartyBlocking(enabled: Boolean) {
+        sessionManager.updatePrivacyPolicy {
+            it.copy(
+                blockThirdPartyRequests = enabled,
+                blockThirdPartyScripts = enabled
+            )
+        }
+        refreshPolicyState()
+        reload()
+    }
+
+    fun toggleInlineScriptBlocking(enabled: Boolean) {
+        sessionManager.updatePrivacyPolicy {
+            it.copy(
+                blockInlineScripts = enabled,
+                blockEval = enabled,
+                javascriptMode = if (enabled && it.javascriptMode == JavaScriptMode.FULL) {
+                    JavaScriptMode.RESTRICTED
+                } else {
+                    it.javascriptMode
+                }
+            )
+        }
+        refreshPolicyState()
+        reload()
+    }
+
+    fun toggleResetIdentityOnRefresh(enabled: Boolean) {
+        sessionManager.updatePrivacyPolicy { it.copy(resetIdentityOnRefresh = enabled) }
+        refreshPolicyState()
+    }
+
+    fun toggleWebSockets(enabled: Boolean) {
+        sessionManager.updatePrivacyPolicy { it.copy(blockWebSockets = enabled) }
+        refreshPolicyState()
         reload()
     }
 
@@ -82,43 +138,83 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         } else {
             "https://duckduckgo.com/?q=${java.net.URLEncoder.encode(trimmedInput, "UTF-8")}"
         }
-        
-        val sanitizedUrl = com.privacy.browser.core.network.UrlSanitizer.sanitize(destinationUrl)
+
+        val sanitizedUrl = UrlSanitizer.sanitize(destinationUrl)
         uiState.value = BrowserUIState.BROWSING
-        currentTab.value?.webView?.loadUrl(sanitizedUrl, mapOf("Sec-GPC" to "1"))
+        currentTab.value?.let { tab ->
+            if (sessionManager.loadUrl(tab, sanitizedUrl)) {
+                urlInput.value = tab.currentUrl ?: sanitizedUrl
+            }
+        }
     }
 
     fun goBack() {
         currentTab.value?.webView?.let {
             if (it.canGoBack()) it.goBack() else uiState.value = BrowserUIState.HOME
         }
+        sessionManager.touchSession()
     }
 
     fun goForward() {
         currentTab.value?.webView?.let {
             if (it.canGoForward()) it.goForward()
         }
+        sessionManager.touchSession()
     }
 
     fun goHome() {
         uiState.value = BrowserUIState.HOME
         urlInput.value = ""
-        blockedTrackersCount.value = 0 // Reset on home for fresh display
+        currentTab.value?.apply {
+            currentUrl = "about:blank"
+            webView.loadUrl("about:blank")
+        }
+        blockedTrackersCount.value = sessionManager.securityController.trackerBlockCount()
     }
 
     fun reload() {
-        currentTab.value?.webView?.reload()
+        val tab = currentTab.value ?: return
+        if (privacyPolicy.value.resetIdentityOnRefresh && !tab.currentUrl.isNullOrBlank()) {
+            currentTab.value = sessionManager.recreateTab(
+                tab = tab,
+                onStateChanged = stateChangedCallback,
+                onProgressChanged = progressChangedCallback,
+                onTrackerBlocked = trackerBlockedCallback
+            )
+            return
+        }
+
+        tab.webView.reload()
+        sessionManager.touchSession()
     }
 
     fun killSwitch() {
         uiState.value = BrowserUIState.HOME
         urlInput.value = ""
         blockedTrackersCount.value = 0
-        
-        currentTab.value?.let { sessionManager.removeTab(it) }
+
         currentTab.value = null
-        
-        sessionManager.killAll()
+        sessionManager.killAll(terminateProcess = false)
         initializeSession()
+    }
+
+    private fun handleSessionTimeout() {
+        currentTab.value = null
+        blockedTrackersCount.value = 0
+        uiState.value = BrowserUIState.HOME
+        urlInput.value = ""
+        sessionManager.killAll(terminateProcess = false)
+        initializeSession()
+    }
+
+    private fun refreshPolicyState() {
+        privacyPolicy.value = sessionManager.privacyPolicy
+        javaScriptMode.value = sessionManager.privacyPolicy.javascriptMode
+        isWebGLEnabled.value = sessionManager.privacyPolicy.webGlMode == WebGlMode.SPOOF
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        sessionManager.killAll(terminateProcess = false)
     }
 }

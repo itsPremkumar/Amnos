@@ -1,37 +1,31 @@
 package com.privacy.browser.core.network
 
-import android.net.Uri
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 object UrlSanitizer {
-    // Inspired by Brave and DuckDuckGo
     private val trackingParameters = setOf(
-        "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", // Google Analytics
-        "fbclid", // Facebook
-        "gclid", "wbraid", "gbraid", // Google Ads
-        "msclkid", // Bing Ads
-        "mc_eid", // Mailchimp
-        "yclid", // Yandex
-        "_hsenc", "_hsmi", // HubSpot
-        "mkt_tok" // Marketo
+        "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+        "fbclid",
+        "gclid", "wbraid", "gbraid",
+        "msclkid",
+        "mc_eid",
+        "yclid",
+        "_hsenc", "_hsmi",
+        "mkt_tok"
     )
 
     fun sanitize(url: String): String {
-        val uri = try {
-            Uri.parse(url)
-        } catch (e: Exception) {
+        val httpUrl = url.toHttpUrlOrNull() ?: return url
+        if (httpUrl.querySize == 0) {
             return url
         }
 
-        if (uri.isOpaque || uri.query == null) return url
-
-        val builder = uri.buildUpon().clearQuery()
-        var paramsRemoved = 0
-
-        uri.queryParameterNames.forEach { name ->
-            if (trackingParameters.contains(name.lowercase())) {
-                paramsRemoved++
-            } else {
-                builder.appendQueryParameter(name, uri.getQueryParameter(name))
+        val builder = httpUrl.newBuilder().query(null)
+        for (index in 0 until httpUrl.querySize) {
+            val name = httpUrl.queryParameterName(index)
+            val value = httpUrl.queryParameterValue(index)
+            if (!trackingParameters.contains(name.lowercase())) {
+                builder.addQueryParameter(name, value)
             }
         }
 

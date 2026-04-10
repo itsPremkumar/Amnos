@@ -1,11 +1,16 @@
 package com.privacy.browser.core.session
 
-import android.content.ClipboardManager
 import android.content.Context
 import android.util.Log
+import android.webkit.URLUtil
+import com.privacy.browser.core.network.DnsManager
+import okhttp3.Request
 import java.io.File
+import java.io.FileOutputStream
+import java.util.UUID
 
 class StorageController(private val context: Context) {
+    private val downloadClient by lazy { DnsManager.secureClient(blockIpv6 = true) }
 
     private val volatileDownloadDir: File by lazy {
         File(context.cacheDir, "volatile_downloads").apply {
@@ -18,6 +23,44 @@ class StorageController(private val context: Context) {
      */
     fun getVolatileDownloadPath(): String {
         return volatileDownloadDir.absolutePath
+    }
+
+    fun downloadEphemeralFile(url: String, userAgent: String) {
+        Thread {
+            try {
+                val request = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", userAgent)
+                    .header("DNT", "1")
+                    .header("Sec-GPC", "1")
+                    .build()
+
+                downloadClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        Log.w("StorageController", "Ephemeral download failed: HTTP ${response.code}")
+                        return@use
+                    }
+
+                    val guessedName = URLUtil.guessFileName(
+                        url,
+                        response.header("Content-Disposition"),
+                        response.body?.contentType()?.toString()
+                    )
+                    val safeName = guessedName.replace(Regex("[^A-Za-z0-9._-]"), "_")
+                    val outFile = File(volatileDownloadDir, "${UUID.randomUUID()}_$safeName")
+
+                    response.body?.byteStream()?.use { input ->
+                        FileOutputStream(outFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+
+                    Log.i("StorageController", "Ephemeral download saved to ${outFile.absolutePath}")
+                }
+            } catch (error: Exception) {
+                Log.e("StorageController", "Failed to store ephemeral download", error)
+            }
+        }.start()
     }
 
     /**

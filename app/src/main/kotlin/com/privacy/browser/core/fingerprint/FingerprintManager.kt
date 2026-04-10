@@ -1,17 +1,27 @@
 package com.privacy.browser.core.fingerprint
 
+import java.util.UUID
+import kotlin.math.abs
+import kotlin.random.Random
+
 data class DeviceProfile(
+    val sessionId: String,
+    val tabId: String,
     val userAgent: String,
     val platform: String,
     val languages: List<String>,
     val hardwareConcurrency: Int,
     val deviceMemory: Int,
     val timeZone: String,
+    val timezoneOffsetMinutes: Int,
     val screen: ScreenSpecs,
     val gpuVendor: String,
     val gpuRenderer: String,
     val noiseSeed: Int
-)
+) {
+    val acceptLanguageHeader: String
+        get() = languages.joinToString(separator = ",")
+}
 
 data class ScreenSpecs(
     val width: Int,
@@ -23,52 +33,105 @@ data class ScreenSpecs(
     val devicePixelRatio: Double
 )
 
+private data class LocalePreset(
+    val languages: List<String>,
+    val timeZone: String,
+    val timezoneOffsetMinutes: Int
+)
+
+private data class DeviceTemplate(
+    val userAgents: List<String>,
+    val platform: String,
+    val screen: ScreenSpecs,
+    val hardwareConcurrency: Int,
+    val deviceMemory: Int,
+    val gpuVendor: String,
+    val gpuRenderer: String
+)
+
 object FingerprintManager {
-    
-    fun generateCoherentProfile(): DeviceProfile {
-        return when ((0..2).random()) {
-            0 -> createAndroidProfile()
-            1 -> createWindowsProfile()
-            else -> createMacProfile()
-        }
+    private val localePresets = listOf(
+        LocalePreset(listOf("en-US", "en"), "America/New_York", 300),
+        LocalePreset(listOf("en-GB", "en"), "Europe/London", 0),
+        LocalePreset(listOf("de-DE", "de"), "Europe/Berlin", -60),
+        LocalePreset(listOf("fr-FR", "fr"), "Europe/Paris", -60)
+    )
+
+    private val androidTemplates = listOf(
+        DeviceTemplate(
+            userAgents = listOf(
+                "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.80 Mobile Safari/537.36",
+                "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.86 Mobile Safari/537.36"
+            ),
+            platform = "Linux armv8l",
+            screen = ScreenSpecs(412, 915, 412, 872, 24, 24, 2.625),
+            hardwareConcurrency = 8,
+            deviceMemory = 8,
+            gpuVendor = "Google Inc. (Qualcomm)",
+            gpuRenderer = "ANGLE (Qualcomm, Adreno 740, OpenGL ES 3.2)"
+        ),
+        DeviceTemplate(
+            userAgents = listOf(
+                "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.86 Mobile Safari/537.36",
+                "Mozilla/5.0 (Linux; Android 13; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.105 Mobile Safari/537.36"
+            ),
+            platform = "Linux armv8l",
+            screen = ScreenSpecs(384, 854, 384, 810, 24, 24, 3.0),
+            hardwareConcurrency = 8,
+            deviceMemory = 8,
+            gpuVendor = "Qualcomm",
+            gpuRenderer = "Adreno (TM) 740"
+        ),
+        DeviceTemplate(
+            userAgents = listOf(
+                "Mozilla/5.0 (Linux; Android 13; CPH2487) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.105 Mobile Safari/537.36",
+                "Mozilla/5.0 (Linux; Android 14; IN2023) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.86 Mobile Safari/537.36"
+            ),
+            platform = "Linux armv8l",
+            screen = ScreenSpecs(393, 873, 393, 829, 24, 24, 2.75),
+            hardwareConcurrency = 12,
+            deviceMemory = 12,
+            gpuVendor = "ARM",
+            gpuRenderer = "Mali-G710"
+        )
+    )
+
+    fun newSessionId(): String = UUID.randomUUID().toString()
+
+    fun newTabId(): String = UUID.randomUUID().toString()
+
+    fun generateCoherentProfile(sessionId: String, tabId: String): DeviceProfile {
+        val sessionRandom = seededRandom(sessionId)
+        val tabRandom = seededRandom(sessionId, tabId)
+
+        val template = androidTemplates[abs(sessionRandom.nextInt()) % androidTemplates.size]
+        val locale = localePresets[abs(tabRandom.nextInt()) % localePresets.size]
+        val userAgent = template.userAgents[abs(tabRandom.nextInt()) % template.userAgents.size]
+
+        return DeviceProfile(
+            sessionId = sessionId,
+            tabId = tabId,
+            userAgent = userAgent,
+            platform = template.platform,
+            languages = locale.languages,
+            hardwareConcurrency = template.hardwareConcurrency,
+            deviceMemory = template.deviceMemory,
+            timeZone = locale.timeZone,
+            timezoneOffsetMinutes = locale.timezoneOffsetMinutes,
+            screen = template.screen,
+            gpuVendor = template.gpuVendor,
+            gpuRenderer = template.gpuRenderer,
+            noiseSeed = abs(tabRandom.nextInt()) + 1
+        )
     }
 
-    private fun createAndroidProfile() = DeviceProfile(
-        userAgent = "Mozilla/5.0 (Linux; Android 13; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Mobile Safari/537.36",
-        platform = "Linux armv8l",
-        languages = listOf("en-US", "en"),
-        hardwareConcurrency = 8,
-        deviceMemory = 8,
-        timeZone = "UTC",
-        screen = ScreenSpecs(390, 844, 390, 844, 24, 24, 3.0),
-        gpuVendor = "Qualcomm",
-        gpuRenderer = "Adreno (TM) 740",
-        noiseSeed = (0..1000).random()
-    )
-
-    private fun createWindowsProfile() = DeviceProfile(
-        userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
-        platform = "Win32",
-        languages = listOf("en-US", "en"),
-        hardwareConcurrency = 12,
-        deviceMemory = 16,
-        timeZone = "America/New_York",
-        screen = ScreenSpecs(1920, 1080, 1920, 1040, 24, 24, 1.0),
-        gpuVendor = "Google Inc. (Intel)",
-        gpuRenderer = "ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0)",
-        noiseSeed = (0..1000).random()
-    )
-
-    private fun createMacProfile() = DeviceProfile(
-        userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
-        platform = "MacIntel",
-        languages = listOf("en-US", "en"),
-        hardwareConcurrency = 8,
-        deviceMemory = 16,
-        timeZone = "Europe/London",
-        screen = ScreenSpecs(1440, 900, 1440, 850, 24, 24, 2.0),
-        gpuVendor = "Apple Inc.",
-        gpuRenderer = "Apple M2",
-        noiseSeed = (0..1000).random()
-    )
+    private fun seededRandom(vararg parts: String): Random {
+        var seed = 1125899906842597L
+        parts.forEach { part ->
+            part.forEach { ch ->
+                seed = (seed * 31L) + ch.code
+            }
+        }
+        return Random(seed)
+    }
 }

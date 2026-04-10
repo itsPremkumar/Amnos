@@ -47,18 +47,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        // 2. Dead Man's Switch: Auto-Wipe on Background
-        // In "God-Tier" mode, we wipe the session as soon as the app is no longer visible
-        // to prevent data leaks if the phone is suddenly locked or put away.
-        Log.d("MainActivity", "Idle Wipe triggered: Application moved to background.")
-        sessionManager.killAll()
+        if (!isChangingConfigurations) {
+            Log.d("MainActivity", "Idle wipe triggered: application moved to background.")
+            sessionManager.killAll(terminateProcess = true)
+        }
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level >= TRIM_MEMORY_UI_HIDDEN) {
+        if (level >= TRIM_MEMORY_UI_HIDDEN && !isChangingConfigurations) {
             Log.d("MainActivity", "Memory pressure wipe triggered.")
-            sessionManager.killAll()
+            sessionManager.killAll(terminateProcess = true)
         }
     }
 }
