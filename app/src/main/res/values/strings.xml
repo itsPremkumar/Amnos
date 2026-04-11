@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Amnos</string>
+    <string name="app_short_description">Privacy-focused, hardened Android browser.</string>
+    <string name="app_full_description">Amnos is a high-security, privacy-hardened Android browser built on WebView. It features aggressive tracker blocking, WebRTC shutdown, finger-print obfuscation, and a zero-persistent-footprint model. Designed for local-only browsing sessions with maximum privacy.</string>
+    <string name="app_keywords">browser, privacy, security, hardened, webview, tracker blocker, anonymity, android browser, amnos</string>
 </resources>
+

@@ -1,0 +1,36 @@
+{
+  "project": {
+    "name": "Amnos",
+    "version": "1.0.0",
+    "description": "Hardened Android Browser focused on privacy and security.",
+    "category": "Software > Utilities > Browser",
+    "keywords": [
+      "privacy",
+      "security",
+      "hardened",
+      "android",
+      "webview",
+      "tracker blocking",
+      "webrtc shutdown"
+    ],
+    "license": "MIT",
+    "repository": "https://github.com/itsPremkumar/Amnos"
+  },
+  "technical_details": {
+    "platform": "Android",
+    "language": "Kotlin",
+    "engine": "Android WebView (Hardened)",
+    "target_sdk": 34,
+    "min_sdk": 26
+  },
+  "seo_optimization": {
+    "deep_linking": true,
+    "system_integration": "Default Browser Support",
+    "localized_strings": [
+      "en",
+      "es",
+      "hi",
+      "de"
+    ]
+  }
+}

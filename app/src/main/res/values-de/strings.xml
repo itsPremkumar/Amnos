@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Amnos</string>
+    <string name="app_short_description">Datenschutzorientierter, gehärteter Android-Browser.</string>
+    <string name="app_full_description">Amnos ist ein hochsicherer, auf Datenschutz spezialisierter Android-Browser auf WebView-Basis. Er bietet aggressives Tracker-Blocking, WebRTC-Abschaltung, Fingerprint-Verschleierung und ein Modell ohne dauerhafte Spuren. Entwickelt für lokale Browsing-Sitzungen mit maximaler Privatsphäre.</string>
+    <string name="app_keywords">Browser, Datenschutz, Sicherheit, gehärtet, webview, Tracker-Blocker, Anonymität, Android-Browser, amnos</string>
+</resources>

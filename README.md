@@ -1,5 +1,19 @@
 # Amnos
 
+**[Project Status]** Active | **[Type]** Hardened Android Browser | **[Focus]** Privacy, Security, Local-Only
+
+## 🔍 SEO & Project Metadata
+
+| Attribute | Details |
+| :--- | :--- |
+| **Official Name** | Amnos |
+| **Category** | Privacy-focused Web Browser |
+| **Platform** | Android (API 34+) |
+| **Key Features** | Aggressive Tracker Blocking, WebRTC Isolation, Fingerprint Mitigation |
+| **Tech Stack** | Kotlin, WebView, JavaScript Injection |
+
+---
+
 Amnos is a privacy-focused Android browser built on top of `WebView` and hardened as far as the platform realistically allows. It is designed for local-only browsing sessions, zero persistent footprint, aggressive tracker blocking, and reduced browser fingerprint entropy.
 
 Amnos does **not** provide Tor-class anonymity. It is a hardened WebView browser, not an anonymity network client.
