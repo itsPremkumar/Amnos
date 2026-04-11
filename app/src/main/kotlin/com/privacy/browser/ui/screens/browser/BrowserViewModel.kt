@@ -188,7 +188,11 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     fun goBack() {
         currentTab.value?.webView?.let {
-            if (it.canGoBack()) it.goBack() else uiState.value = BrowserUIState.HOME
+            if (it.canGoBack()) {
+                it.goBack()
+            } else {
+                goHome()
+            }
         }
         sessionManager.touchSession()
     }
