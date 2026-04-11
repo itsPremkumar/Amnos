@@ -38,47 +38,66 @@ fun BrowsingView(viewModel: BrowserViewModel) {
             Column {
                 Column(
                     modifier = Modifier
-                        .background(SurfaceGray.copy(alpha = 0.95f))
-                        .padding(vertical = 4.dp)
+                        .background(SurfaceGray.copy(alpha = 0.98f))
+                        .padding(bottom = 8.dp)
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Kill Button
-                        IconButton(onClick = { viewModel.killSwitch() }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Kill", tint = KillRed)
+                        IconButton(
+                            onClick = { viewModel.killSwitch() },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Kill", tint = KillRed, modifier = Modifier.size(22.dp))
                         }
+
+                        Spacer(Modifier.width(4.dp))
 
                         // URL Field
                         TextField(
                             value = viewModel.urlInput.value,
                             onValueChange = { viewModel.urlInput.value = it },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            placeholder = { Text("Search...", fontSize = 14.sp) },
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            textStyle = LocalTextStyle.current.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium),
+                            placeholder = { Text("Search or type URL", fontSize = 15.sp, color = Color.Gray) },
                             singleLine = true,
-                            shape = RoundedCornerShape(24.dp),
+                            shape = RoundedCornerShape(12.dp), // More modern Squircle look
                             colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                                unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                                focusedContainerColor = Color.White.copy(alpha = 0.08f),
+                                unfocusedContainerColor = Color.White.copy(alpha = 0.08f),
                                 focusedIndicatorColor = Color.Transparent,
                                 unfocusedIndicatorColor = Color.Transparent,
                                 focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.LightGray
+                                unfocusedTextColor = Color.White.copy(alpha = 0.9f),
+                                cursorColor = AccentBlue
                             ),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = if (viewModel.urlInput.value.startsWith("https")) Icons.Default.Lock else Icons.Default.LockOpen,
+                                    contentDescription = "Security",
+                                    tint = if (viewModel.urlInput.value.startsWith("https")) Color.Gray.copy(alpha = 0.8f) else KillRed,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = { viewModel.reload() }) {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Reload", modifier = Modifier.size(18.dp), tint = Color.LightGray)
+                                }
+                            },
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                             keyboardActions = KeyboardActions(onSearch = {
                                 viewModel.navigate(viewModel.urlInput.value)
                                 focusManager.clearFocus()
-                            }),
-                            trailingIcon = {
-                                IconButton(onClick = { viewModel.reload() }) {
-                                    ScaledIcon(Icons.Default.Refresh, contentDescription = "Reload", size = 16.dp, tint = Color.White)
-                                }
-                            }
+                            })
                         )
 
-                        // Tracker Badge / Dashboard Trigger
+                        Spacer(Modifier.width(8.dp))
+
+                        // Tracker Badge
                         TrackerBadge(viewModel)
                     }
                 }
