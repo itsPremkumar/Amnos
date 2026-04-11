@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -63,8 +65,9 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-                .padding(bottom = 32.dp)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 48.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -204,26 +207,25 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
                         checked = policy.resetIdentityOnRefresh,
                         onCheckedChange = viewModel::toggleResetIdentityOnRefresh
                     )
+                    Spacer(Modifier.height(24.dp))
+                    Text(
+                        viewModel.privacyWarning.value,
+                        color = Color(0xFFFFD166),
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Amnos v1.2.0 - Loopback privacy controls active",
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 16.dp)
+                    )
                 }
             } else {
                 RequestInspectorList(viewModel.requestLog)
             }
-
-            Spacer(Modifier.height(24.dp))
-            Text(
-                viewModel.privacyWarning.value,
-                color = Color(0xFFFFD166),
-                fontSize = 11.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "Amnos v1.2.0 - Loopback privacy controls active",
-                color = Color.Gray,
-                fontSize = 10.sp,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
         }
     }
 }
@@ -396,9 +398,9 @@ fun SecurityToggle(
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, color = Color.White, fontWeight = FontWeight.Medium)
-            Text(description, color = Color.Gray, fontSize = 12.sp)
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(title, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+            Text(description, color = Color.Gray, fontSize = 11.sp, lineHeight = 14.sp)
         }
         Switch(
             checked = checked,
