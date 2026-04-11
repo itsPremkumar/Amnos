@@ -1,5 +1,9 @@
 # Amnos
 
+![License](https://img.shields.io/github/license/itsPremkumar/Amnos)
+![Android](https://img.shields.io/badge/Platform-Android-green?logo=android)
+![Build](https://img.shields.io/github/actions/workflow/status/itsPremkumar/Amnos/android.yml?branch=main)
+
 **[Project Status]** Active | **[Type]** Hardened Android Browser | **[Focus]** Privacy, Security, Local-Only
 
 ## 🔍 SEO & Project Metadata
@@ -94,6 +98,17 @@ Not completed from this machine:
 
 See [VALIDATION.md](VALIDATION.md) for the exact manual test plan and current gaps.
 
-## Security reporting
+## 🤝 Community & Support
 
-See [SECURITY.md](SECURITY.md).
+We welcome contributions from everyone! To keep our community healthy and welcoming, please follow our standards:
+
+- **[Contributing](CONTRIBUTING.md)**: Guidelines on how to help.
+- **[Code of Conduct](CODE_OF_CONDUCT.md)**: How we interact with each other.
+- **[Security Policy](SECURITY.md)**: How to report vulnerabilities.
+
+## ⚖️ License
+
+Amnos is released under the **[MIT License](LICENSE)**. See the `LICENSE` file for more details.
+
+---
+*Amnos - Browsing without a trace.*

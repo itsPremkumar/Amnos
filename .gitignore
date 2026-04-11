@@ -44,3 +44,7 @@ prof.txt
 /tmp/
 .temp/
 .cache/
+
+# Sensitive files
+# .env
+# secrets.properties
