@@ -113,31 +113,6 @@ fun BrowsingView(viewModel: BrowserViewModel) {
                 }
             }
         },
-        bottomBar = {
-            BottomAppBar(
-                containerColor = SurfaceGray.copy(alpha = 0.95f),
-                modifier = Modifier.height(56.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { viewModel.goBack() }, enabled = viewModel.canGoBack.value) {
-                        Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = if (viewModel.canGoBack.value) Color.White else Color.Gray, modifier = Modifier.size(20.dp))
-                    }
-                    IconButton(onClick = { viewModel.goForward() }, enabled = viewModel.canGoForward.value) {
-                        Icon(Icons.Default.ArrowForwardIos, contentDescription = "Forward", tint = if (viewModel.canGoForward.value) Color.White else Color.Gray, modifier = Modifier.size(20.dp))
-                    }
-                    IconButton(onClick = { viewModel.goHome() }) {
-                        Icon(Icons.Default.Home, contentDescription = "Home", tint = Color.White)
-                    }
-                    IconButton(onClick = { viewModel.showSecurityDashboard.value = true }) {
-                        Icon(Icons.Default.Shield, contentDescription = "Security", tint = AccentBlue)
-                    }
-                }
-            }
-        }
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             viewModel.currentTab.value?.let { tab ->
