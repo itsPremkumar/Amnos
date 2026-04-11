@@ -153,11 +153,16 @@ class NetworkSecurityManager(
             .build()
 
         return try {
+            val startTime = System.currentTimeMillis()
             Log.d("NetworkSecurityManager", "Fetching proxied request: ${request.method} $httpUrl")
             val response = DnsManager.secureClient(policy.blockIpv6).newCall(okHttpRequest).execute()
-            Log.d("NetworkSecurityManager", "Proxied response received: code=${response.code} url=$httpUrl")
+            val duration = System.currentTimeMillis() - startTime
+            Log.d("NetworkSecurityManager", "Proxied response received in ${duration}ms: code=${response.code} url=$httpUrl")
             
-            val contentType = response.body?.contentType()
+            val body = response.body
+            val contentLength = body?.contentLength() ?: -1
+            Log.v("NetworkSecurityManager", "Response body size: $contentLength bytes")
+            val contentType = body?.contentType()
             val mimeType = if (contentType != null) {
                 "${contentType.type}/${contentType.subtype}"
             } else {

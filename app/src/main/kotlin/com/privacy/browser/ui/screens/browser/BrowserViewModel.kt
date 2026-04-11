@@ -169,6 +169,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     fun navigate(input: String) {
         val trimmedInput = input.trim()
+        Log.d("BrowserViewModel", "Navigation requested for: $trimmedInput")
         if (trimmedInput.isEmpty()) return
 
         val isUrl = (trimmedInput.startsWith("http://") || trimmedInput.startsWith("https://")) ||
@@ -254,6 +255,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     }
 
     private fun handleMainFrameNavigation(url: String): Boolean {
+        Log.d("BrowserViewModel", "Handling main frame navigation to: $url")
         uiState.value = BrowserUIState.BROWSING
         val current = currentTab.value ?: return false
         val activeTab = if (sessionManager.shouldRecreateForTopLevelNavigation(current, url)) {

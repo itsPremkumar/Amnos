@@ -26,6 +26,14 @@ class PrivacyWebChromeClient(
     }
 
     override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+        consoleMessage?.let {
+            val level = when (it.messageLevel()) {
+                ConsoleMessage.MessageLevel.ERROR -> "ERROR"
+                ConsoleMessage.MessageLevel.WARNING -> "WARNING"
+                else -> "LOG"
+            }
+            android.util.Log.d("WebConsole", "[$level] ${it.message()} (at ${it.sourceId()}:${it.lineNumber()})")
+        }
         return true
     }
 
