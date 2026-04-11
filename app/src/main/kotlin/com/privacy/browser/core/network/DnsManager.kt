@@ -4,12 +4,15 @@ import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.CookieJar
+import android.util.Log
 import okhttp3.dnsoverhttps.DnsOverHttps
 import java.net.Inet4Address
 import java.net.InetAddress
+import java.net.Proxy
 
 object DnsManager {
     private val bootstrapClient = OkHttpClient.Builder()
+        .proxy(Proxy.NO_PROXY)
         .cookieJar(CookieJar.NO_COOKIES)
         .build()
 
@@ -27,11 +30,22 @@ object DnsManager {
     }
 
     fun lookup(hostname: String, blockIpv6: Boolean): List<InetAddress> {
-        val resolved = dnsOverHttps.lookup(hostname)
-        return if (!blockIpv6) {
-            resolved
-        } else {
-            resolved.filterIsInstance<Inet4Address>().ifEmpty { resolved }
+        return try {
+            Log.d("DnsManager", "Resolving hostname via DoH: $hostname")
+            val resolved = dnsOverHttps.lookup(hostname)
+            Log.d("DnsManager", "Resolved $hostname to ${resolved.size} addresses")
+            
+            if (!blockIpv6) {
+                resolved
+            } else {
+                resolved.filterIsInstance<Inet4Address>().ifEmpty { 
+                    Log.v("DnsManager", "No IPv4 found for $hostname, falling back to all")
+                    resolved 
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("DnsManager", "DNS resolution FAILED for $hostname", e)
+            throw e
         }
     }
 
@@ -41,10 +55,19 @@ object DnsManager {
         }
     }
 
+    @Volatile
+    private var cachedClient: OkHttpClient? = null
+
     fun secureClient(blockIpv6: Boolean): OkHttpClient {
-        return OkHttpClient.Builder()
-            .dns(dns(blockIpv6))
-            .cookieJar(CookieJar.NO_COOKIES)
-            .build()
+        val current = cachedClient
+        if (current != null) return current
+
+        return synchronized(this) {
+            cachedClient ?: OkHttpClient.Builder()
+                .proxy(Proxy.NO_PROXY)
+                .dns(dns(blockIpv6))
+                .cookieJar(CookieJar.NO_COOKIES)
+                .build().also { cachedClient = it }
+        }
     }
 }

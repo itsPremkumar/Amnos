@@ -7,6 +7,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.util.Log
 import com.privacy.browser.core.adblock.AdBlocker
 import com.privacy.browser.core.fingerprint.DeviceProfile
 import com.privacy.browser.core.network.BlockReason
@@ -88,18 +89,26 @@ class PrivacyWebViewClient(
             return networkSecurityManager.createBlockedResponse(decision.blockReason!!, request.isForMainFrame)
         }
 
-        val proxiedResponse = networkSecurityManager.fetchResponse(request, decision, deviceProfile, currentHost)
-        if (proxiedResponse != null) {
-            securityController.logRequest(
-                url = decision.sanitizedUrl,
-                method = request.method,
-                type = securityController.mapKind(decision.kind),
-                disposition = SecurityController.RequestDisposition.ALLOWED,
-                thirdParty = decision.thirdParty
-            )
-            return proxiedResponse
+        try {
+            val proxiedResponse = networkSecurityManager.fetchResponse(request, decision, deviceProfile, currentHost)
+            if (proxiedResponse != null) {
+                securityController.logRequest(
+                    url = decision.sanitizedUrl,
+                    method = request.method,
+                    type = securityController.mapKind(decision.kind),
+                    disposition = SecurityController.RequestDisposition.ALLOWED,
+                    thirdParty = decision.thirdParty
+                )
+                Log.d("PrivacyWebViewClient", "Interception SUCCESS: ${decision.sanitizedUrl}")
+                return proxiedResponse
+            }
+        } catch (e: Exception) {
+            Log.e("PrivacyWebViewClient", "Interception CRITICAL FAILURE for ${decision.sanitizedUrl}", e)
+            // If manual interception fails, we definitely want to know why, but falling through
+            // might be safer than a blank page if it's not a security risk.
         }
 
+        Log.d("PrivacyWebViewClient", "Interception FALLTHROUGH to system: ${decision.sanitizedUrl}")
         securityController.logRequest(
             url = decision.sanitizedUrl,
             method = request.method,

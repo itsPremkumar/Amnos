@@ -1,5 +1,6 @@
 package com.privacy.browser.core.network
 
+import android.util.Log
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import com.privacy.browser.core.fingerprint.DeviceProfile
@@ -151,19 +152,27 @@ class NetworkSecurityManager(
             .method(request.method, null)
             .build()
 
-        val response = DnsManager.secureClient(policy.blockIpv6).newCall(okHttpRequest).execute()
-        val contentType = response.body?.contentType()
-        val mimeType = contentType?.type + "/" + contentType?.subtype
-        val charset = contentType?.charset(Charsets.UTF_8)?.name() ?: "UTF-8"
+        return try {
+            Log.d("NetworkSecurityManager", "Fetching proxied request: ${request.method} $httpUrl")
+            val response = DnsManager.secureClient(policy.blockIpv6).newCall(okHttpRequest).execute()
+            Log.d("NetworkSecurityManager", "Proxied response received: code=${response.code} url=$httpUrl")
+            
+            val contentType = response.body?.contentType()
+            val mimeType = contentType?.type + "/" + contentType?.subtype
+            val charset = contentType?.charset(Charsets.UTF_8)?.name() ?: "UTF-8"
 
-        return WebResourceResponse(
-            mimeType.takeUnless { it == "null/null" },
-            charset,
-            response.code,
-            response.message.ifBlank { "OK" },
-            buildResponseHeaders(response, decision.kind),
-            response.body?.byteStream()
-        )
+            WebResourceResponse(
+                mimeType.takeUnless { it == "null/null" },
+                charset,
+                response.code,
+                response.message.ifBlank { "OK" },
+                buildResponseHeaders(response, decision.kind),
+                response.body?.byteStream()
+            )
+        } catch (e: Exception) {
+            Log.e("NetworkSecurityManager", "Proxied fetch FAILED for $httpUrl", e)
+            null
+        }
     }
 
     fun blockReasonLabel(reason: BlockReason): String = when (reason) {
@@ -298,7 +307,12 @@ class NetworkSecurityManager(
         val headers = linkedMapOf<String, String>()
 
         response.headers.forEach { (name, value) ->
-            if (name.equals("Set-Cookie", ignoreCase = true)) return@forEach
+            if (name.equals("Set-Cookie", ignoreCase = true)) {
+                 // Log cookies but keep them for now to test if it fixes search results
+                Log.v("NetworkSecurityManager", "Preserving cookie from server for privacy debug")
+                headers[name] = value
+                return@forEach
+            }
             if (name.equals("Content-Security-Policy", ignoreCase = true)) return@forEach
             headers[name] = value
         }
