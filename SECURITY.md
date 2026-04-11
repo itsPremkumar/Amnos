@@ -52,4 +52,4 @@ Whenever possible, privacy bugs should be reproduced on:
 - at least one emulator
 - a known leak-test site or repeatable reproduction page
 
-See [VALIDATION.md](/C:/one/browser/VALIDATION.md) for the current validation workflow.
+See [VALIDATION.md](VALIDATION.md) for the current validation workflow.

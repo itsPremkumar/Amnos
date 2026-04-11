@@ -3,30 +3,30 @@
 ## Core modules
 
 - `core/fingerprint`
-  - [FingerprintManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/fingerprint/FingerprintManager.kt)
-  - [ScriptInjector.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/fingerprint/ScriptInjector.kt)
-  - [FingerprintObfuscator.js](/C:/one/browser/app/src/main/assets/FingerprintObfuscator.js)
+  - [FingerprintManager.kt](app/src/main/kotlin/com/privacy/browser/core/fingerprint/FingerprintManager.kt)
+  - [ScriptInjector.kt](app/src/main/kotlin/com/privacy/browser/core/fingerprint/ScriptInjector.kt)
+  - [FingerprintObfuscator.js](app/src/main/assets/FingerprintObfuscator.js)
 - `core/network`
-  - [DnsManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/DnsManager.kt)
-  - [NetworkSecurityManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/NetworkSecurityManager.kt)
-  - [LoopbackProxyServer.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/LoopbackProxyServer.kt)
-  - [UrlSanitizer.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/UrlSanitizer.kt)
-  - [RequestDecision.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/RequestDecision.kt)
+  - [DnsManager.kt](app/src/main/kotlin/com/privacy/browser/core/network/DnsManager.kt)
+  - [NetworkSecurityManager.kt](app/src/main/kotlin/com/privacy/browser/core/network/NetworkSecurityManager.kt)
+  - [LoopbackProxyServer.kt](app/src/main/kotlin/com/privacy/browser/core/network/LoopbackProxyServer.kt)
+  - [UrlSanitizer.kt](app/src/main/kotlin/com/privacy/browser/core/network/UrlSanitizer.kt)
+  - [RequestDecision.kt](app/src/main/kotlin/com/privacy/browser/core/network/RequestDecision.kt)
 - `core/webview`
-  - [SecureWebView.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/webview/SecureWebView.kt)
-  - [PrivacyWebViewClient.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/webview/PrivacyWebViewClient.kt)
-  - [PrivacyWebChromeClient.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/webview/PrivacyWebChromeClient.kt)
+  - [SecureWebView.kt](app/src/main/kotlin/com/privacy/browser/core/webview/SecureWebView.kt)
+  - [PrivacyWebViewClient.kt](app/src/main/kotlin/com/privacy/browser/core/webview/PrivacyWebViewClient.kt)
+  - [PrivacyWebChromeClient.kt](app/src/main/kotlin/com/privacy/browser/core/webview/PrivacyWebChromeClient.kt)
 - `core/session`
-  - [SessionManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/SessionManager.kt)
-  - [SecurityController.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/SecurityController.kt)
-  - [StorageController.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/StorageController.kt)
-  - [TabInstance.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/TabInstance.kt)
+  - [SessionManager.kt](app/src/main/kotlin/com/privacy/browser/core/session/SessionManager.kt)
+  - [SecurityController.kt](app/src/main/kotlin/com/privacy/browser/core/session/SecurityController.kt)
+  - [StorageController.kt](app/src/main/kotlin/com/privacy/browser/core/session/StorageController.kt)
+  - [TabInstance.kt](app/src/main/kotlin/com/privacy/browser/core/session/TabInstance.kt)
 - `core/security`
-  - [PrivacyPolicy.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/security/PrivacyPolicy.kt)
-  - [PermissionSentinel.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/security/PermissionSentinel.kt)
-  - [ClipboardSentinel.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/security/ClipboardSentinel.kt)
+  - [PrivacyPolicy.kt](app/src/main/kotlin/com/privacy/browser/core/security/PrivacyPolicy.kt)
+  - [PermissionSentinel.kt](app/src/main/kotlin/com/privacy/browser/core/security/PermissionSentinel.kt)
+  - [ClipboardSentinel.kt](app/src/main/kotlin/com/privacy/browser/core/security/ClipboardSentinel.kt)
 - `core/adblock`
-  - [AdBlocker.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/adblock/AdBlocker.kt)
+  - [AdBlocker.kt](app/src/main/kotlin/com/privacy/browser/core/adblock/AdBlocker.kt)
 
 ## Runtime flow
 
@@ -39,7 +39,7 @@
 
 ## Privacy policy model
 
-[PrivacyPolicy.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/security/PrivacyPolicy.kt) is the central switchboard for:
+[PrivacyPolicy.kt](app/src/main/kotlin/com/privacy/browser/core/security/PrivacyPolicy.kt) is the central switchboard for:
 
 - JavaScript mode
 - WebGL mode

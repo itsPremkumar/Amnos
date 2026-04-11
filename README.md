@@ -46,24 +46,24 @@ Known WebView constraints include:
 
 ## Architecture highlights
 
-- [FingerprintManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/fingerprint/FingerprintManager.kt)
+- [FingerprintManager.kt](app/src/main/kotlin/com/privacy/browser/core/fingerprint/FingerprintManager.kt)
   deterministic per-session and per-tab identity generation
-- [FingerprintObfuscator.js](/C:/one/browser/app/src/main/assets/FingerprintObfuscator.js)
+- [FingerprintObfuscator.js](app/src/main/assets/FingerprintObfuscator.js)
   document-start API overrides, timing mitigation, WebRTC shutdown, WebSocket telemetry
-- [NetworkSecurityManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/NetworkSecurityManager.kt)
+- [NetworkSecurityManager.kt](app/src/main/kotlin/com/privacy/browser/core/network/NetworkSecurityManager.kt)
   HTTPS-only policy, request classification, header hardening, site-key logic
-- [LoopbackProxyServer.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/network/LoopbackProxyServer.kt)
+- [LoopbackProxyServer.kt](app/src/main/kotlin/com/privacy/browser/core/network/LoopbackProxyServer.kt)
   local CONNECT proxy for broader DoH-backed resolution
-- [SessionManager.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/core/session/SessionManager.kt)
+- [SessionManager.kt](app/src/main/kotlin/com/privacy/browser/core/session/SessionManager.kt)
   policy ownership, loopback proxy activation, tab recreation, wipe behavior
-- [SecurityDashboard.kt](/C:/one/browser/app/src/main/kotlin/com/privacy/browser/ui/components/SecurityDashboard.kt)
+- [SecurityDashboard.kt](app/src/main/kotlin/com/privacy/browser/ui/components/SecurityDashboard.kt)
   live status, counters, toggles, fingerprint mode, and visibility into active connections
 
 More detail lives in:
 
-- [ARCHITECTURE.md](/C:/one/browser/ARCHITECTURE.md)
-- [SECURITY_AUDIT.md](/C:/one/browser/SECURITY_AUDIT.md)
-- [VALIDATION.md](/C:/one/browser/VALIDATION.md)
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [SECURITY_AUDIT.md](SECURITY_AUDIT.md)
+- [VALIDATION.md](VALIDATION.md)
 
 ## Build
 
@@ -92,8 +92,8 @@ Not completed from this machine:
 - emulator-based leak testing
 - on-device WebRTC, DNS, and compatibility sweeps
 
-See [VALIDATION.md](/C:/one/browser/VALIDATION.md) for the exact manual test plan and current gaps.
+See [VALIDATION.md](VALIDATION.md) for the exact manual test plan and current gaps.
 
 ## Security reporting
 
-See [SECURITY.md](/C:/one/browser/SECURITY.md).
+See [SECURITY.md](SECURITY.md).
