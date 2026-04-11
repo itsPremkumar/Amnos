@@ -250,7 +250,6 @@ class SessionManager(private val context: Context) {
         WebStorage.getInstance().deleteAllData()
         val webViewDB = WebViewDatabase.getInstance(context)
         webViewDB.clearHttpAuthUsernamePassword()
-        webViewDB.clearUsernamePassword()
         @Suppress("DEPRECATION")
         webViewDB.clearFormData()
         try {
