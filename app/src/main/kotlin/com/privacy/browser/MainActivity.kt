@@ -23,23 +23,20 @@ class MainActivity : ComponentActivity() {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e("AmnosCrash", "CRITICAL FAILURE in thread ${thread.name}", throwable)
+            // Try to log to a file or something more persistent?
             defaultHandler?.uncaughtException(thread, throwable)
         }
 
-        super.onCreate(savedInstanceState)
-        Log.d("MainActivity", "onCreate: Initializing Amnos")
-
-        // 1. RAM-Only Session Isolation
+        // WebView Suffix must be set BEFORE any WebView is created, including via state restoration in super.onCreate
         try {
-            // We only set the suffix if it hasn't been set before in this process.
-            // Using a try-catch for IllegalStateException specifically.
-            android.webkit.WebView.setDataDirectorySuffix("amnos_" + UUID.randomUUID().toString().take(8))
+            android.webkit.WebView.setDataDirectorySuffix("amnos_session")
             Log.d("MainActivity", "WebView data directory suffix set successfully")
-        } catch (e: IllegalStateException) {
-            Log.w("MainActivity", "WebView suffix already set or WebView already initialized", e)
         } catch (e: Exception) {
-            Log.e("MainActivity", "Failed to set data suffix", e)
+            Log.w("MainActivity", "WebView suffix already set or failed: ${e.message}")
         }
+
+        super.onCreate(savedInstanceState)
+        Log.d("MainActivity", "onCreate: Initializing Amnos UI")
 
         try {
             WebView.setWebContentsDebuggingEnabled(true) // Enabled for debugging as requested

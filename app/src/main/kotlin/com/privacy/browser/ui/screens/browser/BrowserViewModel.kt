@@ -39,15 +39,6 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var userPin = "1111"
     var pinInput = mutableStateOf("")
 
-    init {
-        Log.d("BrowserViewModel", "Initializing BrowserViewModel")
-        sessionManager.registerTimeoutListener {
-            Log.d("BrowserViewModel", "Session timeout triggered")
-            handleSessionTimeout()
-        }
-        initializeSession()
-    }
-
     private val stateChangedCallback: (String, Boolean, Boolean) -> Unit = { url, back, forward ->
         Log.v("BrowserViewModel", "State changed: $url (back=$back, forward=$forward)")
         currentTab.value?.currentUrl = url
@@ -67,6 +58,15 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     private val trackerBlockedCallback: () -> Unit = {
         blockedTrackersCount.value = sessionManager.securityController.trackerBlockCount()
+    }
+
+    init {
+        Log.d("BrowserViewModel", "Initializing BrowserViewModel")
+        sessionManager.registerTimeoutListener {
+            Log.d("BrowserViewModel", "Session timeout triggered")
+            handleSessionTimeout()
+        }
+        initializeSession()
     }
 
     private fun initializeSession(loadUrl: String? = null) {
