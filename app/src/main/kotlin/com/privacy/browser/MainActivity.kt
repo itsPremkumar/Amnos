@@ -45,19 +45,20 @@ class MainActivity : ComponentActivity() {
             Log.e("MainActivity", "Failed to enable web debugging", e)
         }
 
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
+        // Security flags will be initialized after SessionManager creation
 
         try {
             Log.d("MainActivity", "Creating SessionManager")
             sessionManager = SessionManager(this)
+            
+            // Apply centralized security flags from Command Center (PrivacyPolicy)
+            updateSecurityFlags(sessionManager.privacyPolicy)
+
             Log.d("MainActivity", "Creating BrowserViewModel")
             viewModel = BrowserViewModel(sessionManager)
         } catch (e: Exception) {
             Log.e("MainActivity", "Initialization failed during component creation", e)
-            throw e // Re-throw to be caught by global handler
+            throw e 
         }
 
         Log.d("MainActivity", "Setting content")
@@ -84,6 +85,16 @@ class MainActivity : ComponentActivity() {
         if (level >= TRIM_MEMORY_UI_HIDDEN && !isChangingConfigurations) {
             Log.d("MainActivity", "Memory pressure wipe triggered.")
             sessionManager.killAll(terminateProcess = false)
+        }
+    }
+
+    private fun updateSecurityFlags(policy: com.privacy.browser.core.security.PrivacyPolicy) {
+        if (policy.blockScreenshots) {
+            window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+            Log.d("MainActivity", "Screenshot protection ENABLED (via policy)")
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            Log.d("MainActivity", "Screenshot protection DISABLED (via policy)")
         }
     }
 }

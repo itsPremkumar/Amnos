@@ -54,6 +54,18 @@ class NetworkSecurityManager(
 
     fun evaluateRequest(request: WebResourceRequest, topLevelHost: String?): RequestDecision {
         val policy = policyProvider()
+        val decision = evaluateRequestInner(request, topLevelHost, policy)
+        
+        // GLOBAL DEBUG BYPASS - If relaxed mode is active, override blocking decisions
+        if (policy.forceRelaxSecurityForDebug && decision.isBlocked) {
+            Log.w("NetworkSecurityManager", "OVERRIDING block decision for ${decision.sanitizedUrl} due to RELAXED mode")
+            return decision.copy(blockReason = null)
+        }
+        
+        return decision
+    }
+
+    private fun evaluateRequestInner(request: WebResourceRequest, topLevelHost: String?, policy: PrivacyPolicy): RequestDecision {
         val rawUrl = request.url.toString()
         val sanitizedUrl = sanitizeUrlIfEnabled(rawUrl)
         val parsed = sanitizedUrl.toHttpUrlOrNull()
@@ -348,6 +360,11 @@ class NetworkSecurityManager(
     }
 
     private fun buildContentSecurityPolicy(policy: PrivacyPolicy): String? {
+        if (policy.forceRelaxSecurityForDebug) {
+            Log.d("NetworkSecurityManager", "Skipping CSP injection due to RELAXED mode")
+            return null
+        }
+        
         if (!policy.isRestrictedJavaScript &&
             !policy.blockDnsPrefetch &&
             !policy.blockPreconnect &&

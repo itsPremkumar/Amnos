@@ -36,11 +36,11 @@ class SecureWebView(context: Context) : WebView(context) {
         fallbackInjectionScript = injectionScript
 
         settings.apply {
-            javaScriptEnabled = policy.isJavaScriptEnabled
+            javaScriptEnabled = if (policy.forceRelaxSecurityForDebug) true else policy.isJavaScriptEnabled
             javaScriptCanOpenWindowsAutomatically = false
-            domStorageEnabled = true
-            databaseEnabled = true
-            cacheMode = WebSettings.LOAD_DEFAULT // Use default cache for better performance
+            domStorageEnabled = if (policy.forceRelaxSecurityForDebug) true else policy.domStorageEnabled
+            databaseEnabled = if (policy.forceRelaxSecurityForDebug) true else policy.domStorageEnabled
+            cacheMode = if (policy.forceRelaxSecurityForDebug) WebSettings.LOAD_DEFAULT else WebSettings.LOAD_DEFAULT
 
             userAgentString = profile.userAgent
             setSupportMultipleWindows(false)

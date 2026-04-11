@@ -5,12 +5,50 @@ android {
     namespace 'com.privacy.browser'
     compileSdk 34
 
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId "com.privacy.browser"
         minSdk 28
         targetSdk 34
         versionCode 1
         versionName "1.0.0"
+
+        // Load .env properties
+        def envFile = rootProject.file(".env")
+        if (envFile.exists()) {
+            envFile.eachLine { line ->
+                def parts = line.split("=", 2)
+                if (parts.size() == 2 && !line.startsWith("#")) {
+                    def key = parts[0].trim()
+                    def value = parts[1].trim()
+                    buildConfigField "boolean", key, value
+                }
+            }
+        } else {
+            // Default fallbacks if .env is missing (all true for security)
+            buildConfigField "boolean", "SECURITY_BLOCK_SCREENSHOTS", "true"
+            buildConfigField "boolean", "SECURITY_RELAX_FOR_DEBUG", "false"
+            buildConfigField "boolean", "SECURITY_BLOCK_TRACKERS", "true"
+            buildConfigField "boolean", "SECURITY_HTTPS_ONLY", "true"
+            buildConfigField "boolean", "SECURITY_BLOCK_THIRD_PARTY_REQUESTS", "true"
+            buildConfigField "boolean", "SECURITY_BLOCK_THIRD_PARTY_SCRIPTS", "true"
+            buildConfigField "boolean", "SECURITY_BLOCK_INLINE_SCRIPTS", "true"
+            buildConfigField "boolean", "SECURITY_STRIP_REFERRERS", "true"
+            buildConfigField "boolean", "SECURITY_REMOVE_TRACKING_PARAMS", "true"
+            buildConfigField "boolean", "SECURITY_BLOCK_WEBSOCKETS", "true"
+            buildConfigField "boolean", "SECURITY_BLOCK_WEBRTC", "true"
+            buildConfigField "boolean", "SECURITY_BLOCK_DNS_PREFETCH", "true"
+            buildConfigField "boolean", "SECURITY_BLOCK_PRECONNECT", "true"
+            buildConfigField "boolean", "SECURITY_BLOCK_SERVICE_WORKERS", "true"
+            buildConfigField "boolean", "SECURITY_BLOCK_EVAL", "true"
+            buildConfigField "boolean", "SECURITY_BLOCK_IPV6", "true"
+            buildConfigField "boolean", "SECURITY_ENFORCE_LOOPBACK_PROXY", "true"
+            buildConfigField "boolean", "SECURITY_STRICT_FIRST_PARTY_ISOLATION", "true"
+        }
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -47,9 +85,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = '1.8'
-    }
-    buildFeatures {
-        compose true
     }
     composeOptions {
         kotlinCompilerExtensionVersion '1.5.1'
