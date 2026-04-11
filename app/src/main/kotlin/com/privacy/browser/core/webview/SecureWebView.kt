@@ -42,7 +42,7 @@ class SecureWebView(context: Context) : WebView(context) {
             databaseEnabled = if (policy.forceRelaxSecurityForDebug) true else policy.domStorageEnabled
             cacheMode = if (policy.forceRelaxSecurityForDebug) WebSettings.LOAD_DEFAULT else WebSettings.LOAD_DEFAULT
 
-            userAgentString = profile.userAgent
+            userAgentString = if (policy.forceRelaxSecurityForDebug) android.webkit.WebSettings.getDefaultUserAgent(context) else profile.userAgent
             setSupportMultipleWindows(false)
             allowFileAccess = false
             allowContentAccess = false

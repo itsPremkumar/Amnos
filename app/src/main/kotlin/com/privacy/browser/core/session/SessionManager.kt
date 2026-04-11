@@ -280,6 +280,14 @@ class SessionManager(private val context: Context) {
     }
 
     private fun configureProxy() {
+        if (privacyPolicy.forceRelaxSecurityForDebug) {
+            Log.w("SessionManager", "TOTAL PROXY BYPASS - Diagnostics mode active")
+            ProxyController.getInstance().clearProxyOverride(ContextCompat.getMainExecutor(context)) {
+                securityController.updateProxyStatus(active = false, dohGlobal = false, port = null)
+            }
+            return
+        }
+
         if (!privacyPolicy.enforceLoopbackProxy || !WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
             securityController.updateProxyStatus(active = false, dohGlobal = false, port = null)
             return
