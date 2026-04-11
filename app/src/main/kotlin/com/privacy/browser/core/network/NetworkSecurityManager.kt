@@ -177,7 +177,7 @@ class NetworkSecurityManager(
                 response.code,
                 response.message.ifBlank { "OK" },
                 buildResponseHeaders(response, decision.kind),
-                response.body?.byteStream()
+                body?.byteStream() // Use the already-captured body reference
             )
         } catch (e: Exception) {
             Log.e("NetworkSecurityManager", "Proxied fetch FAILED for $httpUrl", e)
@@ -293,6 +293,7 @@ class NetworkSecurityManager(
 
         builder.set("User-Agent", profile.userAgent)
         builder.set("Accept-Language", profile.acceptLanguageHeader)
+        builder.set("Accept-Encoding", "identity") // Force uncompressed for manual intercept to avoid header clash
         builder.set("DNT", "1")
         builder.set("Sec-GPC", "1")
         builder.set("Cache-Control", "no-cache, no-store")
@@ -324,6 +325,8 @@ class NetworkSecurityManager(
                 return@forEach
             }
             if (name.equals("Content-Security-Policy", ignoreCase = true)) return@forEach
+            if (name.equals("Content-Encoding", ignoreCase = true)) return@forEach // Strip encoding since we forced identity
+            if (name.equals("Content-Length", ignoreCase = true)) return@forEach // Strip length to let WebView calculate it
             headers[name] = value
         }
 
