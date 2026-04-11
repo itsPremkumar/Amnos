@@ -373,16 +373,16 @@ class NetworkSecurityManager(
             return null
         }
 
-        val scriptSource = if (policy.blockInlineScripts) {
-            "'self' https:"
-        } else {
-            "'self' https: 'unsafe-inline'"
-        }
-        val connectSource = if (policy.blockWebSockets) {
-            "'self' https:"
-        } else {
-            "'self' https: wss:"
-        }
+        val scriptSources = mutableListOf("'self'", "https:")
+        if (!policy.blockInlineScripts) scriptSources.add("'unsafe-inline'")
+        if (!policy.blockEval) scriptSources.add("'unsafe-eval'")
+        
+        val scriptSourceStr = scriptSources.joinToString(" ")
+
+        val connectSources = mutableListOf("'self'", "https:")
+        if (!policy.blockWebSockets) connectSources.add("wss:")
+        
+        val connectSourceStr = connectSources.joinToString(" ")
 
         return listOf(
             "default-src https: data: blob:",
@@ -392,9 +392,9 @@ class NetworkSecurityManager(
             "img-src https: data: blob:",
             "media-src https: blob:",
             "style-src 'self' https: 'unsafe-inline'",
-            "font-src 'none'",
-            "connect-src $connectSource",
-            "script-src $scriptSource",
+            "font-src 'self' https: data:",
+            "connect-src $connectSourceStr",
+            "script-src $scriptSourceStr",
             "worker-src 'none'",
             "upgrade-insecure-requests"
         ).joinToString("; ")
