@@ -39,10 +39,10 @@ class MainActivity : ComponentActivity() {
         Log.d("MainActivity", "onCreate: Initializing Amnos UI")
 
         try {
-            WebView.setWebContentsDebuggingEnabled(true) // Enabled for debugging as requested
-            Log.d("MainActivity", "Web debugging enabled")
+            WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG) // Only enabled in debug builds
+            Log.d("MainActivity", "Web debugging: ${if (BuildConfig.DEBUG) "enabled" else "disabled"}")
         } catch (e: Exception) {
-            Log.e("MainActivity", "Failed to enable web debugging", e)
+            Log.e("MainActivity", "Failed to set web debugging state", e)
         }
 
         // Security flags will be initialized after SessionManager creation
