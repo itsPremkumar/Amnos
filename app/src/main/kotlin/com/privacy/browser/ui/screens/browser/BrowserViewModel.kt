@@ -1,5 +1,6 @@
 package com.privacy.browser.ui.screens.browser
 
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.privacy.browser.core.network.UrlSanitizer
@@ -49,7 +50,6 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     private val stateChangedCallback: (String, Boolean, Boolean) -> Unit = { url, back, forward ->
         Log.v("BrowserViewModel", "State changed: $url (back=$back, forward=$forward)")
-...
         currentTab.value?.currentUrl = url
         if (uiState.value == BrowserUIState.BROWSING) {
             urlInput.value = url
