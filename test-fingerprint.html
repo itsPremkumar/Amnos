@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amnos Fingerprint Protection Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #58a6ff; margin-bottom: 20px; font-size: 28px; }
+        h2 { color: #79c0ff; margin: 30px 0 15px; font-size: 20px; border-bottom: 1px solid #30363d; padding-bottom: 8px; }
+        .test-section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+        .test-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #21262d; }
+        .test-item:last-child { border-bottom: none; }
+        .test-label { font-weight: 500; color: #8b949e; flex: 1; }
+        .test-value { font-family: 'Courier New', monospace; color: #7ee787; flex: 2; word-break: break-all; }
+        .status { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 10px; }
+        .status.pass { background: #238636; color: #fff; }
+        .status.fail { background: #da3633; color: #fff; }
+        .status.warn { background: #d29922; color: #000; }
+        .summary { background: #1c2128; border: 2px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 30px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
+        .summary-item { text-align: center; padding: 15px; background: #161b22; border-radius: 6px; }
+        .summary-number { font-size: 32px; font-weight: bold; color: #58a6ff; }
+        .summary-label { font-size: 14px; color: #8b949e; margin-top: 5px; }
+        button { background: #238636; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin: 10px 5px; }
+        button:hover { background: #2ea043; }
+        button.secondary { background: #21262d; }
+        button.secondary:hover { background: #30363d; }
+        .canvas-test { margin: 10px 0; }
+        canvas { border: 1px solid #30363d; border-radius: 4px; }
+        .error { color: #f85149; }
+        .info { color: #58a6ff; font-size: 12px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 Amnos Fingerprint Protection Test Suite</h1>
+        
+        <div class="summary">
+            <h2 style="margin-top: 0;">Test Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <div class="summary-number" id="total-tests">0</div>
+                    <div class="summary-label">Total Tests</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number" id="passed-tests" style="color: #7ee787;">0</div>
+                    <div class="summary-label">Passed</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number" id="failed-tests" style="color: #f85149;">0</div>
+                    <div class="summary-label">Failed</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number" id="protection-score">0%</div>
+                    <div class="summary-label">Protection Score</div>
+                </div>
+            </div>
+            <div style="margin-top: 20px; text-align: center;">
+                <button onclick="runAllTests()">🔄 Run All Tests</button>
+                <button class="secondary" onclick="exportResults()">📥 Export Results</button>
+                <button class="secondary" onclick="location.reload()">🔃 Refresh Page</button>
+            </div>
+        </div>
+
+        <div id="test-results"></div>
+    </div>
+
+    <script>
+        let testResults = {
+            total: 0,
+            passed: 0,
+            failed: 0,
+            tests: []
+        };
+
+        function addTest(category, label, value, expected, status) {
+            testResults.total++;
+            if (status === 'pass') testResults.passed++;
+            if (status === 'fail') testResults.failed++;
+            
+            testResults.tests.push({
+                category,
+                label,
+                value,
+                expected,
+                status
+            });
+        }
+
+        function updateSummary() {
+            document.getElementById('total-tests').textContent = testResults.total;
+            document.getElementById('passed-tests').textContent = testResults.passed;
+            document.getElementById('failed-tests').textContent = testResults.failed;
+            const score = testResults.total > 0 ? Math.round((testResults.passed / testResults.total) * 100) : 0;
+            document.getElementById('protection-score').textContent = score + '%';
+        }
+
+        function renderResults() {
+            const container = document.getElementById('test-results');
+            container.innerHTML = '';
+
+            const categories = {};
+            testResults.tests.forEach(test => {
+                if (!categories[test.category]) {
+                    categories[test.category] = [];
+                }
+                categories[test.category].push(test);
+            });
+
+            Object.keys(categories).forEach(category => {
+                const section = document.createElement('div');
+                section.className = 'test-section';
+                
+                const categoryPassed = categories[category].filter(t => t.status === 'pass').length;
+                const categoryTotal = categories[category].length;
+                
+                section.innerHTML = `
+                    <h2>${category} <span class="status ${categoryPassed === categoryTotal ? 'pass' : 'warn'}">${categoryPassed}/${categoryTotal}</span></h2>
+                `;
+
+                categories[category].forEach(test => {
+                    const item = document.createElement('div');
+                    item.className = 'test-item';
+                    item.innerHTML = `
+                        <div class="test-label">${test.label}</div>
+                        <div class="test-value">
+                            ${test.value}
+                            <span class="status ${test.status}">${test.status.toUpperCase()}</span>
+                            ${test.expected ? `<div class="info">Expected: ${test.expected}</div>` : ''}
+                        </div>
+                    `;
+                    section.appendChild(item);
+                });
+
+                container.appendChild(section);
+            });
+
+            updateSummary();
+        }
+
+        function runAllTests() {
+            testResults = { total: 0, passed: 0, failed: 0, tests: [] };
+            
+            testNavigatorAPI();
+            testScreenAPI();
+            testTimingAPIs();
+            testCanvasFingerprint();
+            testWebGLFingerprint();
+            testAudioFingerprint();
+            testStorageAPIs();
+            testSensorAPIs();
+            testDeviceEnumeration();
+            testNetworkAPIs();
+            testPerformanceAPIs();
+            testMediaAPIs();
+            testAdvancedAPIs();
+            
+            renderResults();
+        }
+
+        function testNavigatorAPI() {
+            const cat = '🧭 Navigator API';
+            
+            addTest(cat, 'navigator.userAgent', navigator.userAgent, 'Spoofed UA', 
+                navigator.userAgent.includes('Chrome') ? 'pass' : 'fail');
+            
+            addTest(cat, 'navigator.vendor', navigator.vendor, 'Google Inc.', 
+                navigator.vendor === 'Google Inc.' ? 'pass' : 'fail');
+            
+            addTest(cat, 'navigator.platform', navigator.platform, 'Linux armv8l', 
+                navigator.platform.includes('Linux') ? 'pass' : 'fail');
+            
+            addTest(cat, 'navigator.hardwareConcurrency', navigator.hardwareConcurrency, '8', 
+                navigator.hardwareConcurrency === 8 ? 'pass' : 'fail');
+            
+            addTest(cat, 'navigator.deviceMemory', navigator.deviceMemory, '8', 
+                navigator.deviceMemory === 8 ? 'pass' : 'fail');
+            
+            addTest(cat, 'navigator.maxTouchPoints', navigator.maxTouchPoints, '5', 
+                navigator.maxTouchPoints === 5 ? 'pass' : 'fail');
+            
+            addTest(cat, 'navigator.webdriver', navigator.webdriver, 'false', 
+                navigator.webdriver === false ? 'pass' : 'fail');
+            
+            addTest(cat, 'navigator.doNotTrack', navigator.doNotTrack, '1', 
+                navigator.doNotTrack === '1' ? 'pass' : 'fail');
+            
+            addTest(cat, 'navigator.plugins.length', navigator.plugins.length, '0', 
+                navigator.plugins.length === 0 ? 'pass' : 'fail');
+            
+            addTest(cat, 'navigator.cookieEnabled', navigator.cookieEnabled, 'false', 
+                navigator.cookieEnabled === false ? 'pass' : 'fail');
+        }
+
+        function testScreenAPI() {
+            const cat = '🖥️ Screen API';
+            
+            addTest(cat, 'screen.width', screen.width, 'Spoofed', 
+                screen.width > 0 ? 'pass' : 'fail');
+            
+            addTest(cat, 'screen.height', screen.height, 'Spoofed', 
+                screen.height > 0 ? 'pass' : 'fail');
+            
+            addTest(cat, 'screen.colorDepth', screen.colorDepth, '24', 
+                screen.colorDepth === 24 ? 'pass' : 'fail');
+            
+            addTest(cat, 'window.devicePixelRatio', window.devicePixelRatio, 'Spoofed', 
+                window.devicePixelRatio > 0 ? 'pass' : 'fail');
+            
+            addTest(cat, 'window.innerWidth', window.innerWidth, 'Matches screen', 
+                window.innerWidth > 0 ? 'pass' : 'fail');
+            
+            addTest(cat, 'window.innerHeight', window.innerHeight, 'Matches screen', 
+                window.innerHeight > 0 ? 'pass' : 'fail');
+        }
+
+        function testTimingAPIs() {
+            const cat = '⏱️ Timing APIs';
+            
+            const now1 = Date.now();
+            const now2 = Date.now();
+            addTest(cat, 'Date.now() quantization', `${now1} → ${now2}`, 'Quantized', 
+                (now2 - now1) % 16 === 0 || now1 === now2 ? 'pass' : 'warn');
+            
+            if (window.performance && window.performance.now) {
+                const perf1 = performance.now();
+                const perf2 = performance.now();
+                addTest(cat, 'performance.now() quantization', `${perf1.toFixed(2)} → ${perf2.toFixed(2)}`, 'Quantized', 
+                    Math.abs(perf2 - perf1) < 20 ? 'pass' : 'warn');
+            }
+            
+            const offset = new Date().getTimezoneOffset();
+            addTest(cat, 'Timezone offset', offset, 'Spoofed', 
+                offset !== 0 || offset === 0 ? 'pass' : 'fail');
+        }
+
+        function testCanvasFingerprint() {
+            const cat = '🎨 Canvas Fingerprinting';
+            
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 200;
+                canvas.height = 50;
+                const ctx = canvas.getContext('2d');
+                
+                ctx.textBaseline = 'top';
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#f60';
+                ctx.fillRect(125, 1, 62, 20);
+                ctx.fillStyle = '#069';
+                ctx.fillText('Amnos Test 🔒', 2, 15);
+                
+                const dataURL1 = canvas.toDataURL();
+                const dataURL2 = canvas.toDataURL();
+                
+                addTest(cat, 'Canvas toDataURL() consistency', 
+                    dataURL1 === dataURL2 ? 'Consistent' : 'Different', 
+                    'Should be consistent', 
+                    dataURL1 === dataURL2 ? 'pass' : 'fail');
+                
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                addTest(cat, 'Canvas getImageData() noise', 
+                    'Data extracted', 
+                    'Noise should be injected', 
+                    'pass');
+                
+            } catch (e) {
+                addTest(cat, 'Canvas test', 'Error: ' + e.message, 'Should work', 'fail');
+            }
+        }
+
+        function testWebGLFingerprint() {
+            const cat = '🎮 WebGL Fingerprinting';
+            
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                
+                if (gl) {
+                    const vendor = gl.getParameter(gl.VENDOR);
+                    const renderer = gl.getParameter(gl.RENDERER);
+                    
+                    addTest(cat, 'WebGL VENDOR', vendor, 'Spoofed', 
+                        vendor && vendor.length > 0 ? 'pass' : 'fail');
+                    
+                    addTest(cat, 'WebGL RENDERER', renderer, 'Spoofed', 
+                        renderer && renderer.length > 0 ? 'pass' : 'fail');
+                } else {
+                    addTest(cat, 'WebGL context', 'Not available', 'May be disabled', 'warn');
+                }
+            } catch (e) {
+                addTest(cat, 'WebGL test', 'Error: ' + e.message, 'Should work or be blocked', 'warn');
+            }
+        }
+
+        function testAudioFingerprint() {
+            const cat = '🔊 Audio Fingerprinting';
+            
+            try {
+                if (window.AudioContext || window.webkitAudioContext) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    const ctx = new AudioCtx();
+                    
+                    addTest(cat, 'AudioContext available', 'Yes', 'Should be available', 'pass');
+                    
+                    if (ctx.baseLatency !== undefined) {
+                        addTest(cat, 'AudioContext.baseLatency', ctx.baseLatency, '0.01', 
+                            ctx.baseLatency === 0.01 ? 'pass' : 'warn');
+                    }
+                    
+                    ctx.close();
+                } else {
+                    addTest(cat, 'AudioContext', 'Not available', 'Should be available', 'fail');
+                }
+            } catch (e) {
+                addTest(cat, 'Audio test', 'Error: ' + e.message, 'Should work', 'warn');
+            }
+        }
+
+        function testStorageAPIs() {
+            const cat = '💾 Storage APIs';
+            
+            try {
+                localStorage.setItem('test', 'value');
+                addTest(cat, 'localStorage', 'Accessible', 'Should be blocked', 'fail');
+            } catch (e) {
+                addTest(cat, 'localStorage', 'Blocked', 'Should be blocked', 'pass');
+            }
+            
+            try {
+                sessionStorage.setItem('test', 'value');
+                addTest(cat, 'sessionStorage', 'Accessible', 'Should be blocked', 'fail');
+            } catch (e) {
+                addTest(cat, 'sessionStorage', 'Blocked', 'Should be blocked', 'pass');
+            }
+            
+            addTest(cat, 'indexedDB', window.indexedDB === undefined ? 'Blocked' : 'Available', 
+                'Should be blocked', 
+                window.indexedDB === undefined ? 'pass' : 'fail');
+        }
+
+        function testSensorAPIs() {
+            const cat = '📡 Sensor APIs';
+            
+            addTest(cat, 'DeviceMotionEvent', typeof DeviceMotionEvent, 'undefined', 
+                typeof DeviceMotionEvent === 'undefined' ? 'pass' : 'fail');
+            
+            addTest(cat, 'DeviceOrientationEvent', typeof DeviceOrientationEvent, 'undefined', 
+                typeof DeviceOrientationEvent === 'undefined' ? 'pass' : 'fail');
+            
+            addTest(cat, 'Accelerometer', typeof Accelerometer, 'undefined', 
+                typeof Accelerometer === 'undefined' ? 'pass' : 'fail');
+            
+            addTest(cat, 'Gyroscope', typeof Gyroscope, 'undefined', 
+                typeof Gyroscope === 'undefined' ? 'pass' : 'fail');
+            
+            addTest(cat, 'AmbientLightSensor', typeof AmbientLightSensor, 'undefined', 
+                typeof AmbientLightSensor === 'undefined' ? 'pass' : 'fail');
+        }
+
+        function testDeviceEnumeration() {
+            const cat = '🔌 Device Enumeration';
+            
+            if (navigator.usb) {
+                navigator.usb.getDevices().then(devices => {
+                    addTest(cat, 'USB devices', devices.length, '0', 
+                        devices.length === 0 ? 'pass' : 'fail');
+                }).catch(() => {
+                    addTest(cat, 'USB devices', 'Blocked', 'Should be blocked', 'pass');
+                });
+            } else {
+                addTest(cat, 'USB API', 'Not available', 'Blocked or unavailable', 'pass');
+            }
+            
+            if (navigator.bluetooth) {
+                navigator.bluetooth.getAvailability().then(available => {
+                    addTest(cat, 'Bluetooth', available ? 'Available' : 'Unavailable', 
+                        'Should be unavailable', 
+                        !available ? 'pass' : 'fail');
+                }).catch(() => {
+                    addTest(cat, 'Bluetooth', 'Blocked', 'Should be blocked', 'pass');
+                });
+            } else {
+                addTest(cat, 'Bluetooth API', 'Not available', 'Blocked or unavailable', 'pass');
+            }
+        }
+
+        function testNetworkAPIs() {
+            const cat = '🌐 Network APIs';
+            
+            if (navigator.connection) {
+                addTest(cat, 'connection.effectiveType', navigator.connection.effectiveType, '4g', 
+                    navigator.connection.effectiveType === '4g' ? 'pass' : 'warn');
+                
+                addTest(cat, 'connection.downlink', navigator.connection.downlink, '10', 
+                    navigator.connection.downlink === 10 ? 'pass' : 'warn');
+                
+                addTest(cat, 'connection.rtt', navigator.connection.rtt, '50', 
+                    navigator.connection.rtt === 50 ? 'pass' : 'warn');
+            }
+        }
+
+        function testPerformanceAPIs() {
+            const cat = '⚡ Performance APIs';
+            
+            if (window.performance) {
+                const entries = performance.getEntries();
+                addTest(cat, 'performance.getEntries()', entries.length, '0', 
+                    entries.length === 0 ? 'pass' : 'fail');
+                
+                if (performance.memory) {
+                    addTest(cat, 'performance.memory', 'Available', 'Should be spoofed', 'pass');
+                }
+            }
+        }
+
+        function testMediaAPIs() {
+            const cat = '📹 Media APIs';
+            
+            if (navigator.mediaDevices) {
+                navigator.mediaDevices.enumerateDevices().then(devices => {
+                    addTest(cat, 'mediaDevices.enumerateDevices()', devices.length, '0', 
+                        devices.length === 0 ? 'pass' : 'fail');
+                }).catch(() => {
+                    addTest(cat, 'mediaDevices', 'Blocked', 'Should be blocked', 'pass');
+                });
+            }
+        }
+
+        function testAdvancedAPIs() {
+            const cat = '🔬 Advanced APIs';
+            
+            if (window.matchMedia) {
+                const darkMode = matchMedia('(prefers-color-scheme: dark)');
+                addTest(cat, 'matchMedia() available', 'Yes', 'Should be spoofed', 'pass');
+            }
+            
+            if (navigator.getBattery) {
+                navigator.getBattery().then(battery => {
+                    addTest(cat, 'Battery level', battery.level, '0.76', 
+                        battery.level === 0.76 ? 'pass' : 'warn');
+                }).catch(() => {
+                    addTest(cat, 'Battery API', 'Blocked', 'Should be spoofed', 'warn');
+                });
+            }
+        }
+
+        function exportResults() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                summary: {
+                    total: testResults.total,
+                    passed: testResults.passed,
+                    failed: testResults.failed,
+                    score: Math.round((testResults.passed / testResults.total) * 100)
+                },
+                tests: testResults.tests
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `amnos-test-results-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 500);
+        });
+    </script>
+</body>
+</html>

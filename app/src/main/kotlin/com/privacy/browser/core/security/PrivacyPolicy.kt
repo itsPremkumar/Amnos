@@ -45,7 +45,11 @@ data class PrivacyPolicy(
     val strictFirstPartyIsolation: Boolean = com.privacy.browser.BuildConfig.SECURITY_STRICT_FIRST_PARTY_ISOLATION,
     val enforceLoopbackProxy: Boolean = com.privacy.browser.BuildConfig.SECURITY_ENFORCE_LOOPBACK_PROXY,
     val webGlMode: WebGlMode = WebGlMode.DISABLED,
-    val fingerprintProtectionLevel: FingerprintProtectionLevel = FingerprintProtectionLevel.STRICT,
+    val fingerprintProtectionLevel: FingerprintProtectionLevel = when (com.privacy.browser.BuildConfig.SECURITY_FINGERPRINT_LEVEL) {
+        "BALANCED" -> FingerprintProtectionLevel.BALANCED
+        "STRICT" -> FingerprintProtectionLevel.STRICT
+        else -> FingerprintProtectionLevel.STRICT
+    },
     val javascriptMode: JavaScriptMode = JavaScriptMode.RESTRICTED,
     val resetIdentityOnRefresh: Boolean = true,
     val sessionTimeoutMillis: Long = 2 * 60 * 1000L

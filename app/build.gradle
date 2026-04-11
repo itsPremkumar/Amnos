@@ -25,7 +25,13 @@ android {
                 if (parts.size() == 2 && !line.startsWith("#")) {
                     def key = parts[0].trim()
                     def value = parts[1].trim()
-                    buildConfigField "boolean", key, value
+                    
+                    // Handle fingerprint level as String
+                    if (key == "SECURITY_FINGERPRINT_LEVEL") {
+                        buildConfigField "String", key, "\"${value}\""
+                    } else {
+                        buildConfigField "boolean", key, value
+                    }
                 }
             }
         } else {
@@ -48,6 +54,7 @@ android {
             buildConfigField "boolean", "SECURITY_BLOCK_IPV6", "true"
             buildConfigField "boolean", "SECURITY_ENFORCE_LOOPBACK_PROXY", "true"
             buildConfigField "boolean", "SECURITY_STRICT_FIRST_PARTY_ISOLATION", "true"
+            buildConfigField "String", "SECURITY_FINGERPRINT_LEVEL", "\"STRICT\""
         }
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"

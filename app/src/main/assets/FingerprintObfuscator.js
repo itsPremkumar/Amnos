@@ -77,16 +77,96 @@
     const screenProto = Object.getPrototypeOf(screen);
 
     defineGetter(navigatorProto, "userAgent", function() { return config.userAgent; });
+    defineGetter(navigatorProto, "appVersion", function() { 
+        return config.userAgent.replace(/^Mozilla\//, ""); 
+    });
+    defineGetter(navigatorProto, "vendor", function() { return "Google Inc."; });
+    defineGetter(navigatorProto, "vendorSub", function() { return ""; });
+    defineGetter(navigatorProto, "productSub", function() { return "20030107"; });
     defineGetter(navigatorProto, "platform", function() { return config.platform; });
+    defineGetter(navigatorProto, "oscpu", function() { return undefined; });
+    defineGetter(navigatorProto, "buildID", function() { return undefined; });
     defineGetter(navigatorProto, "language", function() { return config.languages[0]; });
     defineGetter(navigatorProto, "languages", function() { return freezeList(config.languages); });
     defineGetter(navigatorProto, "hardwareConcurrency", function() { return config.hardwareConcurrency; });
     defineGetter(navigatorProto, "deviceMemory", function() { return config.deviceMemory; });
+    defineGetter(navigatorProto, "maxTouchPoints", function() { return 5; });
     defineGetter(navigatorProto, "webdriver", function() { return false; });
     defineGetter(navigatorProto, "doNotTrack", function() { return "1"; });
     defineGetter(navigatorProto, "plugins", function() { return freezeList([]); });
     defineGetter(navigatorProto, "mimeTypes", function() { return freezeList([]); });
     defineValue(navigator, "globalPrivacyControl", true);
+
+    // Additional Navigator Properties
+    defineGetter(navigatorProto, "appCodeName", function() { return "Mozilla"; });
+    defineGetter(navigatorProto, "appName", function() { return "Netscape"; });
+    defineGetter(navigatorProto, "product", function() { return "Gecko"; });
+    defineGetter(navigatorProto, "pdfViewerEnabled", function() { return true; });
+    defineGetter(navigatorProto, "cookieEnabled", function() { return false; });
+    defineGetter(navigatorProto, "onLine", function() { return true; });
+    
+    // USB/Bluetooth/HID Device Enumeration Blocking
+    if (navigator.usb) {
+        defineValue(navigator, "usb", Object.freeze({
+            getDevices: function() { return Promise.resolve([]); },
+            requestDevice: function() { return denyPromise("USB blocked"); },
+            addEventListener: noop,
+            removeEventListener: noop
+        }));
+    }
+    
+    if (navigator.bluetooth) {
+        defineValue(navigator, "bluetooth", Object.freeze({
+            getAvailability: function() { return Promise.resolve(false); },
+            getDevices: function() { return Promise.resolve([]); },
+            requestDevice: function() { return denyPromise("Bluetooth blocked"); },
+            addEventListener: noop,
+            removeEventListener: noop
+        }));
+    }
+    
+    if (navigator.hid) {
+        defineValue(navigator, "hid", Object.freeze({
+            getDevices: function() { return Promise.resolve([]); },
+            requestDevice: function() { return denyPromise("HID blocked"); },
+            addEventListener: noop,
+            removeEventListener: noop
+        }));
+    }
+    
+    if (navigator.serial) {
+        defineValue(navigator, "serial", Object.freeze({
+            getPorts: function() { return Promise.resolve([]); },
+            requestPort: function() { return denyPromise("Serial blocked"); },
+            addEventListener: noop,
+            removeEventListener: noop
+        }));
+    }
+
+    // MIDI Device Enumeration Blocking
+    if (navigator.requestMIDIAccess) {
+        navigator.requestMIDIAccess = function() {
+            return denyPromise("MIDI blocked");
+        };
+    }
+
+    // Presentation API Blocking
+    if (navigator.presentation) {
+        defineValue(navigator, "presentation", Object.freeze({
+            defaultRequest: null,
+            receiver: null
+        }));
+    }
+
+    // XR (VR/AR) API Blocking
+    if (navigator.xr) {
+        defineValue(navigator, "xr", Object.freeze({
+            isSessionSupported: function() { return Promise.resolve(false); },
+            requestSession: function() { return denyPromise("XR blocked"); },
+            addEventListener: noop,
+            removeEventListener: noop
+        }));
+    }
 
     defineGetter(screenProto, "width", function() { return config.screen.width; });
     defineGetter(screenProto, "height", function() { return config.screen.height; });
@@ -95,6 +175,20 @@
     defineGetter(screenProto, "colorDepth", function() { return config.screen.colorDepth; });
     defineGetter(screenProto, "pixelDepth", function() { return config.screen.pixelDepth; });
     defineGetter(window, "devicePixelRatio", function() { return config.screen.devicePixelRatio; });
+    defineGetter(window, "outerWidth", function() { return config.screen.width; });
+    defineGetter(window, "outerHeight", function() { return config.screen.height; });
+    defineGetter(window, "innerWidth", function() { return config.screen.availWidth; });
+    defineGetter(window, "innerHeight", function() { return config.screen.availHeight; });
+    defineGetter(window, "screenX", function() { return 0; });
+    defineGetter(window, "screenY", function() { return 0; });
+    defineGetter(window, "screenLeft", function() { return 0; });
+    defineGetter(window, "screenTop", function() { return 0; });
+
+    if (screen.orientation) {
+        const orientationProto = Object.getPrototypeOf(screen.orientation);
+        defineGetter(orientationProto, "type", function() { return "portrait-primary"; });
+        defineGetter(orientationProto, "angle", function() { return 0; });
+    }
 
     if (window.Intl && Intl.DateTimeFormat && Intl.DateTimeFormat.prototype) {
         const originalResolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
@@ -119,6 +213,71 @@
         window.performance.now = function() {
             return quantizeTime(nativePerformanceNow());
         };
+
+        // Performance Timeline API - can leak resource timing
+        if (window.performance.getEntries) {
+            window.performance.getEntries = function() { return []; };
+            window.performance.getEntriesByType = function() { return []; };
+            window.performance.getEntriesByName = function() { return []; };
+        }
+
+        // Performance Observer - can track resource loads
+        if (window.PerformanceObserver) {
+            const OriginalPerformanceObserver = window.PerformanceObserver;
+            window.PerformanceObserver = function(callback) {
+                return new OriginalPerformanceObserver(function(list, observer) {
+                    // Filter out resource timing entries
+                    const filteredList = {
+                        getEntries: function() { return []; },
+                        getEntriesByType: function() { return []; },
+                        getEntriesByName: function() { return []; }
+                    };
+                    callback(filteredList, observer);
+                });
+            };
+            window.PerformanceObserver.supportedEntryTypes = [];
+        }
+
+        // Navigation Timing - can leak page load info
+        if (window.performance.timing) {
+            const fakeTimingBase = nativeDateNow();
+            defineGetter(window.performance, "timing", function() {
+                return Object.freeze({
+                    navigationStart: fakeTimingBase,
+                    unloadEventStart: 0,
+                    unloadEventEnd: 0,
+                    redirectStart: 0,
+                    redirectEnd: 0,
+                    fetchStart: fakeTimingBase,
+                    domainLookupStart: fakeTimingBase,
+                    domainLookupEnd: fakeTimingBase,
+                    connectStart: fakeTimingBase,
+                    connectEnd: fakeTimingBase,
+                    secureConnectionStart: fakeTimingBase,
+                    requestStart: fakeTimingBase,
+                    responseStart: fakeTimingBase,
+                    responseEnd: fakeTimingBase,
+                    domLoading: fakeTimingBase,
+                    domInteractive: fakeTimingBase,
+                    domContentLoadedEventStart: fakeTimingBase,
+                    domContentLoadedEventEnd: fakeTimingBase,
+                    domComplete: fakeTimingBase,
+                    loadEventStart: fakeTimingBase,
+                    loadEventEnd: fakeTimingBase
+                });
+            });
+        }
+
+        // Memory Info - can leak device capabilities
+        if (window.performance.memory) {
+            defineGetter(window.performance, "memory", function() {
+                return Object.freeze({
+                    jsHeapSizeLimit: 2172649472,
+                    totalJSHeapSize: 1500000000,
+                    usedJSHeapSize: 1000000000
+                });
+            });
+        }
     }
 
     if (nativeRequestAnimationFrame) {
@@ -209,6 +368,38 @@
     defineValue(window, "Magnetometer", undefined);
     defineValue(window, "AbsoluteOrientationSensor", undefined);
     defineValue(window, "RelativeOrientationSensor", undefined);
+    defineValue(window, "LinearAccelerationSensor", undefined);
+    defineValue(window, "GravitySensor", undefined);
+
+    // Ambient Light Sensor Blocking
+    defineValue(window, "AmbientLightSensor", undefined);
+    
+    // Proximity Sensor Blocking
+    if (window.ProximitySensor) {
+        defineValue(window, "ProximitySensor", undefined);
+    }
+
+    // Vibration API Blocking
+    if (navigator.vibrate) {
+        navigator.vibrate = function() { return false; };
+    }
+
+    // Wake Lock API Blocking
+    if (navigator.wakeLock) {
+        defineValue(navigator, "wakeLock", Object.freeze({
+            request: function() { return denyPromise("Wake lock blocked"); }
+        }));
+    }
+
+    // Screen Wake Lock (older API)
+    if (screen.keepAwake !== undefined) {
+        defineGetter(screen, "keepAwake", function() { return false; });
+    }
+
+    // Idle Detection API Blocking
+    if (window.IdleDetector) {
+        defineValue(window, "IdleDetector", undefined);
+    }
 
     if (navigator.clipboard) {
         defineValue(navigator, "clipboard", Object.freeze({
@@ -238,10 +429,68 @@
         defineGetter(connectionProto, "downlink", function() { return 10; });
         defineGetter(connectionProto, "rtt", function() { return 50; });
         defineGetter(connectionProto, "saveData", function() { return false; });
+        defineGetter(connectionProto, "type", function() { return "wifi"; });
+        defineGetter(connectionProto, "downlinkMax", function() { return Infinity; });
+    }
+
+    // Network Information API v2 (experimental)
+    if (navigator.mozConnection) {
+        defineValue(navigator, "mozConnection", navigator.connection);
+    }
+    if (navigator.webkitConnection) {
+        defineValue(navigator, "webkitConnection", navigator.connection);
+    }
+
+    // Beacon API - can be used for tracking
+    if (navigator.sendBeacon) {
+        const originalSendBeacon = navigator.sendBeacon.bind(navigator);
+        navigator.sendBeacon = function(url, data) {
+            safePost({ type: "beacon", url: url, blocked: policy.blockTrackers });
+            if (policy.blockTrackers) {
+                return false;
+            }
+            return originalSendBeacon(url, data);
+        };
     }
 
     if (navigator.getGamepads) {
         navigator.getGamepads = function() { return []; };
+    }
+
+    if (navigator.keyboard) {
+        defineValue(navigator, "keyboard", Object.freeze({
+            getLayoutMap: function() { return Promise.resolve(new Map()); },
+            lock: function() { return denyPromise("Keyboard lock blocked"); },
+            unlock: noop
+        }));
+    }
+
+    if (navigator.mediaCapabilities) {
+        const originalDecodingInfo = navigator.mediaCapabilities.decodingInfo;
+        navigator.mediaCapabilities.decodingInfo = function(config) {
+            if (originalDecodingInfo) {
+                return originalDecodingInfo.call(navigator.mediaCapabilities, config);
+            }
+            return Promise.resolve({
+                supported: true,
+                smooth: true,
+                powerEfficient: true
+            });
+        };
+    }
+
+    if (window.speechSynthesis && speechSynthesis.getVoices) {
+        const originalGetVoices = speechSynthesis.getVoices.bind(speechSynthesis);
+        speechSynthesis.getVoices = function() {
+            const voices = originalGetVoices();
+            return voices.length > 0 ? [voices[0]] : [];
+        };
+    }
+
+    if (navigator.scheduling) {
+        defineValue(navigator, "scheduling", Object.freeze({
+            isInputPending: function() { return false; }
+        }));
     }
 
     if (policy.blockServiceWorkers && navigator.serviceWorker) {
@@ -393,13 +642,23 @@
         };
         defineValue(window, "WebGLRenderingContext", undefined);
         defineValue(window, "WebGL2RenderingContext", undefined);
-    } else if (window.WebGLRenderingContext) {
-        const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function(parameter) {
-            if (parameter === 0x9245) return config.gpuVendor;
-            if (parameter === 0x9246) return config.gpuRenderer;
-            return originalGetParameter.apply(this, arguments);
-        };
+    } else {
+        if (window.WebGLRenderingContext) {
+            const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
+            WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                if (parameter === 0x9245) return config.gpuVendor;
+                if (parameter === 0x9246) return config.gpuRenderer;
+                return originalGetParameter.apply(this, arguments);
+            };
+        }
+        if (window.WebGL2RenderingContext) {
+            const originalGetParameter2 = WebGL2RenderingContext.prototype.getParameter;
+            WebGL2RenderingContext.prototype.getParameter = function(parameter) {
+                if (parameter === 0x9245) return config.gpuVendor;
+                if (parameter === 0x9246) return config.gpuRenderer;
+                return originalGetParameter2.apply(this, arguments);
+            };
+        }
     }
 
     if (window.CanvasRenderingContext2D) {
@@ -441,6 +700,41 @@
             }
             return originalToDataURL.apply(this, arguments);
         };
+
+        // toBlob also leaks canvas fingerprint
+        const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+        HTMLCanvasElement.prototype.toBlob = function(callback) {
+            const context = this.getContext && this.getContext("2d");
+            if (context && this.width && this.height) {
+                context.save();
+                context.fillStyle = "rgba(" + (config.noiseSeed % 255) + ",0,0,0.004)";
+                context.fillRect(0, 0, 1, 1);
+                context.restore();
+            }
+            return originalToBlob.apply(this, arguments);
+        };
+    }
+
+    // OffscreenCanvas Fingerprinting Protection
+    if (window.OffscreenCanvas) {
+        const OriginalOffscreenCanvas = window.OffscreenCanvas;
+        window.OffscreenCanvas = function(width, height) {
+            const canvas = new OriginalOffscreenCanvas(width, height);
+            const originalConvertToBlob = canvas.convertToBlob;
+            if (originalConvertToBlob) {
+                canvas.convertToBlob = function() {
+                    const context = canvas.getContext && canvas.getContext("2d");
+                    if (context && canvas.width && canvas.height) {
+                        context.save();
+                        context.fillStyle = "rgba(" + (config.noiseSeed % 255) + ",0,0,0.004)";
+                        context.fillRect(0, 0, 1, 1);
+                        context.restore();
+                    }
+                    return originalConvertToBlob.apply(canvas, arguments);
+                };
+            }
+            return canvas;
+        };
     }
 
     if (window.AudioBuffer && AudioBuffer.prototype.getChannelData) {
@@ -466,6 +760,46 @@
                 }
             };
             return analyser;
+        };
+
+        // Additional AudioContext fingerprinting vectors
+        const OriginalAudioContext = window.AudioContext;
+        window.AudioContext = function() {
+            const ctx = new OriginalAudioContext();
+            
+            // Spoof baseLatency (can reveal hardware)
+            if (ctx.baseLatency !== undefined) {
+                defineGetter(ctx, "baseLatency", function() { return 0.01; });
+            }
+            
+            // Spoof outputLatency (can reveal hardware)
+            if (ctx.outputLatency !== undefined) {
+                defineGetter(ctx, "outputLatency", function() { return 0.02; });
+            }
+            
+            return ctx;
+        };
+    }
+
+    // OfflineAudioContext Fingerprinting Protection
+    if (window.OfflineAudioContext) {
+        const OriginalOfflineAudioContext = window.OfflineAudioContext;
+        window.OfflineAudioContext = function(numberOfChannels, length, sampleRate) {
+            const ctx = new OriginalOfflineAudioContext(numberOfChannels, length, sampleRate);
+            const originalStartRendering = ctx.startRendering;
+            ctx.startRendering = function() {
+                return originalStartRendering.call(ctx).then(function(buffer) {
+                    // Add noise to offline audio rendering
+                    for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                        const channelData = buffer.getChannelData(channel);
+                        for (let i = 0; i < channelData.length; i += 100) {
+                            channelData[i] = channelData[i] + ((config.noiseSeed % 13) * 0.0000001);
+                        }
+                    }
+                    return buffer;
+                });
+            };
+            return ctx;
         };
     }
 
@@ -526,4 +860,92 @@
         childList: true,
         subtree: true
     });
+
+    // CSS Media Query Fingerprinting Protection
+    if (window.matchMedia) {
+        const originalMatchMedia = window.matchMedia.bind(window);
+        window.matchMedia = function(query) {
+            const result = originalMatchMedia(query);
+            // Spoof specific fingerprinting queries
+            const queryLower = query.toLowerCase();
+            if (queryLower.includes("prefers-color-scheme")) {
+                return Object.assign(result, { matches: queryLower.includes("light") });
+            }
+            if (queryLower.includes("prefers-reduced-motion")) {
+                return Object.assign(result, { matches: false });
+            }
+            if (queryLower.includes("prefers-contrast")) {
+                return Object.assign(result, { matches: queryLower.includes("no-preference") });
+            }
+            if (queryLower.includes("inverted-colors")) {
+                return Object.assign(result, { matches: false });
+            }
+            return result;
+        };
+    }
+
+    // Pointer Events API Spoofing
+    if (window.PointerEvent) {
+        const originalPointerEvent = window.PointerEvent;
+        window.PointerEvent = function(type, init) {
+            if (init) {
+                init.pressure = init.pressure !== undefined ? 0.5 : init.pressure;
+                init.tangentialPressure = 0;
+                init.tiltX = 0;
+                init.tiltY = 0;
+                init.twist = 0;
+            }
+            return new originalPointerEvent(type, init);
+        };
+    }
+
+    // Touch Event Fingerprinting Protection
+    if (window.Touch && Touch.prototype) {
+        const originalTouch = window.Touch;
+        window.Touch = function(init) {
+            if (init) {
+                init.force = init.force !== undefined ? 0.5 : init.force;
+                init.rotationAngle = 0;
+                init.radiusX = init.radiusX !== undefined ? 20 : init.radiusX;
+                init.radiusY = init.radiusY !== undefined ? 20 : init.radiusY;
+            }
+            return new originalTouch(init);
+        };
+    }
+
+    // Error Stack Trace Fingerprinting Protection
+    const originalError = window.Error;
+    window.Error = function(message) {
+        const err = new originalError(message);
+        if (strictFingerprinting && err.stack) {
+            // Sanitize stack traces to remove file paths
+            err.stack = err.stack.split('\n').map(function(line) {
+                return line.replace(/https?:\/\/[^\s)]+/g, '<sanitized>');
+            }).join('\n');
+        }
+        return err;
+    };
+
+    // Document.referrer spoofing (already handled by headers, but JS can still read it)
+    if (policy.stripReferrers) {
+        defineGetter(document, "referrer", function() { return ""; });
+    }
+
+    // Document.domain fingerprinting
+    const originalDomain = document.domain;
+    defineGetter(document, "domain", function() { return originalDomain; });
+
+    // History length can leak browsing behavior
+    if (strictFingerprinting) {
+        defineGetter(window.history, "length", function() { return 2; });
+    }
+
+    // Notification API - can be used for fingerprinting
+    if (window.Notification) {
+        const OriginalNotification = window.Notification;
+        defineGetter(OriginalNotification, "permission", function() { return "denied"; });
+        OriginalNotification.requestPermission = function() {
+            return Promise.resolve("denied");
+        };
+    }
 })();
