@@ -1,4 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
+    <!-- Base configuration: Block all cleartext (HTTP) traffic -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust system certificate authorities -->
+            <certificates src="system" />
+            <!-- Trust user-installed certificates (for debugging with proxy tools) -->
+            <!-- Remove this in production if you don't want users to add custom CAs -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Debug configuration (only active in debug builds) -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+    
+    <!-- Domain-specific configurations -->
+    <!-- Example: Allow cleartext for localhost (testing only) -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">::1</domain>
+    </domain-config>
 </network-security-config>

@@ -5,25 +5,68 @@ import android.util.Log
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import java.util.regex.Pattern
 
 class AdBlocker(context: Context) {
     private val blockedDomains = mutableSetOf<String>()
+    private val blockedPatterns = mutableListOf<Pattern>()
+    private val allowedDomains = mutableSetOf<String>()
+    
+    // Known ad/tracker URL patterns
+    private val knownAdPatterns = listOf(
+        ".*\\/ads?\\/.*",
+        ".*\\/advert.*",
+        ".*\\/banner.*",
+        ".*\\/tracking.*",
+        ".*\\/analytics.*",
+        ".*\\/telemetry.*",
+        ".*\\/pixel.*",
+        ".*\\/beacon.*",
+        ".*ad[sx]?[0-9]*\\.",
+        ".*tracker[0-9]*\\.",
+        ".*analytics[0-9]*\\.",
+        ".*pixel[0-9]*\\."
+    )
 
     init {
-        loadFilterList(context)
+        loadFilterLists(context)
+        compileAdPatterns()
     }
 
-    private fun loadFilterList(context: Context) {
+    private fun loadFilterLists(context: Context) {
+        // Load main blocklist
+        loadFilterList(context, "blocklist.txt")
+        
+        // Load comprehensive blocklist if available
         try {
-            val inputStream = context.assets.open("blocklist.txt")
+            loadFilterList(context, "blocklist_comprehensive.txt")
+        } catch (e: Exception) {
+            Log.d("AdBlocker", "Comprehensive blocklist not found, using main list only")
+        }
+        
+        Log.d("AdBlocker", "Loaded ${blockedDomains.size} blocked domains")
+    }
+
+    private fun loadFilterList(context: Context, filename: String) {
+        try {
+            val inputStream = context.assets.open(filename)
             val reader = BufferedReader(InputStreamReader(inputStream))
             reader.forEachLine { line ->
                 normalizeRule(line)?.let { blockedDomains.add(it) }
             }
             reader.close()
-            Log.d("AdBlocker", "Loaded ${blockedDomains.size} blocked domains")
         } catch (e: Exception) {
-            Log.e("AdBlocker", "Error loading blocklist", e)
+            Log.e("AdBlocker", "Error loading $filename", e)
+        }
+    }
+    
+    private fun compileAdPatterns() {
+        knownAdPatterns.forEach { pattern ->
+            try {
+                blockedPatterns.add(Pattern.compile(pattern, Pattern.CASE_INSENSITIVE))
+            } catch (e: Exception) {
+                Log.e("AdBlocker", "Error compiling pattern: $pattern", e)
+            }
         }
     }
 
@@ -31,6 +74,7 @@ class AdBlocker(context: Context) {
         val trimmed = line.trim()
         if (trimmed.isEmpty()) return null
         if (trimmed.startsWith("!") || trimmed.startsWith("[")) return null
+        if (trimmed.startsWith("#")) return null // Comment
 
         val withoutOptions = trimmed.substringBefore('$')
         val domain = when {
@@ -48,12 +92,38 @@ class AdBlocker(context: Context) {
     }
 
     fun shouldBlock(url: String): Boolean {
+        // Quick check for allowed domains (whitelist)
         val host = url.toHttpUrlOrNull()?.host?.removePrefix("www.")?.lowercase() ?: return false
-
+        
+        if (allowedDomains.contains(host)) {
+            return false
+        }
+        
+        // Check domain blocklist
+        if (isBlockedByDomain(host)) {
+            Log.d("AdBlocker", "Blocked by domain: $url")
+            return true
+        }
+        
+        // Check URL pattern matching
+        if (isBlockedByPattern(url)) {
+            Log.d("AdBlocker", "Blocked by pattern: $url")
+            return true
+        }
+        
+        // Check for common ad/tracker keywords in path
+        if (containsAdKeywords(url)) {
+            Log.d("AdBlocker", "Blocked by keyword: $url")
+            return true
+        }
+        
+        return false
+    }
+    
+    private fun isBlockedByDomain(host: String): Boolean {
         var currentHost = host
         while (currentHost.isNotEmpty()) {
             if (blockedDomains.contains(currentHost)) {
-                Log.d("AdBlocker", "Blocked: $url (matched $currentHost)")
                 return true
             }
             currentHost = currentHost.substringAfter('.', "")
@@ -64,8 +134,52 @@ class AdBlocker(context: Context) {
                 if (blockedDomains.contains(currentHost)) {
                     return true
                 }
+                break
             }
         }
         return false
     }
+    
+    private fun isBlockedByPattern(url: String): Boolean {
+        val lowerUrl = url.lowercase()
+        return blockedPatterns.any { pattern ->
+            pattern.matcher(lowerUrl).matches()
+        }
+    }
+    
+    private fun containsAdKeywords(url: String): Boolean {
+        val lowerUrl = url.lowercase()
+        val adKeywords = listOf(
+            "/ad/", "/ads/", "/adv/",
+            "/banner/", "/banners/",
+            "/track/", "/tracking/", "/tracker/",
+            "/analytics/", "/analytic/",
+            "/telemetry/",
+            "/pixel/", "/pixels/",
+            "/beacon/", "/beacons/",
+            "/impression/", "/impressions/",
+            "/click/", "/clicks/",
+            "/conversion/", "/conversions/",
+            "pagead", "doubleclick",
+            "googleads", "googlesyndication",
+            "facebook.net/tr", "facebook.com/tr",
+            "?utm_", "&utm_",
+            "?fbclid=", "&fbclid=",
+            "?gclid=", "&gclid="
+        )
+        
+        return adKeywords.any { keyword -> lowerUrl.contains(keyword) }
+    }
+    
+    fun addToWhitelist(domain: String) {
+        allowedDomains.add(domain.removePrefix("www.").lowercase())
+    }
+    
+    fun removeFromWhitelist(domain: String) {
+        allowedDomains.remove(domain.removePrefix("www.").lowercase())
+    }
+    
+    fun getBlockedCount(): Int = blockedDomains.size
+    
+    fun getPatternCount(): Int = blockedPatterns.size
 }

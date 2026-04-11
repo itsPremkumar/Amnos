@@ -22,6 +22,7 @@ www-google-analytics.l.google.com
 # FACEBOOK/META TRACKING
 # ============================================================================
 facebook.net
+facebook.com
 connect.facebook.net
 fbcdn.net
 fbsbx.com
@@ -114,32 +115,76 @@ urbanairship.com
 # ============================================================================
 # SOCIAL MEDIA TRACKING
 # ============================================================================
+twitter.com
 ads-twitter.com
 analytics.twitter.com
+linkedin.com
 ads.linkedin.com
 px.ads.linkedin.com
+pinterest.com
 ads.pinterest.com
 log.pinterest.com
+reddit.com
 redd.it
 redditstatic.com
+snapchat.com
 sc-static.net
+tiktok.com
 analytics.tiktok.com
+
+# ============================================================================
+# CDN & THIRD-PARTY SCRIPTS
+# ============================================================================
+cloudflare.com
+jsdelivr.net
+unpkg.com
+cdnjs.cloudflare.com
+ajax.googleapis.com
+code.jquery.com
 
 # ============================================================================
 # VIDEO TRACKING
 # ============================================================================
+youtube.com
 googlevideo.com
 ytimg.com
+doubleclick.net
+2mdn.net
+
+# ============================================================================
+# E-COMMERCE TRACKING
+# ============================================================================
+shopify.com
+shopifycloud.com
+myshopify.com
+bigcommerce.com
+woocommerce.com
+magento.com
+
+# ============================================================================
+# PAYMENT TRACKING
+# ============================================================================
+paypal.com
+stripe.com
+square.com
+braintreegateway.com
 
 # ============================================================================
 # HEATMAP & SESSION RECORDING
 # ============================================================================
+hotjar.com
+fullstory.com
+mouseflow.com
+inspectlet.com
+clicktale.net
+luckyorange.com
 sessioncam.com
 smartlook.com
 
 # ============================================================================
 # A/B TESTING & OPTIMIZATION
 # ============================================================================
+optimizely.com
 vwo.com
 ab-tasty.com
 convert.com
@@ -149,6 +194,8 @@ instapage.com
 # ============================================================================
 # CUSTOMER DATA PLATFORMS
 # ============================================================================
+segment.io
+segment.com
 mparticle.com
 tealium.com
 ensighten.com
@@ -178,6 +225,8 @@ crisp.chat
 adroll.com
 perfectaudience.com
 retargeter.com
+criteo.com
+criteo.net
 revcontent.com
 mgid.com
 
@@ -215,6 +264,10 @@ iubenda.com
 # ============================================================================
 # MISCELLANEOUS TRACKERS
 # ============================================================================
+newrelic.com
+nr-data.net
+bugsnag.com
+sentry.io
 rollbar.com
 airbrake.io
 raygun.io

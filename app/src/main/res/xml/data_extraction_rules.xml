@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <!-- Disable all cloud backups for maximum privacy -->
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+        <exclude domain="file" />
+    </cloud-backup>
+    
+    <!-- Disable device-to-device transfer -->
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+        <exclude domain="file" />
+    </device-transfer>
+</data-extraction-rules>
