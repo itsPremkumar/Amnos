@@ -56,8 +56,14 @@ class SessionManager(private val context: Context) {
     }
 
     init {
+        Log.d("SessionManager", "Initializing SessionManager")
         securityController.setFingerprintLevel(privacyPolicy.fingerprintProtectionLevel)
-        configureProxy()
+        try {
+            configureProxy()
+            Log.d("SessionManager", "Proxy configured successfully")
+        } catch (e: Exception) {
+            Log.e("SessionManager", "Failed to configure proxy during init", e)
+        }
     }
 
     val sessionId: String
@@ -82,14 +88,19 @@ class SessionManager(private val context: Context) {
         onTrackerBlocked: () -> Unit,
         onNavigationRequested: (String) -> Boolean
     ): TabInstance {
+        Log.d("SessionManager", "Creating new tab instance")
         val tabId = FingerprintManager.newTabId()
         val profile = FingerprintManager.generateCoherentProfile(
             activeSessionId,
             tabId,
             privacyPolicy.fingerprintProtectionLevel
         )
+        
+        Log.d("SessionManager", "Instantiating SecureWebView")
         val webView = SecureWebView(context)
         val finalScript = buildInjectionScript(profile)
+        
+        Log.d("SessionManager", "Applying hardening to WebView")
         webView.applyHardening(profile, privacyPolicy, finalScript, ::handleSecurityEvent)
         webView.resumeTimers()
 
@@ -220,7 +231,7 @@ class SessionManager(private val context: Context) {
     }
 
     fun killAll(terminateProcess: Boolean = false) {
-        Log.d("SessionManager", "AMNOS GHOST WIPE ACTIVATED")
+        Log.d("SessionManager", "AMNOS GHOST WIPE ACTIVATED (terminateProcess=$terminateProcess)")
         mainHandler.removeCallbacks(timeoutRunnable)
 
         storageController.wipeClipboard()
@@ -228,8 +239,12 @@ class SessionManager(private val context: Context) {
         securityController.clearLog()
 
         tabs.toList().forEach { tab ->
-            tab.webView.clearVolatileState()
-            tab.webView.destroy()
+            try {
+                tab.webView.clearVolatileState()
+                tab.webView.destroy()
+            } catch (e: Exception) {
+                Log.e("SessionManager", "Error destroying webView during wipe", e)
+            }
         }
         tabs.clear()
         purgeGlobalStorage()
@@ -237,6 +252,7 @@ class SessionManager(private val context: Context) {
         configureProxy()
 
         if (terminateProcess) {
+            Log.w("SessionManager", "SELF-TERMINATING PROCESS AS REQUESTED")
             android.os.Process.killProcess(android.os.Process.myPid())
         }
     }

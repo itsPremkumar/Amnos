@@ -39,13 +39,17 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var pinInput = mutableStateOf("")
 
     init {
+        Log.d("BrowserViewModel", "Initializing BrowserViewModel")
         sessionManager.registerTimeoutListener {
+            Log.d("BrowserViewModel", "Session timeout triggered")
             handleSessionTimeout()
         }
         initializeSession()
     }
 
     private val stateChangedCallback: (String, Boolean, Boolean) -> Unit = { url, back, forward ->
+        Log.v("BrowserViewModel", "State changed: $url (back=$back, forward=$forward)")
+...
         currentTab.value?.currentUrl = url
         if (uiState.value == BrowserUIState.BROWSING) {
             urlInput.value = url
@@ -66,18 +70,25 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     }
 
     private fun initializeSession(loadUrl: String? = null) {
-        val tab = sessionManager.createTab(
-            onStateChanged = stateChangedCallback,
-            onProgressChanged = progressChangedCallback,
-            onTrackerBlocked = trackerBlockedCallback,
-            onNavigationRequested = ::handleMainFrameNavigation
-        )
-        currentTab.value = tab
-        sessionLabel.value = sessionManager.sessionId.take(8)
-        refreshPolicyState()
-        loadUrl?.let {
-            uiState.value = BrowserUIState.BROWSING
-            sessionManager.loadUrl(tab, it)
+        Log.d("BrowserViewModel", "Initializing session (loadUrl=$loadUrl)")
+        try {
+            val tab = sessionManager.createTab(
+                onStateChanged = stateChangedCallback,
+                onProgressChanged = progressChangedCallback,
+                onTrackerBlocked = trackerBlockedCallback,
+                onNavigationRequested = ::handleMainFrameNavigation
+            )
+            currentTab.value = tab
+            sessionLabel.value = sessionManager.sessionId.take(8)
+            refreshPolicyState()
+            loadUrl?.let {
+                Log.d("BrowserViewModel", "Initial URL load: $it")
+                uiState.value = BrowserUIState.BROWSING
+                sessionManager.loadUrl(tab, it)
+            }
+        } catch (e: Exception) {
+            Log.e("BrowserViewModel", "CRITICAL: Initialization of session failed", e)
+            throw e
         }
     }
 

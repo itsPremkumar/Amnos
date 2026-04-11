@@ -2,6 +2,7 @@ package com.privacy.browser.core.webview
 
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import android.view.View
 import android.webkit.CookieManager
 import android.webkit.WebSettings
@@ -131,6 +132,7 @@ class SecureWebView(context: Context) : WebView(context) {
 
     private fun installSecurityBridge(onSecurityEvent: (String) -> Unit) {
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            Log.d("SecureWebView", "WEB_MESSAGE_LISTENER not supported")
             return
         }
 
@@ -139,12 +141,17 @@ class SecureWebView(context: Context) : WebView(context) {
         } catch (ignored: Exception) {
         }
 
-        WebViewCompat.addWebMessageListener(
-            this,
-            BRIDGE_NAME,
-            setOf("*")
-        ) { _: WebView, message: WebMessageCompat, _: Uri, _: Boolean, _: JavaScriptReplyProxy ->
-            message.data?.let(onSecurityEvent)
+        try {
+            WebViewCompat.addWebMessageListener(
+                this,
+                BRIDGE_NAME,
+                setOf("*")
+            ) { _: WebView, message: WebMessageCompat, _: Uri, _: Boolean, _: JavaScriptReplyProxy ->
+                message.data?.let(onSecurityEvent)
+            }
+            Log.d("SecureWebView", "Security bridge (WebMessageListener) installed")
+        } catch (e: Exception) {
+            Log.e("SecureWebView", "Failed to install security bridge", e)
         }
     }
 
