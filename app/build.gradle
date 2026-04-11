@@ -18,13 +18,29 @@ android {
         }
     }
 
+    signingConfigs {
+        release {
+            def secretsFile = rootProject.file("secrets.properties")
+            if (secretsFile.exists()) {
+                def props = new Properties()
+                props.load(new FileInputStream(secretsFile))
+                storeFile = file(props['RELEASE_STORE_FILE'])
+                storePassword = props['RELEASE_STORE_PASSWORD']
+                keyAlias = props['RELEASE_KEY_ALIAS']
+                keyPassword = props['RELEASE_KEY_PASSWORD']
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
