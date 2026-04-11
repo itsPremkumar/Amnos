@@ -38,9 +38,9 @@ class SecureWebView(context: Context) : WebView(context) {
         settings.apply {
             javaScriptEnabled = policy.isJavaScriptEnabled
             javaScriptCanOpenWindowsAutomatically = false
-            domStorageEnabled = false
-            databaseEnabled = false
-            cacheMode = WebSettings.LOAD_NO_CACHE
+            domStorageEnabled = true
+            databaseEnabled = true
+            cacheMode = WebSettings.LOAD_DEFAULT // Use default cache for better performance
 
             userAgentString = profile.userAgent
             setSupportMultipleWindows(false)
@@ -163,7 +163,7 @@ class SecureWebView(context: Context) : WebView(context) {
 
     private fun configureCookies() {
         val cookieManager = CookieManager.getInstance()
-        cookieManager.setAcceptCookie(false)
+        cookieManager.setAcceptCookie(true)
         cookieManager.setAcceptThirdPartyCookies(this, false)
         cookieManager.flush()
     }

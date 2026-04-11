@@ -158,11 +158,16 @@ class NetworkSecurityManager(
             Log.d("NetworkSecurityManager", "Proxied response received: code=${response.code} url=$httpUrl")
             
             val contentType = response.body?.contentType()
-            val mimeType = contentType?.type + "/" + contentType?.subtype
+            val mimeType = if (contentType != null) {
+                "${contentType.type}/${contentType.subtype}"
+            } else {
+                Log.w("NetworkSecurityManager", "Missing Content-Type for $httpUrl, defaulting to text/html")
+                "text/html" // Default to HTML for better compatibility
+            }
             val charset = contentType?.charset(Charsets.UTF_8)?.name() ?: "UTF-8"
 
             WebResourceResponse(
-                mimeType.takeUnless { it == "null/null" },
+                mimeType,
                 charset,
                 response.code,
                 response.message.ifBlank { "OK" },
