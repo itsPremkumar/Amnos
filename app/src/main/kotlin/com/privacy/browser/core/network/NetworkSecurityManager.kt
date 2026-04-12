@@ -397,13 +397,14 @@ class NetworkSecurityManager(
                     " clipboard-write=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=()," +
                     " usb=(), xr-spatial-tracking=()"
 
-            buildContentSecurityPolicy(policy)?.let { headers["Content-Security-Policy"] = it }
+            buildContentSecurityPolicy(policy, response.request.url.host)
+                ?.let { headers["Content-Security-Policy"] = it }
         }
 
         return headers
     }
 
-    private fun buildContentSecurityPolicy(policy: PrivacyPolicy): String? {
+    private fun buildContentSecurityPolicy(policy: PrivacyPolicy, host: String): String? {
         if (policy.forceRelaxSecurityForDebug) {
             AmnosLog.d("NetworkSecurityManager", "Skipping CSP injection due to RELAXED mode")
             return null
@@ -419,7 +420,18 @@ class NetworkSecurityManager(
 
         val scriptSources = mutableListOf("'self'", "https:")
         if (!policy.blockInlineScripts) scriptSources.add("'unsafe-inline'")
-        if (!policy.blockEval) scriptSources.add("'unsafe-eval'")
+        
+        // SURGICAL FIX: Allow 'unsafe-eval' and 'unsafe-inline' specifically for trusted search engines
+        // to restore search result rendering and interactive UI, while keeping it blocked elsewhere.
+        val searchHosts = setOf("duckduckgo.com", "google.com", "www.google.com")
+        val isSearchEngine = searchHosts.any { host.endsWith(it, ignoreCase = true) }
+        
+        if (!policy.blockEval || isSearchEngine) {
+            scriptSources.add("'unsafe-eval'")
+        }
+        if (!policy.blockInlineScripts || isSearchEngine) {
+            scriptSources.add("'unsafe-inline'")
+        }
         
         val scriptSourceStr = scriptSources.joinToString(" ")
 

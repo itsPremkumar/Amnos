@@ -24,6 +24,13 @@ class SecureWebView(context: Context) : WebView(context) {
 
     private var scriptHandler: ScriptHandler? = null
     private var fallbackInjectionScript: String? = null
+    var isDecommissioned: Boolean = false
+        private set
+
+    override fun destroy() {
+        isDecommissioned = true
+        super.destroy()
+    }
 
     @Suppress("DEPRECATION")
     fun applyHardening(

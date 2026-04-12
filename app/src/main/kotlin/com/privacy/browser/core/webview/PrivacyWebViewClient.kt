@@ -73,7 +73,9 @@ class PrivacyWebViewClient(
                 decision.blockReason == BlockReason.THIRD_PARTY ||
                 decision.blockReason == BlockReason.THIRD_PARTY_SCRIPT
             ) {
-                onTrackerBlocked()
+                if ((view as? SecureWebView)?.isDecommissioned != true) {
+                    onTrackerBlocked()
+                }
             }
             return networkSecurityManager.createBlockedResponse(decision.blockReason!!, request.isForMainFrame)
         }
@@ -119,6 +121,8 @@ class PrivacyWebViewClient(
 
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
+        if ((view as? SecureWebView)?.isDecommissioned == true) return
+        
         securityController.logInternal("PrivacyWebViewClient", "Page finished: $url", "DEBUG")
         url?.let {
             currentHost = Uri.parse(it).host
@@ -169,6 +173,8 @@ class PrivacyWebViewClient(
     }
 
     private fun showBlockedPage(view: WebView?, reason: BlockReason) {
+        if ((view as? SecureWebView)?.isDecommissioned == true) return
+        
         securityController.logInternal("PrivacyWebViewClient", "Blocked main-frame navigation due to ${reason.name}", "WARN")
         view?.loadDataWithBaseURL(
             null,

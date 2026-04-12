@@ -13,6 +13,10 @@ class SecurityController {
     private val _activeConnections = mutableStateListOf<ConnectionEntry>()
     val activeConnections: List<ConnectionEntry> = _activeConnections
 
+    // Cached counters to avoid thread-unsafe iteration during UI updates
+    private val _blockedCount = mutableIntStateOf(0)
+    private val _trackerBlockCount = mutableIntStateOf(0)
+
     // Synchronize access to mutable state collections
     private val lock = Any()
 
@@ -104,6 +108,13 @@ class SecurityController {
                     reason = reason
                 )
             )
+            
+            if (disposition == RequestDisposition.BLOCKED) {
+                _blockedCount.intValue++
+                if (reason == "tracker" || reason == "third_party" || reason == "third_party_script" || reason == "webrtc") {
+                    _trackerBlockCount.intValue++
+                }
+            }
         }
     }
 
@@ -167,17 +178,9 @@ class SecurityController {
         RequestKind.OTHER -> RequestType.OTHER
     }
 
-    fun blockedCount(): Int {
-        // Compose state list is safe for snapshots, but counts are done on UI thread usually
-        return requestLog.count { it.disposition == RequestDisposition.BLOCKED }
-    }
+    fun blockedCount(): Int = _blockedCount.intValue
 
-    fun trackerBlockCount(): Int {
-        return requestLog.count {
-            it.disposition == RequestDisposition.BLOCKED &&
-                (it.reason == "tracker" || it.reason == "third_party" || it.reason == "third_party_script")
-        }
-    }
+    fun trackerBlockCount(): Int = _trackerBlockCount.intValue
 
     fun clearLog() {
         synchronized(lock) {
@@ -186,6 +189,8 @@ class SecurityController {
             internalLogs.clear()
             webRtcAttemptCount.intValue = 0
             webSocketAttemptCount.intValue = 0
+            _blockedCount.intValue = 0
+            _trackerBlockCount.intValue = 0
         }
     }
 }

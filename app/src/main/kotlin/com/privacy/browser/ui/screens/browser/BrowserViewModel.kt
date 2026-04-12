@@ -62,7 +62,9 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     }
 
     private val trackerBlockedCallback: () -> Unit = {
-        blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount()
+        if (currentTab.value != null) {
+            blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount()
+        }
     }
 
     private val navigationCommittedCallback: (String) -> Unit = { committedUrl ->
