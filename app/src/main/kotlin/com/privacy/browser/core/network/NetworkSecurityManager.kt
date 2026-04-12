@@ -289,9 +289,15 @@ class NetworkSecurityManager(
         val policy = policyProvider()
         val builder = Headers.Builder()
 
+        val fingerprintEnabled = policy.fingerprintProtectionLevel != com.privacy.browser.core.security.FingerprintProtectionLevel.DISABLED
+
         originalHeaders.forEach { (key, value) ->
             val lower = key.lowercase(Locale.US)
             if (lower in setOf("cookie", "referer", "origin", "x-requested-with")) {
+                return@forEach
+            }
+            if (!fingerprintEnabled && (lower == "user-agent" || lower == "accept-language")) {
+                builder.set(key, value)
                 return@forEach
             }
             if (lower == "accept-language" || lower == "user-agent") {
@@ -303,8 +309,10 @@ class NetworkSecurityManager(
             builder.add(key, value)
         }
 
-        builder.set("User-Agent", profile.userAgent)
-        builder.set("Accept-Language", profile.acceptLanguageHeader)
+        if (fingerprintEnabled) {
+            builder.set("User-Agent", profile.userAgent)
+            builder.set("Accept-Language", profile.acceptLanguageHeader)
+        }
         builder.set("Accept-Encoding", "identity") // Force uncompressed for manual intercept to avoid header clash
         builder.set("DNT", "1")
         builder.set("Sec-GPC", "1")

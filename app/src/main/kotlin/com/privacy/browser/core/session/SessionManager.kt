@@ -187,9 +187,13 @@ class SessionManager(private val context: Context) {
         updatePrivacyPolicy { current ->
             current.copy(
                 fingerprintProtectionLevel = level,
-                webGlMode = if (level == FingerprintProtectionLevel.STRICT) WebGlMode.DISABLED else current.webGlMode,
+                webGlMode = when (level) {
+                    FingerprintProtectionLevel.STRICT -> WebGlMode.DISABLED
+                    FingerprintProtectionLevel.DISABLED -> WebGlMode.SPOOF // Allow WebGL if not strict/disabled (spoof is safer than raw but works)
+                    else -> current.webGlMode
+                },
                 blockInlineScripts = if (level == FingerprintProtectionLevel.STRICT) true else current.blockInlineScripts,
-                strictFirstPartyIsolation = true
+                strictFirstPartyIsolation = level != FingerprintProtectionLevel.DISABLED
             )
         }
     }

@@ -118,14 +118,16 @@ object FingerprintManager {
         val template = when (level) {
             FingerprintProtectionLevel.BALANCED -> androidTemplates[abs(sessionRandom.nextInt()) % androidTemplates.size]
             FingerprintProtectionLevel.STRICT -> androidTemplates[abs(tabRandom.nextInt()) % 2]
+            FingerprintProtectionLevel.DISABLED -> androidTemplates.first()
         }
         val locale = when (level) {
             FingerprintProtectionLevel.BALANCED -> balancedLocalePresets[abs(tabRandom.nextInt()) % balancedLocalePresets.size]
             FingerprintProtectionLevel.STRICT -> strictLocalePreset
+            FingerprintProtectionLevel.DISABLED -> balancedLocalePresets.first()
         }
         val userAgent = when (level) {
             FingerprintProtectionLevel.BALANCED -> template.userAgents[abs(tabRandom.nextInt()) % template.userAgents.size]
-            FingerprintProtectionLevel.STRICT -> template.userAgents.first()
+            FingerprintProtectionLevel.STRICT, FingerprintProtectionLevel.DISABLED -> template.userAgents.first()
         }
 
         return DeviceProfile(

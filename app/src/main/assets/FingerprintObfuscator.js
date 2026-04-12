@@ -18,6 +18,7 @@
     const nativeRequestAnimationFrame = window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : null;
     const nativePerformanceNow = window.performance && window.performance.now ? window.performance.now.bind(window.performance) : null;
     const strictFingerprinting = policy.fingerprintLevel === "STRICT";
+    const fingerprintEnabled = policy.fingerprintLevel !== "DISABLED";
 
     const denyPromise = function(message) {
         return Promise.reject(new DOMException(message || "Blocked by Amnos", "SecurityError"));
@@ -76,369 +77,384 @@
     const navigatorProto = Object.getPrototypeOf(navigator);
     const screenProto = Object.getPrototypeOf(screen);
 
-    defineGetter(navigatorProto, "userAgent", function() { return config.userAgent; });
-    defineGetter(navigatorProto, "appVersion", function() { 
-        return config.userAgent.replace(/^Mozilla\//, ""); 
-    });
-    defineGetter(navigatorProto, "vendor", function() { return "Google Inc."; });
-    defineGetter(navigatorProto, "vendorSub", function() { return ""; });
-    defineGetter(navigatorProto, "productSub", function() { return "20030107"; });
-    defineGetter(navigatorProto, "platform", function() { return config.platform; });
-    defineGetter(navigatorProto, "oscpu", function() { return undefined; });
-    defineGetter(navigatorProto, "buildID", function() { return undefined; });
-    defineGetter(navigatorProto, "language", function() { return config.languages[0]; });
-    defineGetter(navigatorProto, "languages", function() { return freezeList(config.languages); });
-    defineGetter(navigatorProto, "hardwareConcurrency", function() { return config.hardwareConcurrency; });
-    defineGetter(navigatorProto, "deviceMemory", function() { return config.deviceMemory; });
-    defineGetter(navigatorProto, "maxTouchPoints", function() { return 5; });
-    defineGetter(navigatorProto, "webdriver", function() { return false; });
-    defineGetter(navigatorProto, "doNotTrack", function() { return "1"; });
-    defineGetter(navigatorProto, "plugins", function() { return freezeList([]); });
-    defineGetter(navigatorProto, "mimeTypes", function() { return freezeList([]); });
-    defineValue(navigator, "globalPrivacyControl", true);
+    if (fingerprintEnabled) {
+        defineGetter(navigatorProto, "userAgent", function() { return config.userAgent; });
+        defineGetter(navigatorProto, "appVersion", function() { 
+            return config.userAgent.replace(/^Mozilla\//, ""); 
+        });
+        defineGetter(navigatorProto, "vendor", function() { return "Google Inc."; });
+        defineGetter(navigatorProto, "vendorSub", function() { return ""; });
+        defineGetter(navigatorProto, "productSub", function() { return "20030107"; });
+        defineGetter(navigatorProto, "platform", function() { return config.platform; });
+        defineGetter(navigatorProto, "oscpu", function() { return undefined; });
+        defineGetter(navigatorProto, "buildID", function() { return undefined; });
+        defineGetter(navigatorProto, "language", function() { return config.languages[0]; });
+        defineGetter(navigatorProto, "languages", function() { return freezeList(config.languages); });
+        defineGetter(navigatorProto, "hardwareConcurrency", function() { return config.hardwareConcurrency; });
+        defineGetter(navigatorProto, "deviceMemory", function() { return config.deviceMemory; });
+        defineGetter(navigatorProto, "maxTouchPoints", function() { return 5; });
+        defineGetter(navigatorProto, "webdriver", function() { return false; });
+        defineGetter(navigatorProto, "doNotTrack", function() { return "1"; });
+        defineGetter(navigatorProto, "plugins", function() { return freezeList([]); });
+        defineGetter(navigatorProto, "mimeTypes", function() { return freezeList([]); });
+        defineValue(navigator, "globalPrivacyControl", true);
 
-    // Additional Navigator Properties
-    defineGetter(navigatorProto, "appCodeName", function() { return "Mozilla"; });
-    defineGetter(navigatorProto, "appName", function() { return "Netscape"; });
-    defineGetter(navigatorProto, "product", function() { return "Gecko"; });
-    defineGetter(navigatorProto, "pdfViewerEnabled", function() { return true; });
-    defineGetter(navigatorProto, "cookieEnabled", function() { return false; });
-    defineGetter(navigatorProto, "onLine", function() { return true; });
-    
-    // USB/Bluetooth/HID Device Enumeration Blocking
-    if (navigator.usb) {
-        defineValue(navigator, "usb", Object.freeze({
-            getDevices: function() { return Promise.resolve([]); },
-            requestDevice: function() { return denyPromise("USB blocked"); },
-            addEventListener: noop,
-            removeEventListener: noop
-        }));
+        // Additional Navigator Properties
+        defineGetter(navigatorProto, "appCodeName", function() { return "Mozilla"; });
+        defineGetter(navigatorProto, "appName", function() { return "Netscape"; });
+        defineGetter(navigatorProto, "product", function() { return "Gecko"; });
+        defineGetter(navigatorProto, "pdfViewerEnabled", function() { return true; });
+        defineGetter(navigatorProto, "cookieEnabled", function() { return false; });
+        defineGetter(navigatorProto, "onLine", function() { return true; });
     }
     
-    if (navigator.bluetooth) {
-        defineValue(navigator, "bluetooth", Object.freeze({
-            getAvailability: function() { return Promise.resolve(false); },
-            getDevices: function() { return Promise.resolve([]); },
-            requestDevice: function() { return denyPromise("Bluetooth blocked"); },
-            addEventListener: noop,
-            removeEventListener: noop
-        }));
-    }
-    
-    if (navigator.hid) {
-        defineValue(navigator, "hid", Object.freeze({
-            getDevices: function() { return Promise.resolve([]); },
-            requestDevice: function() { return denyPromise("HID blocked"); },
-            addEventListener: noop,
-            removeEventListener: noop
-        }));
-    }
-    
-    if (navigator.serial) {
-        defineValue(navigator, "serial", Object.freeze({
-            getPorts: function() { return Promise.resolve([]); },
-            requestPort: function() { return denyPromise("Serial blocked"); },
-            addEventListener: noop,
-            removeEventListener: noop
-        }));
-    }
-
-    // MIDI Device Enumeration Blocking
-    if (navigator.requestMIDIAccess) {
-        navigator.requestMIDIAccess = function() {
-            return denyPromise("MIDI blocked");
-        };
-    }
-
-    // Presentation API Blocking
-    if (navigator.presentation) {
-        defineValue(navigator, "presentation", Object.freeze({
-            defaultRequest: null,
-            receiver: null
-        }));
-    }
-
-    // XR (VR/AR) API Blocking
-    if (navigator.xr) {
-        defineValue(navigator, "xr", Object.freeze({
-            isSessionSupported: function() { return Promise.resolve(false); },
-            requestSession: function() { return denyPromise("XR blocked"); },
-            addEventListener: noop,
-            removeEventListener: noop
-        }));
-    }
-
-    defineGetter(screenProto, "width", function() { return config.screen.width; });
-    defineGetter(screenProto, "height", function() { return config.screen.height; });
-    defineGetter(screenProto, "availWidth", function() { return config.screen.availWidth; });
-    defineGetter(screenProto, "availHeight", function() { return config.screen.availHeight; });
-    defineGetter(screenProto, "colorDepth", function() { return config.screen.colorDepth; });
-    defineGetter(screenProto, "pixelDepth", function() { return config.screen.pixelDepth; });
-    defineGetter(window, "devicePixelRatio", function() { return config.screen.devicePixelRatio; });
-    defineGetter(window, "outerWidth", function() { return config.screen.width; });
-    defineGetter(window, "outerHeight", function() { return config.screen.height; });
-    defineGetter(window, "innerWidth", function() { return config.screen.availWidth; });
-    defineGetter(window, "innerHeight", function() { return config.screen.availHeight; });
-    defineGetter(window, "screenX", function() { return 0; });
-    defineGetter(window, "screenY", function() { return 0; });
-    defineGetter(window, "screenLeft", function() { return 0; });
-    defineGetter(window, "screenTop", function() { return 0; });
-
-    if (screen.orientation) {
-        const orientationProto = Object.getPrototypeOf(screen.orientation);
-        defineGetter(orientationProto, "type", function() { return "portrait-primary"; });
-        defineGetter(orientationProto, "angle", function() { return 0; });
-    }
-
-    if (window.Intl && Intl.DateTimeFormat && Intl.DateTimeFormat.prototype) {
-        const originalResolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
-        Intl.DateTimeFormat.prototype.resolvedOptions = function() {
-            const options = originalResolvedOptions.apply(this, arguments);
-            options.timeZone = config.timeZone;
-            return options;
-        };
-    }
-
-    if (Date.prototype.getTimezoneOffset) {
-        Date.prototype.getTimezoneOffset = function() {
-            return config.timezoneOffsetMinutes;
-        };
-    }
-
-    Date.now = function() {
-        return quantizeTime(nativeDateNow());
-    };
-
-    if (window.performance && nativePerformanceNow) {
-        window.performance.now = function() {
-            return quantizeTime(nativePerformanceNow());
-        };
-
-        // Performance Timeline API - can leak resource timing
-        if (window.performance.getEntries) {
-            window.performance.getEntries = function() { return []; };
-            window.performance.getEntriesByType = function() { return []; };
-            window.performance.getEntriesByName = function() { return []; };
-        }
-
-        // Performance Observer - can track resource loads
-        if (window.PerformanceObserver) {
-            const OriginalPerformanceObserver = window.PerformanceObserver;
-            window.PerformanceObserver = function(callback) {
-                return new OriginalPerformanceObserver(function(list, observer) {
-                    // Filter out resource timing entries
-                    const filteredList = {
-                        getEntries: function() { return []; },
-                        getEntriesByType: function() { return []; },
-                        getEntriesByName: function() { return []; }
-                    };
-                    callback(filteredList, observer);
-                });
-            };
-            window.PerformanceObserver.supportedEntryTypes = [];
-        }
-
-        // Navigation Timing - can leak page load info
-        if (window.performance.timing) {
-            const fakeTimingBase = nativeDateNow();
-            defineGetter(window.performance, "timing", function() {
-                return Object.freeze({
-                    navigationStart: fakeTimingBase,
-                    unloadEventStart: 0,
-                    unloadEventEnd: 0,
-                    redirectStart: 0,
-                    redirectEnd: 0,
-                    fetchStart: fakeTimingBase,
-                    domainLookupStart: fakeTimingBase,
-                    domainLookupEnd: fakeTimingBase,
-                    connectStart: fakeTimingBase,
-                    connectEnd: fakeTimingBase,
-                    secureConnectionStart: fakeTimingBase,
-                    requestStart: fakeTimingBase,
-                    responseStart: fakeTimingBase,
-                    responseEnd: fakeTimingBase,
-                    domLoading: fakeTimingBase,
-                    domInteractive: fakeTimingBase,
-                    domContentLoadedEventStart: fakeTimingBase,
-                    domContentLoadedEventEnd: fakeTimingBase,
-                    domComplete: fakeTimingBase,
-                    loadEventStart: fakeTimingBase,
-                    loadEventEnd: fakeTimingBase
-                });
-            });
-        }
-
-        // Memory Info - can leak device capabilities
-        if (window.performance.memory) {
-            defineGetter(window.performance, "memory", function() {
-                return Object.freeze({
-                    jsHeapSizeLimit: 2172649472,
-                    totalJSHeapSize: 1500000000,
-                    usedJSHeapSize: 1000000000
-                });
-            });
-        }
-    }
-
-    if (nativeRequestAnimationFrame) {
-        window.requestAnimationFrame = function(callback) {
-            return nativeRequestAnimationFrame(function(timestamp) {
-                callback(quantizeTime(timestamp));
-            });
-        };
-    }
-
-    const blockedStorage = {
-        getItem: function() { return null; },
-        setItem: function() { throwSecurity("Storage disabled"); },
-        removeItem: noop,
-        clear: noop,
-        key: function() { return null; },
-        length: 0
-    };
-    defineGetter(window, "localStorage", function() { return blockedStorage; });
-    defineGetter(window, "sessionStorage", function() { return blockedStorage; });
-    defineValue(window, "openDatabase", undefined);
-    defineGetter(window, "indexedDB", function() { return undefined; });
-    defineValue(window, "caches", Object.freeze({
-        open: function() { return denyPromise("Cache API disabled"); },
-        match: function() { return Promise.resolve(undefined); },
-        delete: function() { return Promise.resolve(false); },
-        keys: function() { return Promise.resolve([]); }
-    }));
-
-    if (navigator.storage) {
-        defineValue(navigator, "storage", Object.freeze({
-            estimate: function() { return Promise.resolve({ usage: 0, quota: 0 }); },
-            persisted: function() { return Promise.resolve(false); },
-            persist: function() { return Promise.resolve(false); }
-        }));
-    }
-
-    if (navigator.permissions && navigator.permissions.query) {
-        const originalQuery = navigator.permissions.query.bind(navigator.permissions);
-        navigator.permissions.query = function(descriptor) {
-            const name = descriptor && descriptor.name;
-            if (name && [
-                "camera",
-                "microphone",
-                "geolocation",
-                "clipboard-read",
-                "clipboard-write",
-                "accelerometer",
-                "gyroscope",
-                "magnetometer"
-            ].indexOf(name) >= 0) {
-                return Promise.resolve({ state: "denied", onchange: null });
-            }
-            return originalQuery(descriptor);
-        };
-    }
-
-    if (navigator.geolocation) {
-        const geoError = function(errorCallback) {
-            if (errorCallback) {
-                errorCallback({
-                    code: 1,
-                    message: "Geolocation blocked",
-                    PERMISSION_DENIED: 1,
-                    POSITION_UNAVAILABLE: 2,
-                    TIMEOUT: 3
-                });
-            }
-        };
-        navigator.geolocation.getCurrentPosition = function(success, error) { geoError(error); };
-        navigator.geolocation.watchPosition = function(success, error) { geoError(error); return 0; };
-    }
-
-    if (navigator.mediaDevices) {
-        navigator.mediaDevices.getUserMedia = function() {
-            safePost({ type: "webrtc", detail: "getUserMedia", blocked: true });
-            return denyPromise("Media devices blocked");
-        };
-        navigator.mediaDevices.enumerateDevices = function() {
-            return Promise.resolve([]);
-        };
-    }
-
-    defineValue(window, "DeviceMotionEvent", undefined);
-    defineValue(window, "DeviceOrientationEvent", undefined);
-    defineValue(window, "Accelerometer", undefined);
-    defineValue(window, "Gyroscope", undefined);
-    defineValue(window, "Magnetometer", undefined);
-    defineValue(window, "AbsoluteOrientationSensor", undefined);
-    defineValue(window, "RelativeOrientationSensor", undefined);
-    defineValue(window, "LinearAccelerationSensor", undefined);
-    defineValue(window, "GravitySensor", undefined);
-
-    // Ambient Light Sensor Blocking
-    defineValue(window, "AmbientLightSensor", undefined);
-    
-    // Proximity Sensor Blocking
-    if (window.ProximitySensor) {
-        defineValue(window, "ProximitySensor", undefined);
-    }
-
-    // Vibration API Blocking
-    if (navigator.vibrate) {
-        navigator.vibrate = function() { return false; };
-    }
-
-    // Wake Lock API Blocking
-    if (navigator.wakeLock) {
-        defineValue(navigator, "wakeLock", Object.freeze({
-            request: function() { return denyPromise("Wake lock blocked"); }
-        }));
-    }
-
-    // Screen Wake Lock (older API)
-    if (screen.keepAwake !== undefined) {
-        defineGetter(screen, "keepAwake", function() { return false; });
-    }
-
-    // Idle Detection API Blocking
-    if (window.IdleDetector) {
-        defineValue(window, "IdleDetector", undefined);
-    }
-
-    if (navigator.clipboard) {
-        defineValue(navigator, "clipboard", Object.freeze({
-            readText: function() { return denyPromise("Clipboard blocked"); },
-            writeText: function() { return denyPromise("Clipboard blocked"); },
-            read: function() { return denyPromise("Clipboard blocked"); },
-            write: function() { return denyPromise("Clipboard blocked"); }
-        }));
-    }
-
-    if (navigator.getBattery) {
-        navigator.getBattery = function() {
-            return Promise.resolve({
-                charging: true,
-                chargingTime: 0,
-                dischargingTime: Infinity,
-                level: 0.76,
+    if (fingerprintEnabled) {
+        // USB/Bluetooth/HID Device Enumeration Blocking
+        if (navigator.usb) {
+            defineValue(navigator, "usb", Object.freeze({
+                getDevices: function() { return Promise.resolve([]); },
+                requestDevice: function() { return denyPromise("USB blocked"); },
                 addEventListener: noop,
                 removeEventListener: noop
-            });
+            }));
+        }
+        
+        if (navigator.bluetooth) {
+            defineValue(navigator, "bluetooth", Object.freeze({
+                getAvailability: function() { return Promise.resolve(false); },
+                getDevices: function() { return Promise.resolve([]); },
+                requestDevice: function() { return denyPromise("Bluetooth blocked"); },
+                addEventListener: noop,
+                removeEventListener: noop
+            }));
+        }
+        
+        if (navigator.hid) {
+            defineValue(navigator, "hid", Object.freeze({
+                getDevices: function() { return Promise.resolve([]); },
+                requestDevice: function() { return denyPromise("HID blocked"); },
+                addEventListener: noop,
+                removeEventListener: noop
+            }));
+        }
+        
+        if (navigator.serial) {
+            defineValue(navigator, "serial", Object.freeze({
+                getPorts: function() { return Promise.resolve([]); },
+                requestPort: function() { return denyPromise("Serial blocked"); },
+                addEventListener: noop,
+                removeEventListener: noop
+            }));
+        }
+
+        // MIDI Device Enumeration Blocking
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess = function() {
+                return denyPromise("MIDI blocked");
+            };
+        }
+
+        // Presentation API Blocking
+        if (navigator.presentation) {
+            defineValue(navigator, "presentation", Object.freeze({
+                defaultRequest: null,
+                receiver: null
+            }));
+        }
+
+        // XR (VR/AR) API Blocking
+        if (navigator.xr) {
+            defineValue(navigator, "xr", Object.freeze({
+                isSessionSupported: function() { return Promise.resolve(false); },
+                requestSession: function() { return denyPromise("XR blocked"); },
+                addEventListener: noop,
+                removeEventListener: noop
+            }));
+        }
+    }
+
+    if (fingerprintEnabled) {
+        defineGetter(screenProto, "width", function() { return config.screen.width; });
+        defineGetter(screenProto, "height", function() { return config.screen.height; });
+        defineGetter(screenProto, "availWidth", function() { return config.screen.availWidth; });
+        defineGetter(screenProto, "availHeight", function() { return config.screen.availHeight; });
+        defineGetter(screenProto, "colorDepth", function() { return config.screen.colorDepth; });
+        defineGetter(screenProto, "pixelDepth", function() { return config.screen.pixelDepth; });
+        defineGetter(window, "devicePixelRatio", function() { return config.screen.devicePixelRatio; });
+        defineGetter(window, "outerWidth", function() { return config.screen.width; });
+        defineGetter(window, "outerHeight", function() { return config.screen.height; });
+        defineGetter(window, "innerWidth", function() { return config.screen.availWidth; });
+        defineGetter(window, "innerHeight", function() { return config.screen.availHeight; });
+        defineGetter(window, "screenX", function() { return 0; });
+        defineGetter(window, "screenY", function() { return 0; });
+        defineGetter(window, "screenLeft", function() { return 0; });
+        defineGetter(window, "screenTop", function() { return 0; });
+
+        if (screen.orientation) {
+            const orientationProto = Object.getPrototypeOf(screen.orientation);
+            defineGetter(orientationProto, "type", function() { return "portrait-primary"; });
+            defineGetter(orientationProto, "angle", function() { return 0; });
+        }
+    }
+
+    if (fingerprintEnabled) {
+        if (window.Intl && Intl.DateTimeFormat && Intl.DateTimeFormat.prototype) {
+            const originalResolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
+            Intl.DateTimeFormat.prototype.resolvedOptions = function() {
+                const options = originalResolvedOptions.apply(this, arguments);
+                options.timeZone = config.timeZone;
+                return options;
+            };
+        }
+
+        if (Date.prototype.getTimezoneOffset) {
+            Date.prototype.getTimezoneOffset = function() {
+                return config.timezoneOffsetMinutes;
+            };
+        }
+
+        Date.now = function() {
+            return quantizeTime(nativeDateNow());
         };
     }
 
-    if (navigator.connection) {
-        const connectionProto = Object.getPrototypeOf(navigator.connection);
-        defineGetter(connectionProto, "effectiveType", function() { return "4g"; });
-        defineGetter(connectionProto, "downlink", function() { return 10; });
-        defineGetter(connectionProto, "rtt", function() { return 50; });
-        defineGetter(connectionProto, "saveData", function() { return false; });
-        defineGetter(connectionProto, "type", function() { return "wifi"; });
-        defineGetter(connectionProto, "downlinkMax", function() { return Infinity; });
+    if (fingerprintEnabled) {
+        if (window.performance && nativePerformanceNow) {
+            window.performance.now = function() {
+                return quantizeTime(nativePerformanceNow());
+            };
+
+            // Performance Timeline API - can leak resource timing
+            if (window.performance.getEntries) {
+                window.performance.getEntries = function() { return []; };
+                window.performance.getEntriesByType = function() { return []; };
+                window.performance.getEntriesByName = function() { return []; };
+            }
+
+            // Performance Observer - can track resource loads
+            if (window.PerformanceObserver) {
+                const OriginalPerformanceObserver = window.PerformanceObserver;
+                window.PerformanceObserver = function(callback) {
+                    return new OriginalPerformanceObserver(function(list, observer) {
+                        // Filter out resource timing entries
+                        const filteredList = {
+                            getEntries: function() { return []; },
+                            getEntriesByType: function() { return []; },
+                            getEntriesByName: function() { return []; }
+                        };
+                        callback(filteredList, observer);
+                    });
+                };
+                window.PerformanceObserver.supportedEntryTypes = [];
+            }
+
+            // Navigation Timing - can leak page load info
+            if (window.performance.timing) {
+                const fakeTimingBase = nativeDateNow();
+                defineGetter(window.performance, "timing", function() {
+                    return Object.freeze({
+                        navigationStart: fakeTimingBase,
+                        unloadEventStart: 0,
+                        unloadEventEnd: 0,
+                        redirectStart: 0,
+                        redirectEnd: 0,
+                        fetchStart: fakeTimingBase,
+                        domainLookupStart: fakeTimingBase,
+                        domainLookupEnd: fakeTimingBase,
+                        connectStart: fakeTimingBase,
+                        connectEnd: fakeTimingBase,
+                        secureConnectionStart: fakeTimingBase,
+                        requestStart: fakeTimingBase,
+                        responseStart: fakeTimingBase,
+                        responseEnd: fakeTimingBase,
+                        domLoading: fakeTimingBase,
+                        domInteractive: fakeTimingBase,
+                        domContentLoadedEventStart: fakeTimingBase,
+                        domContentLoadedEventEnd: fakeTimingBase,
+                        domComplete: fakeTimingBase,
+                        loadEventStart: fakeTimingBase,
+                        loadEventEnd: fakeTimingBase
+                    });
+                });
+            }
+
+            // Memory Info - can leak device capabilities
+            if (window.performance.memory) {
+                defineGetter(window.performance, "memory", function() {
+                    return Object.freeze({
+                        jsHeapSizeLimit: 2172649472,
+                        totalJSHeapSize: 1500000000,
+                        usedJSHeapSize: 1000000000
+                    });
+                });
+            }
+        }
+
+        if (nativeRequestAnimationFrame) {
+            window.requestAnimationFrame = function(callback) {
+                return nativeRequestAnimationFrame(function(timestamp) {
+                    callback(quantizeTime(timestamp));
+                });
+            };
+        }
     }
 
-    // Network Information API v2 (experimental)
-    if (navigator.mozConnection) {
-        defineValue(navigator, "mozConnection", navigator.connection);
+    if (fingerprintEnabled) {
+        const blockedStorage = {
+            getItem: function() { return null; },
+            setItem: function() { throwSecurity("Storage disabled"); },
+            removeItem: noop,
+            clear: noop,
+            key: function() { return null; },
+            length: 0
+        };
+        defineGetter(window, "localStorage", function() { return blockedStorage; });
+        defineGetter(window, "sessionStorage", function() { return blockedStorage; });
+        defineValue(window, "openDatabase", undefined);
+        defineGetter(window, "indexedDB", function() { return undefined; });
+        defineValue(window, "caches", Object.freeze({
+            open: function() { return denyPromise("Cache API disabled"); },
+            match: function() { return Promise.resolve(undefined); },
+            delete: function() { return Promise.resolve(false); },
+            keys: function() { return Promise.resolve([]); }
+        }));
     }
-    if (navigator.webkitConnection) {
-        defineValue(navigator, "webkitConnection", navigator.connection);
+
+    if (fingerprintEnabled) {
+        if (navigator.storage) {
+            defineValue(navigator, "storage", Object.freeze({
+                estimate: function() { return Promise.resolve({ usage: 0, quota: 0 }); },
+                persisted: function() { return Promise.resolve(false); },
+                persist: function() { return Promise.resolve(false); }
+            }));
+        }
+
+        if (navigator.permissions && navigator.permissions.query) {
+            const originalQuery = navigator.permissions.query.bind(navigator.permissions);
+            navigator.permissions.query = function(descriptor) {
+                const name = descriptor && descriptor.name;
+                if (name && [
+                    "camera",
+                    "microphone",
+                    "geolocation",
+                    "clipboard-read",
+                    "clipboard-read",
+                    "clipboard-write",
+                    "accelerometer",
+                    "gyroscope",
+                    "magnetometer"
+                ].indexOf(name) >= 0) {
+                    return Promise.resolve({ state: "denied", onchange: null });
+                }
+                return originalQuery(descriptor);
+            };
+        }
+
+        if (navigator.geolocation) {
+            const geoError = function(errorCallback) {
+                if (errorCallback) {
+                    errorCallback({
+                        code: 1,
+                        message: "Geolocation blocked",
+                        PERMISSION_DENIED: 1,
+                        POSITION_UNAVAILABLE: 2,
+                        TIMEOUT: 3
+                    });
+                }
+            };
+            navigator.geolocation.getCurrentPosition = function(success, error) { geoError(error); };
+            navigator.geolocation.watchPosition = function(success, error) { geoError(error); return 0; };
+        }
+
+        if (navigator.mediaDevices) {
+            navigator.mediaDevices.getUserMedia = function() {
+                safePost({ type: "webrtc", detail: "getUserMedia", blocked: true });
+                return denyPromise("Media devices blocked");
+            };
+            navigator.mediaDevices.enumerateDevices = function() {
+                return Promise.resolve([]);
+            };
+        }
+
+        defineValue(window, "DeviceMotionEvent", undefined);
+        defineValue(window, "DeviceOrientationEvent", undefined);
+        defineValue(window, "Accelerometer", undefined);
+        defineValue(window, "Gyroscope", undefined);
+        defineValue(window, "Magnetometer", undefined);
+        defineValue(window, "AbsoluteOrientationSensor", undefined);
+        defineValue(window, "RelativeOrientationSensor", undefined);
+        defineValue(window, "LinearAccelerationSensor", undefined);
+        defineValue(window, "GravitySensor", undefined);
+
+        // Ambient Light Sensor Blocking
+        defineValue(window, "AmbientLightSensor", undefined);
+        
+        // Proximity Sensor Blocking
+        if (window.ProximitySensor) {
+            defineValue(window, "ProximitySensor", undefined);
+        }
+
+        // Vibration API Blocking
+        if (navigator.vibrate) {
+            navigator.vibrate = function() { return false; };
+        }
+
+        // Wake Lock API Blocking
+        if (navigator.wakeLock) {
+            defineValue(navigator, "wakeLock", Object.freeze({
+                request: function() { return denyPromise("Wake lock blocked"); }
+            }));
+        }
+
+        // Screen Wake Lock (older API)
+        if (screen.keepAwake !== undefined) {
+            defineGetter(screen, "keepAwake", function() { return false; });
+        }
+
+        // Idle Detection API Blocking
+        if (window.IdleDetector) {
+            defineValue(window, "IdleDetector", undefined);
+        }
+
+        if (navigator.clipboard) {
+            defineValue(navigator, "clipboard", Object.freeze({
+                readText: function() { return denyPromise("Clipboard blocked"); },
+                writeText: function() { return denyPromise("Clipboard blocked"); },
+                read: function() { return denyPromise("Clipboard blocked"); },
+                write: function() { return denyPromise("Clipboard blocked"); }
+            }));
+        }
+
+        if (navigator.getBattery) {
+            navigator.getBattery = function() {
+                return Promise.resolve({
+                    charging: true,
+                    chargingTime: 0,
+                    dischargingTime: Infinity,
+                    level: 0.76,
+                    addEventListener: noop,
+                    removeEventListener: noop
+                });
+            };
+        }
+
+        if (navigator.connection) {
+            const connectionProto = Object.getPrototypeOf(navigator.connection);
+            defineGetter(connectionProto, "effectiveType", function() { return "4g"; });
+            defineGetter(connectionProto, "downlink", function() { return 10; });
+            defineGetter(connectionProto, "rtt", function() { return 50; });
+            defineGetter(connectionProto, "saveData", function() { return false; });
+            defineGetter(connectionProto, "type", function() { return "wifi"; });
+            defineGetter(connectionProto, "downlinkMax", function() { return Infinity; });
+        }
+
+        // Network Information API v2 (experimental)
+        if (navigator.mozConnection) {
+            defineValue(navigator, "mozConnection", navigator.connection);
+        }
+        if (navigator.webkitConnection) {
+            defineValue(navigator, "webkitConnection", navigator.connection);
+        }
     }
 
     // Beacon API - can be used for tracking

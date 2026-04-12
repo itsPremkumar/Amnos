@@ -13,7 +13,8 @@ enum class WebGlMode {
 
 enum class FingerprintProtectionLevel {
     BALANCED,
-    STRICT
+    STRICT,
+    DISABLED
 }
 
 data class PrivacyPolicy(
@@ -45,9 +46,10 @@ data class PrivacyPolicy(
     val strictFirstPartyIsolation: Boolean = com.privacy.browser.BuildConfig.SECURITY_STRICT_FIRST_PARTY_ISOLATION,
     val enforceLoopbackProxy: Boolean = com.privacy.browser.BuildConfig.SECURITY_ENFORCE_LOOPBACK_PROXY,
     val webGlMode: WebGlMode = WebGlMode.DISABLED,
-    val fingerprintProtectionLevel: FingerprintProtectionLevel = when (com.privacy.browser.BuildConfig.SECURITY_FINGERPRINT_LEVEL) {
+    val fingerprintProtectionLevel: FingerprintProtectionLevel = when (com.privacy.browser.BuildConfig.SECURITY_FINGERPRINT_LEVEL.uppercase()) {
         "BALANCED" -> FingerprintProtectionLevel.BALANCED
         "STRICT" -> FingerprintProtectionLevel.STRICT
+        "DISABLED", "OFF", "FALSE" -> FingerprintProtectionLevel.DISABLED
         else -> FingerprintProtectionLevel.STRICT
     },
     val javascriptMode: JavaScriptMode = JavaScriptMode.RESTRICTED,
