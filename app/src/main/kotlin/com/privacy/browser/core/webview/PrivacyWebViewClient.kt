@@ -60,19 +60,6 @@ class PrivacyWebViewClient(
 
         val decision = networkSecurityManager.evaluateRequest(request, currentHost)
 
-        if (adBlocker.shouldBlock(decision.sanitizedUrl)) {
-            securityController.logRequest(
-                url = decision.sanitizedUrl,
-                method = request.method,
-                type = securityController.mapKind(decision.kind),
-                disposition = SecurityController.RequestDisposition.BLOCKED,
-                thirdParty = decision.thirdParty,
-                reason = networkSecurityManager.blockReasonLabel(BlockReason.TRACKER)
-            )
-            onTrackerBlocked()
-            return networkSecurityManager.createBlockedResponse(BlockReason.TRACKER, request.isForMainFrame)
-        }
-
         if (decision.isBlocked) {
             securityController.logRequest(
                 url = decision.sanitizedUrl,

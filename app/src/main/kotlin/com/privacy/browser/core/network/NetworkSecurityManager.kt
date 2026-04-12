@@ -3,7 +3,9 @@ package com.privacy.browser.core.network
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import com.privacy.browser.core.fingerprint.DeviceProfile
+import com.privacy.browser.core.adblock.AdBlocker
 import com.privacy.browser.core.security.PrivacyPolicy
+
 import com.privacy.browser.core.session.AmnosLog
 import okhttp3.Headers
 import okhttp3.HttpUrl
@@ -13,7 +15,9 @@ import java.io.ByteArrayInputStream
 import java.util.Locale
 
 class NetworkSecurityManager(
+    private val adBlocker: AdBlocker,
     private val policyProvider: () -> PrivacyPolicy
+
 ) {
     fun sanitizeNavigationUrl(rawUrl: String): String? {
         val trimmed = rawUrl.trim()
@@ -101,7 +105,18 @@ class NetworkSecurityManager(
             return RequestDecision(sanitizedUrl, kind, BlockReason.THIRD_PARTY_SCRIPT, thirdParty = true)
         }
 
+        // --- AdBlocker Integration ---
+        if (policy.blockTrackers && !request.isForMainFrame) {
+            val isFunctional = (kind == RequestKind.MEDIA || kind == RequestKind.IMAGE || kind == RequestKind.FONT) && 
+                (parsed.host.contains("googlevideo.com") || parsed.host.contains("ytimg.com") || parsed.host.contains("youtube.com"))
+            
+            if (!isFunctional && adBlocker.shouldBlock(sanitizedUrl)) {
+                return RequestDecision(sanitizedUrl, kind, BlockReason.TRACKER, thirdParty = thirdParty)
+            }
+        }
+
         return RequestDecision(sanitizedUrl, kind, thirdParty = thirdParty)
+
     }
 
     fun createBlockedResponse(

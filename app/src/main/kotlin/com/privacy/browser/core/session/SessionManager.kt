@@ -39,7 +39,7 @@ class SessionManager(private val context: Context) {
 
     val securityController = SecurityController()
     val storageController = StorageController(context)
-    private val networkSecurityManager = NetworkSecurityManager { privacyPolicy }
+    private val networkSecurityManager = NetworkSecurityManager(adBlocker) { privacyPolicy }
     private val loopbackProxyServer = LoopbackProxyServer(
         networkSecurityManager = networkSecurityManager,
         onTunnelOpened = { id, host, port ->
