@@ -17,6 +17,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.BottomSheetDefaults
@@ -86,7 +88,7 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
                 }
             }
 
-            val tabs = listOf("SHIELDS", "INSPECTOR")
+            val tabs = listOf("SHIELDS", "INSPECTOR", "LOGS")
             var selectedTab by remember { mutableIntStateOf(0) }
 
             TabRow(
@@ -106,125 +108,195 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
 
             Spacer(Modifier.height(16.dp))
 
-            if (selectedTab == 0) {
-                Column {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+            when (selectedTab) {
+                0 -> {
+                    Column {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp)
                         ) {
-                            Column {
-                                Text("Active Defense", color = Color.Gray, fontSize = 12.sp)
-                                Text(
-                                    "${viewModel.blockedTrackersCount.value} Trackers Blocked",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text("${viewModel.activeConnections.size} Active Connections", color = Color.Gray, fontSize = 11.sp)
-                                Text("${viewModel.requestLog.size} Volatile Events", color = Color.Gray, fontSize = 11.sp)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .background(KillRed.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("GHOST", color = KillRed, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                                Column {
+                                    Text("Active Defense", color = Color.Gray, fontSize = 12.sp)
+                                    Text(
+                                        "${viewModel.blockedTrackersCount.value} Trackers Blocked",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text("${viewModel.activeConnections.size} Active Connections", color = Color.Gray, fontSize = 11.sp)
+                                    Text("${viewModel.requestLog.size} Volatile Events", color = Color.Gray, fontSize = 11.sp)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .background(KillRed.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text("GHOST", color = KillRed, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                                }
                             }
                         }
-                    }
 
-                    StatusCard(
-                        title = "Transport",
-                        lines = listOf(
-                            "Proxy: ${viewModel.proxyStatus.value}",
-                            "DoH: ${viewModel.dohStatus.value}",
-                            "WebRTC: ${viewModel.webRtcStatus.value} (${viewModel.webRtcAttemptCount.value} events)",
-                            "WebSocket: ${viewModel.webSocketStatus.value} (${viewModel.webSocketAttemptCount.value} events)"
+                        StatusCard(
+                            title = "Transport",
+                            lines = listOf(
+                                "Proxy: ${viewModel.proxyStatus.value}",
+                                "DoH: ${viewModel.dohStatus.value}",
+                                "WebRTC: ${viewModel.webRtcStatus.value} (${viewModel.webRtcAttemptCount.value} events)",
+                                "WebSocket: ${viewModel.webSocketStatus.value} (${viewModel.webSocketAttemptCount.value} events)"
+                            )
                         )
-                    )
 
-                    JavaScriptModeSelector(
-                        selectedMode = viewModel.javaScriptMode.value,
-                        onModeSelected = viewModel::setJavaScriptMode
-                    )
+                        JavaScriptModeSelector(
+                            selectedMode = viewModel.javaScriptMode.value,
+                            onModeSelected = viewModel::setJavaScriptMode
+                        )
 
-                    FingerprintLevelSelector(
-                        selectedLevel = viewModel.fingerprintProtectionLevel.value,
-                        onLevelSelected = viewModel::setFingerprintProtectionLevel
-                    )
+                        FingerprintLevelSelector(
+                            selectedLevel = viewModel.fingerprintProtectionLevel.value,
+                            onLevelSelected = viewModel::setFingerprintProtectionLevel
+                        )
 
-                    SecurityToggle(
-                        title = "HTTPS-Only",
-                        description = "Upgrade cleartext links and block insecure loads.",
-                        checked = policy.httpsOnlyEnabled,
-                        onCheckedChange = viewModel::toggleHttpsOnly
-                    )
+                        SecurityToggle(
+                            title = "HTTPS-Only",
+                            description = "Upgrade cleartext links and block insecure loads.",
+                            checked = policy.httpsOnlyEnabled,
+                            onCheckedChange = viewModel::toggleHttpsOnly
+                        )
 
-                    SecurityToggle(
-                        title = "Third-Party Blocking",
-                        description = "Blocks third-party requests and remote scripts.",
-                        checked = policy.blockThirdPartyRequests,
-                        onCheckedChange = viewModel::toggleThirdPartyBlocking
-                    )
+                        SecurityToggle(
+                            title = "Third-Party Blocking",
+                            description = "Blocks third-party requests and remote scripts.",
+                            checked = policy.blockThirdPartyRequests,
+                            onCheckedChange = viewModel::toggleThirdPartyBlocking
+                        )
 
-                    SecurityToggle(
-                        title = "Inline Script Shield",
-                        description = "Applies CSP and blocks dynamic code paths in restricted mode.",
-                        checked = policy.blockInlineScripts,
-                        onCheckedChange = viewModel::toggleInlineScriptBlocking
-                    )
+                        SecurityToggle(
+                            title = "Inline Script Shield",
+                            description = "Applies CSP and blocks dynamic code paths in restricted mode.",
+                            checked = policy.blockInlineScripts,
+                            onCheckedChange = viewModel::toggleInlineScriptBlocking
+                        )
 
-                    SecurityToggle(
-                        title = "WebSocket Shield",
-                        description = "Blocks live socket channels that can leak identifiers.",
-                        checked = policy.blockWebSockets,
-                        onCheckedChange = viewModel::toggleWebSockets
-                    )
+                        SecurityToggle(
+                            title = "WebSocket Shield",
+                            description = "Blocks live socket channels that can leak identifiers.",
+                            checked = policy.blockWebSockets,
+                            onCheckedChange = viewModel::toggleWebSockets
+                        )
 
-                    SecurityToggle(
-                        title = "First-Party Isolation",
-                        description = "Rebuild the browsing silo when top-level site identity changes.",
-                        checked = policy.strictFirstPartyIsolation,
-                        onCheckedChange = viewModel::toggleStrictFirstPartyIsolation
-                    )
+                        SecurityToggle(
+                            title = "First-Party Isolation",
+                            description = "Rebuild the browsing silo when top-level site identity changes.",
+                            checked = policy.strictFirstPartyIsolation,
+                            onCheckedChange = viewModel::toggleStrictFirstPartyIsolation
+                        )
 
-                    SecurityToggle(
-                        title = "WebGL Spoofing",
-                        description = "Disable or spoof GPU surfaces to reduce fingerprint entropy.",
-                        checked = viewModel.isWebGLEnabled.value,
-                        onCheckedChange = viewModel::toggleWebGL
-                    )
+                        SecurityToggle(
+                            title = "WebGL Spoofing",
+                            description = "Disable or spoof GPU surfaces to reduce fingerprint entropy.",
+                            checked = viewModel.isWebGLEnabled.value,
+                            onCheckedChange = viewModel::toggleWebGL
+                        )
 
-                    SecurityToggle(
-                        title = "Identity Reset On Refresh",
-                        description = "Rebuilds the current tab with a fresh tab UUID and profile.",
-                        checked = policy.resetIdentityOnRefresh,
-                        onCheckedChange = viewModel::toggleResetIdentityOnRefresh
-                    )
-                    Spacer(Modifier.height(24.dp))
-                    Text(
-                        viewModel.privacyWarning.value,
-                        color = Color(0xFFFFD166),
-                        fontSize = 11.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        "Amnos v1.2.0 - Loopback privacy controls active",
-                        color = Color.Gray,
-                        fontSize = 10.sp,
-                        modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 16.dp)
-                    )
+                        SecurityToggle(
+                            title = "Identity Reset On Refresh",
+                            description = "Rebuilds the current tab with a fresh tab UUID and profile.",
+                            checked = policy.resetIdentityOnRefresh,
+                            onCheckedChange = viewModel::toggleResetIdentityOnRefresh
+                        )
+                        Spacer(Modifier.height(24.dp))
+                        Text(
+                            viewModel.privacyWarning.value,
+                            color = Color(0xFFFFD166),
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "Amnos v1.2.0 - Loopback privacy controls active",
+                            color = Color.Gray,
+                            fontSize = 10.sp,
+                            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 16.dp)
+                        )
+                    }
                 }
-            } else {
-                RequestInspectorList(viewModel.requestLog)
+                1 -> {
+                    RequestInspectorList(viewModel.requestLog)
+                }
+                2 -> {
+                    Column {
+                        Text("System Diagnostics", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("Sub-surface process execution logs.", color = Color.Gray, fontSize = 12.sp)
+                        
+                        Spacer(Modifier.height(12.dp))
+                        
+                        // Internal Logs List
+                        val internalLogs = viewModel.internalLogs
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(300.dp)
+                                .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                .padding(8.dp)
+                        ) {
+                            items(internalLogs) { entry ->
+                                Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    when (entry.level) {
+                                                        "ERROR" -> KillRed
+                                                        "WARN" -> Color(0xFFFFD166)
+                                                        "DEBUG" -> AccentBlue
+                                                        else -> Color.Gray
+                                                    }
+                                                )
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            "[${entry.tag}]",
+                                            color = Color.White,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Text(
+                                        entry.message,
+                                        color = Color.LightGray,
+                                        fontSize = 11.sp,
+                                        modifier = Modifier.padding(start = 16.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(16.dp))
+
+                        SecurityToggle(
+                            title = "Remote WebView Debugging",
+                            description = "Enables USB debugging via chrome://inspect on a PC. WARNING: REDUCES PRIVACY.",
+                            checked = viewModel.enableRemoteDebugging.value,
+                            onCheckedChange = viewModel::toggleRemoteDebugging
+                        )
+
+                        SecurityToggle(
+                            title = "Relax Security for Diagnostics",
+                            description = "Master bypass for CSP, trackers, and proxy policies to isolate engine issues.",
+                            checked = viewModel.forceRelaxSecurityForDebug.value,
+                            onCheckedChange = viewModel::toggleForceRelaxSecurity
+                        )
+                    }
+                }
             }
         }
     }

@@ -39,8 +39,12 @@ class MainActivity : ComponentActivity() {
         Log.d("MainActivity", "onCreate: Initializing Amnos UI")
 
         try {
-            WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG) // Only enabled in debug builds
-            Log.d("MainActivity", "Web debugging: ${if (BuildConfig.DEBUG) "enabled" else "disabled"}")
+            val prefs = getSharedPreferences("amnos_debug_prefs", MODE_PRIVATE)
+            val developerDebugEnabled = prefs.getBoolean("enable_remote_debugging", false)
+            val debugEnabled = BuildConfig.DEBUG || developerDebugEnabled
+            
+            WebView.setWebContentsDebuggingEnabled(debugEnabled)
+            Log.d("MainActivity", "Web debugging: ${if (debugEnabled) "enabled" else "disabled"} (developerMode=$developerDebugEnabled)")
         } catch (e: Exception) {
             Log.e("MainActivity", "Failed to set web debugging state", e)
         }

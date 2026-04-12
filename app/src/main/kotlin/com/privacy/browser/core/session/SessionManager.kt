@@ -48,7 +48,10 @@ class SessionManager(private val context: Context) {
         }
     )
 
-    var privacyPolicy: PrivacyPolicy = PrivacyPolicy()
+    var privacyPolicy: PrivacyPolicy = PrivacyPolicy(
+        enableRemoteDebugging = context.getSharedPreferences("amnos_debug_prefs", Context.MODE_PRIVATE)
+            .getBoolean("enable_remote_debugging", false)
+    )
         private set
 
     private val baseObfuscatorScript: String by lazy {
@@ -159,7 +162,16 @@ class SessionManager(private val context: Context) {
     }
 
     fun updatePrivacyPolicy(update: (PrivacyPolicy) -> PrivacyPolicy) {
+        val oldDebugging = privacyPolicy.enableRemoteDebugging
         privacyPolicy = update(privacyPolicy)
+        
+        if (privacyPolicy.enableRemoteDebugging != oldDebugging) {
+            context.getSharedPreferences("amnos_debug_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("enable_remote_debugging", privacyPolicy.enableRemoteDebugging)
+                .apply()
+        }
+
         securityController.setFingerprintLevel(privacyPolicy.fingerprintProtectionLevel)
         configureProxy()
         tabs.forEach { tab ->
@@ -199,7 +211,13 @@ class SessionManager(private val context: Context) {
     }
 
     fun loadUrl(tab: TabInstance, rawUrl: String): Boolean {
-        val sanitizedUrl = networkSecurityManager.sanitizeNavigationUrl(rawUrl) ?: return false
+        securityController.logInternal("SessionManager", "loadUrl raw: $rawUrl", "DEBUG")
+        val sanitizedUrl = networkSecurityManager.sanitizeNavigationUrl(rawUrl) ?: run {
+            securityController.logInternal("SessionManager", "Sanitization REJECTED URL: $rawUrl", "WARN")
+            return false
+        }
+        securityController.logInternal("SessionManager", "loadUrl sanitized: $sanitizedUrl", "DEBUG")
+        
         tab.currentUrl = sanitizedUrl
         tab.siteKey = networkSecurityManager.siteKeyForUrl(sanitizedUrl)
         if (sanitizedUrl == "about:blank") {

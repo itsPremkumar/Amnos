@@ -35,6 +35,14 @@ class NetworkSecurityManager(
             else -> "https://$trimmed"
         }
 
+        if (normalized != rawUrl) {
+            policyProvider().let { p ->
+                 // We can't log directly to securityController easily without a reference, 
+                 // but we can log to system and let the ViewModel/SessionManager handle the diagnostics log.
+                 Log.d("NetworkSecurityManager", "Normalized $rawUrl -> $normalized")
+            }
+        }
+
         return normalized?.let { sanitizeUrlIfEnabled(it) }
     }
 

@@ -21,6 +21,32 @@ class SecurityController {
     val webSocketAttemptCount = mutableStateOf(0)
     val warningMessage = mutableStateOf("Strong privacy protections enabled. Network anonymity is not guaranteed.")
 
+    val internalLogs = mutableStateListOf<InternalLogEntry>()
+
+    data class InternalLogEntry(
+        val timestamp: Long = System.currentTimeMillis(),
+        val tag: String,
+        val message: String,
+        val level: String = "INFO"
+    )
+
+    fun logInternal(tag: String, message: String, level: String = "INFO") {
+        internalLogs.add(0, InternalLogEntry(tag = tag, message = message, level = level))
+        if (internalLogs.size > 200) {
+            internalLogs.removeAt(internalLogs.size - 1)
+        }
+        android.util.Log.println(
+            when (level) {
+                "DEBUG" -> android.util.Log.DEBUG
+                "WARN" -> android.util.Log.WARN
+                "ERROR" -> android.util.Log.ERROR
+                else -> android.util.Log.INFO
+            },
+            tag,
+            message
+        )
+    }
+
     data class RequestEntry(
         val url: String,
         val method: String,

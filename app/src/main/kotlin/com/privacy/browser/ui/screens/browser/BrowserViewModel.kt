@@ -35,9 +35,12 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     val webRtcAttemptCount = sessionManager.securityController.webRtcAttemptCount
     val webSocketAttemptCount = sessionManager.securityController.webSocketAttemptCount
     val privacyWarning = sessionManager.securityController.warningMessage
+    val internalLogs = sessionManager.securityController.internalLogs
     var isLocked = mutableStateOf(false)
     var userPin = "1111"
     var pinInput = mutableStateOf("")
+    var enableRemoteDebugging = mutableStateOf(sessionManager.privacyPolicy.enableRemoteDebugging)
+    var forceRelaxSecurityForDebug = mutableStateOf(sessionManager.privacyPolicy.forceRelaxSecurityForDebug)
 
     private val stateChangedCallback: (String, Boolean, Boolean) -> Unit = { url, back, forward ->
         Log.v("BrowserViewModel", "State changed: $url (back=$back, forward=$forward)")
@@ -153,6 +156,25 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         reload()
     }
 
+    fun toggleRemoteDebugging(enabled: Boolean) {
+        sessionManager.updatePrivacyPolicy { it.copy(enableRemoteDebugging = enabled) }
+        refreshPolicyState()
+        // Note: Remote debugging toggle requires a restart or manual set in MainActivity for already-created WebViews
+        // However, we can also try to set it dynamically here
+        try {
+            android.webkit.WebView.setWebContentsDebuggingEnabled(enabled)
+            Log.d("BrowserViewModel", "Remote debugging dynamically set to: $enabled")
+        } catch (e: Exception) {
+            Log.e("BrowserViewModel", "Failed to set remote debugging dynamically", e)
+        }
+    }
+
+    fun toggleForceRelaxSecurity(enabled: Boolean) {
+        sessionManager.updatePrivacyPolicy { it.copy(forceRelaxSecurityForDebug = enabled) }
+        refreshPolicyState()
+        reload()
+    }
+
     fun setFingerprintProtectionLevel(level: FingerprintProtectionLevel) {
         sessionManager.setFingerprintProtectionLevel(level)
         refreshPolicyState()
@@ -169,19 +191,30 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     fun navigate(input: String) {
         val trimmedInput = input.trim()
-        Log.d("BrowserViewModel", "Navigation requested for: $trimmedInput")
         if (trimmedInput.isEmpty()) return
+
+        sessionManager.securityController.logInternal("BrowserViewModel", "Navigation requested: $trimmedInput", "DEBUG")
 
         val isUrl = (trimmedInput.startsWith("http://") || trimmedInput.startsWith("https://")) ||
                     (trimmedInput.contains(".") && !trimmedInput.contains(" ") && trimmedInput.length > 3)
 
         val destinationUrl = if (isUrl) {
-            if (trimmedInput.startsWith("http")) trimmedInput else "https://$trimmedInput"
+            val withScheme = if (trimmedInput.startsWith("http")) trimmedInput else "https://$trimmedInput"
+            // Final check: if it looks like a hostname without TLD, and it's not localhost/IP/proxy, treat as search
+            if (!withScheme.contains("/") && !withScheme.contains(".") && !withScheme.contains(":") && !withScheme.contains("localhost")) {
+                "https://duckduckgo.com/?q=${java.net.URLEncoder.encode(trimmedInput, "UTF-8")}&ia=web"
+            } else {
+                withScheme
+            }
         } else {
-            "https://duckduckgo.com/?q=${java.net.URLEncoder.encode(trimmedInput, "UTF-8")}"
+            "https://duckduckgo.com/?q=${java.net.URLEncoder.encode(trimmedInput, "UTF-8")}&ia=web"
         }
 
+        sessionManager.securityController.logInternal("BrowserViewModel", "Constructed: $destinationUrl (isUrl=$isUrl)", "DEBUG")
+
         val sanitizedUrl = UrlSanitizer.sanitize(destinationUrl)
+        sessionManager.securityController.logInternal("BrowserViewModel", "Sanitized final: $sanitizedUrl", "DEBUG")
+        
         uiState.value = BrowserUIState.BROWSING
         handleMainFrameNavigation(sanitizedUrl)
     }
@@ -256,6 +289,8 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         isWebGLEnabled.value = sessionManager.privacyPolicy.webGlMode == WebGlMode.SPOOF
         fingerprintProtectionLevel.value = sessionManager.privacyPolicy.fingerprintProtectionLevel
         blockedTrackersCount.value = sessionManager.securityController.trackerBlockCount()
+        enableRemoteDebugging.value = sessionManager.privacyPolicy.enableRemoteDebugging
+        forceRelaxSecurityForDebug.value = sessionManager.privacyPolicy.forceRelaxSecurityForDebug
     }
 
     private fun handleMainFrameNavigation(url: String): Boolean {

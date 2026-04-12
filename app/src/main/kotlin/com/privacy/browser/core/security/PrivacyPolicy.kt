@@ -38,6 +38,9 @@ data class PrivacyPolicy(
     val blockDnsPrefetch: Boolean = com.privacy.browser.BuildConfig.SECURITY_BLOCK_DNS_PREFETCH,
     val blockPreconnect: Boolean = com.privacy.browser.BuildConfig.SECURITY_BLOCK_PRECONNECT,
     
+    // DEBUGGING
+    val enableRemoteDebugging: Boolean = false,
+    
     // WEB ENGINE SECURITY
     val blockServiceWorkers: Boolean = com.privacy.browser.BuildConfig.SECURITY_BLOCK_SERVICE_WORKERS,
     val blockEval: Boolean = com.privacy.browser.BuildConfig.SECURITY_BLOCK_EVAL,
