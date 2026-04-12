@@ -882,19 +882,32 @@
         const originalMatchMedia = window.matchMedia.bind(window);
         window.matchMedia = function(query) {
             const result = originalMatchMedia(query);
-            // Spoof specific fingerprinting queries
             const queryLower = query.toLowerCase();
+            let spoofedMatches = null;
+
             if (queryLower.includes("prefers-color-scheme")) {
-                return Object.assign(result, { matches: queryLower.includes("light") });
+                spoofedMatches = queryLower.includes("light");
+            } else if (queryLower.includes("prefers-reduced-motion")) {
+                spoofedMatches = false;
+            } else if (queryLower.includes("prefers-contrast")) {
+                spoofedMatches = queryLower.includes("no-preference");
+            } else if (queryLower.includes("inverted-colors")) {
+                spoofedMatches = false;
             }
-            if (queryLower.includes("prefers-reduced-motion")) {
-                return Object.assign(result, { matches: false });
-            }
-            if (queryLower.includes("prefers-contrast")) {
-                return Object.assign(result, { matches: queryLower.includes("no-preference") });
-            }
-            if (queryLower.includes("inverted-colors")) {
-                return Object.assign(result, { matches: false });
+
+            if (spoofedMatches !== null) {
+                return new Proxy(result, {
+                    get: function(target, prop) {
+                        if (prop === "matches") {
+                            return spoofedMatches;
+                        }
+                        const value = target[prop];
+                        if (typeof value === "function") {
+                            return value.bind(target);
+                        }
+                        return value;
+                    }
+                });
             }
             return result;
         };
