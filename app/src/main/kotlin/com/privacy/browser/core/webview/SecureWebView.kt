@@ -72,7 +72,7 @@ class SecureWebView(context: Context) : WebView(context) {
         importantForAutofill = IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
 
         configureCookies()
-        configureServiceWorkers(policy)
+        configureServiceWorkers()
         installSecurityBridge(onSecurityEvent)
         installDocumentStartScript(policy, injectionScript)
     }
@@ -164,7 +164,7 @@ class SecureWebView(context: Context) : WebView(context) {
         cookieManager.flush()
     }
 
-    private fun configureServiceWorkers(policy: PrivacyPolicy) {
+    private fun configureServiceWorkers() {
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BASIC_USAGE)) {
             return
         }
@@ -182,7 +182,8 @@ class SecureWebView(context: Context) : WebView(context) {
             serviceWorkerSettings.setAllowFileAccess(false)
         }
         if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BLOCK_NETWORK_LOADS)) {
-            serviceWorkerSettings.setBlockNetworkLoads(policy.blockServiceWorkers)
+            // We allow network loads globally but control registration via injected JS and CSP
+            serviceWorkerSettings.setBlockNetworkLoads(false)
         }
     }
 

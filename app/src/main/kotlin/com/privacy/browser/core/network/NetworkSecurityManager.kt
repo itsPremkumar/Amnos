@@ -404,6 +404,11 @@ class NetworkSecurityManager(
         return headers
     }
 
+    fun isSearchEngine(host: String): Boolean {
+        val searchHosts = setOf("duckduckgo.com", "google.com", "www.google.com", "www.google.co.in")
+        return searchHosts.any { host.endsWith(it, ignoreCase = true) }
+    }
+
     private fun buildContentSecurityPolicy(policy: PrivacyPolicy, host: String): String? {
         if (policy.forceRelaxSecurityForDebug) {
             AmnosLog.d("NetworkSecurityManager", "Skipping CSP injection due to RELAXED mode")
@@ -421,15 +426,10 @@ class NetworkSecurityManager(
         val scriptSources = mutableListOf("'self'", "https:")
         if (!policy.blockInlineScripts) scriptSources.add("'unsafe-inline'")
         
-        // SURGICAL FIX: Allow 'unsafe-eval' and 'unsafe-inline' specifically for trusted search engines
-        // to restore search result rendering and interactive UI, while keeping it blocked elsewhere.
-        val searchHosts = setOf("duckduckgo.com", "google.com", "www.google.com")
-        val isSearchEngine = searchHosts.any { host.endsWith(it, ignoreCase = true) }
-        
-        if (!policy.blockEval || isSearchEngine) {
+        if (!policy.blockEval || isSearchEngine(host)) {
             scriptSources.add("'unsafe-eval'")
         }
-        if (!policy.blockInlineScripts || isSearchEngine) {
+        if (!policy.blockInlineScripts || isSearchEngine(host)) {
             scriptSources.add("'unsafe-inline'")
         }
         
@@ -439,6 +439,8 @@ class NetworkSecurityManager(
         if (!policy.blockWebSockets) connectSources.add("wss:")
         
         val connectSourceStr = connectSources.joinToString(" ")
+
+        val workerSource = if (isSearchEngine(host)) "'self' blob:" else "'none'"
 
         return listOf(
             "default-src https: data: blob:",
@@ -451,7 +453,7 @@ class NetworkSecurityManager(
             "font-src 'self' https: data:",
             "connect-src $connectSourceStr",
             "script-src $scriptSourceStr",
-            "worker-src 'none'",
+            "worker-src $workerSource",
             "upgrade-insecure-requests"
         ).joinToString("; ")
     }

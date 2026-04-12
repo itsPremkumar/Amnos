@@ -12,6 +12,10 @@
 
     const config = window._privacyConfig || {};
     const policy = config.policy || {};
+    
+    // Dynamic search engine detection to handle in-tab navigations
+    const searchHosts = ["duckduckgo.com", "google.com", "www.google.com", "www.google.co.in"];
+    const isSearchEngine = searchHosts.some(h => window.location.hostname.endsWith(h));
     const noop = function() {};
     const nativeWebSocket = window.WebSocket;
     const nativeDateNow = Date.now.bind(Date);
@@ -521,7 +525,7 @@
         }));
     }
 
-    if (policy.blockServiceWorkers && navigator.serviceWorker) {
+    if (policy.blockServiceWorkers && !isSearchEngine && navigator.serviceWorker) {
         defineValue(navigator, "serviceWorker", Object.freeze({
             register: function() { return denyPromise("Service workers blocked"); },
             getRegistration: function() { return Promise.resolve(undefined); },
@@ -651,7 +655,7 @@
         defineValue(window, "WebSocket", WebSocketWrapper);
     }
 
-    if (policy.blockEval) {
+    if (policy.blockEval && !isSearchEngine) {
         window.eval = function() { throwSecurity("eval blocked"); };
         window.Function = function() { throwSecurity("Function constructor blocked"); };
         if (window.WebAssembly) {
