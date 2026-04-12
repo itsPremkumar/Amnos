@@ -132,6 +132,7 @@ class PrivacyWebViewClient(
 
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
+        securityController.logInternal("PrivacyWebViewClient", "Page finished: $url", "DEBUG")
         url?.let {
             currentHost = Uri.parse(it).host
             onStateChanged(it)
@@ -140,6 +141,7 @@ class PrivacyWebViewClient(
 
     override fun onPageCommitVisible(view: WebView?, url: String?) {
         super.onPageCommitVisible(view, url)
+        securityController.logInternal("PrivacyWebViewClient", "Page commit visible: $url", "DEBUG")
         url?.let {
             currentHost = Uri.parse(it).host
             onNavigationCommitted(it)

@@ -300,16 +300,28 @@
     }
 
     if (fingerprintEnabled) {
-        const blockedStorage = {
-            getItem: function() { return null; },
-            setItem: function() { throwSecurity("Storage disabled"); },
-            removeItem: noop,
-            clear: noop,
-            key: function() { return null; },
-            length: 0
+        const createNoopStorage = (name) => {
+            const data = new Map();
+            return {
+                getItem: function(key) { return data.get(String(key)) || null; },
+                setItem: function(key, value) { 
+                    try {
+                        data.set(String(key), String(value));
+                        if (data.size > 100) { data.delete(data.keys().next().value); }
+                    } catch(e) {}
+                },
+                removeItem: function(key) { data.delete(String(key)); },
+                clear: function() { data.clear(); },
+                key: function(i) { return Array.from(data.keys())[i] || null; },
+                get length() { return data.size; }
+            };
         };
-        defineGetter(window, "localStorage", function() { return blockedStorage; });
-        defineGetter(window, "sessionStorage", function() { return blockedStorage; });
+
+        const blockedLocalStorage = createNoopStorage("localStorage");
+        const blockedSessionStorage = createNoopStorage("sessionStorage");
+        
+        defineGetter(window, "localStorage", function() { return blockedLocalStorage; });
+        defineGetter(window, "sessionStorage", function() { return blockedSessionStorage; });
         defineValue(window, "openDatabase", undefined);
         defineGetter(window, "indexedDB", function() { return undefined; });
         defineValue(window, "caches", Object.freeze({

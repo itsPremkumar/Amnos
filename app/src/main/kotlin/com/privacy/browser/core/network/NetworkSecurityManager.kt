@@ -173,7 +173,7 @@ class NetworkSecurityManager(
             AmnosLog.d("NetworkSecurityManager", "Fetching proxied request: ${request.method} $httpUrl")
             val response = DnsManager.secureClient(policy.blockIpv6).newCall(okHttpRequest).execute()
             val duration = System.currentTimeMillis() - startTime
-            AmnosLog.d("NetworkSecurityManager", "Proxied response received in ${duration}ms: code=${response.code} url=$httpUrl")
+            AmnosLog.d("NetworkSecurityManager", "Proxied response [${response.code}] in ${duration}ms: $httpUrl")
 
             val body = response.body
             val contentLength = body?.contentLength() ?: -1
