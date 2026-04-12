@@ -29,25 +29,34 @@ object AmnosLog {
             message
         }
 
-        controllerProvider?.invoke()?.logInternal(tag, finalMessage, level) ?: run {
-            try {
-                val priority = when (level) {
-                    "DEBUG" -> Log.DEBUG
-                    "WARN" -> Log.WARN
-                    "ERROR" -> Log.ERROR
-                    else -> Log.INFO
-                }
-                Log.println(priority, tag, finalMessage)
-                if (throwable != null && priority >= Log.WARN) {
-                    Log.println(priority, tag, Log.getStackTraceString(throwable))
-                }
-            } catch (_: Throwable) {
-                val line = "[$level][$tag] $finalMessage"
-                if (level == "ERROR" || level == "WARN") {
-                    System.err.println(line)
-                } else {
-                    System.out.println(line)
-                }
+        try {
+            controllerProvider?.invoke()?.logInternal(tag, finalMessage, level) ?: run {
+                printFallback(tag, finalMessage, level, throwable)
+            }
+        } catch (e: Throwable) {
+            // Defensive catch to ensure logging never crashes the app
+            printFallback(tag, "$finalMessage (LOG_FAILURE: ${e.message})", level, throwable)
+        }
+    }
+
+    private fun printFallback(tag: String, message: String, level: String, throwable: Throwable?) {
+        try {
+            val priority = when (level) {
+                "DEBUG" -> Log.DEBUG
+                "WARN" -> Log.WARN
+                "ERROR" -> Log.ERROR
+                else -> Log.INFO
+            }
+            Log.println(priority, tag, message)
+            if (throwable != null && priority >= Log.WARN) {
+                Log.println(priority, tag, Log.getStackTraceString(throwable))
+            }
+        } catch (_: Throwable) {
+            val line = "[$level][$tag] $message"
+            if (level == "ERROR" || level == "WARN") {
+                System.err.println(line)
+            } else {
+                System.out.println(line)
             }
         }
     }

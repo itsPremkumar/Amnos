@@ -49,12 +49,13 @@ class AdBlocker(context: Context) {
 
     private fun loadFilterList(context: Context, filename: String) {
         try {
-            val inputStream = context.assets.open(filename)
-            val reader = BufferedReader(InputStreamReader(inputStream))
-            reader.forEachLine { line ->
-                normalizeRule(line)?.let { blockedDomains.add(it) }
+            context.assets.open(filename).use { inputStream ->
+                InputStreamReader(inputStream).buffered().use { reader ->
+                    reader.forEachLine { line ->
+                        normalizeRule(line)?.let { blockedDomains.add(it) }
+                    }
+                }
             }
-            reader.close()
         } catch (e: Exception) {
             AmnosLog.e("AdBlocker", "Error loading $filename", e)
         }

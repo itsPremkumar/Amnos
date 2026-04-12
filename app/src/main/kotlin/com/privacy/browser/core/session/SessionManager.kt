@@ -34,6 +34,7 @@ class SessionManager(private val context: Context) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val timeoutRunnable = Runnable { timeoutListener?.invoke() }
     private var timeoutListener: (() -> Unit)? = null
+    private var onSessionWiped: (() -> Unit)? = null
     private var activeSessionId: String = FingerprintManager.newSessionId()
 
     val securityController = SecurityController()
@@ -83,6 +84,10 @@ class SessionManager(private val context: Context) {
     fun registerTimeoutListener(listener: () -> Unit) {
         timeoutListener = listener
         touchSession()
+    }
+
+    fun registerWipeListener(listener: () -> Unit) {
+        onSessionWiped = listener
     }
 
     fun touchSession() {
@@ -286,6 +291,7 @@ class SessionManager(private val context: Context) {
         tabs.clear()
         purgeGlobalStorage()
         activeSessionId = FingerprintManager.newSessionId()
+        onSessionWiped?.invoke()
         configureProxy()
 
         if (terminateProcess) {

@@ -89,6 +89,10 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
             AmnosLog.d("BrowserViewModel", "Session timeout triggered")
             handleSessionTimeout()
         }
+        sessionManager.registerWipeListener {
+            AmnosLog.d("BrowserViewModel", "Session wipe triggered from external event")
+            resetUIState()
+        }
         initializeSession()
     }
 
@@ -288,24 +292,23 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     }
 
     fun killSwitch() {
-        uiState.value = BrowserUIState.HOME
-        urlInput.value = ""
-        blockedTrackersCount.intValue = 0
-        pendingAddressBarValue = null
-
-        currentTab.value = null
         sessionManager.killAll(terminateProcess = false)
+        // Note: resetUIState is called via wipe listener
         initializeSession()
     }
 
     private fun handleSessionTimeout() {
+        sessionManager.killAll(terminateProcess = false)
+        // initialization handled by resetUIState + initializeSession call
+        initializeSession()
+    }
+
+    private fun resetUIState() {
         currentTab.value = null
         blockedTrackersCount.intValue = 0
         uiState.value = BrowserUIState.HOME
         urlInput.value = ""
         pendingAddressBarValue = null
-        sessionManager.killAll(terminateProcess = false)
-        initializeSession()
     }
 
     private fun refreshPolicyState() {
@@ -323,8 +326,13 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     private fun handleMainFrameNavigation(url: String, addressBarValue: String? = null): Boolean {
         AmnosLog.d("BrowserViewModel", "Handling main frame navigation to: $url")
         sessionManager.securityController.logInternal("[Nav:Load]", url, "DEBUG")
-        uiState.value = BrowserUIState.BROWSING
-        val current = currentTab.value ?: return false
+        var current = currentTab.value
+        if (current == null) {
+            AmnosLog.d("BrowserViewModel", "No active tab during navigation, initializing new session")
+            initializeSession()
+            current = currentTab.value ?: return false
+        }
+
         val activeTab = if (sessionManager.shouldRecreateForTopLevelNavigation(current, url)) {
             sessionManager.recreateTab(
                 tab = current,

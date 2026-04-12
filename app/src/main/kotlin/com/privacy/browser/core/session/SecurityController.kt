@@ -13,6 +13,9 @@ class SecurityController {
     private val _activeConnections = mutableStateListOf<ConnectionEntry>()
     val activeConnections: List<ConnectionEntry> = _activeConnections
 
+    // Synchronize access to mutable state collections
+    private val lock = Any()
+
     val proxyStatus = mutableStateOf("Inactive")
     val dohStatus = mutableStateOf("Partial")
     val webRtcStatus = mutableStateOf("Blocked")
@@ -32,10 +35,13 @@ class SecurityController {
     )
 
     fun logInternal(tag: String, message: String, level: String = "INFO") {
-        internalLogs.add(0, InternalLogEntry(tag = tag, message = message, level = level))
-        if (internalLogs.size > 200) {
-            internalLogs.removeAt(internalLogs.size - 1)
+        synchronized(lock) {
+            internalLogs.add(0, InternalLogEntry(tag = tag, message = message, level = level))
+            while (internalLogs.size > 200) {
+                internalLogs.removeAt(internalLogs.size - 1)
+            }
         }
+        
         android.util.Log.println(
             when (level) {
                 "DEBUG" -> android.util.Log.DEBUG
@@ -84,19 +90,21 @@ class SecurityController {
         thirdParty: Boolean = false,
         reason: String? = null
     ) {
-        if (_requestLog.size >= 100) {
-            _requestLog.removeAt(0)
-        }
-        _requestLog.add(
-            RequestEntry(
-                url = url,
-                method = method,
-                type = type,
-                disposition = disposition,
-                thirdParty = thirdParty,
-                reason = reason
+        synchronized(lock) {
+            while (_requestLog.size >= 100) {
+                _requestLog.removeAt(0)
+            }
+            _requestLog.add(
+                RequestEntry(
+                    url = url,
+                    method = method,
+                    type = type,
+                    disposition = disposition,
+                    thirdParty = thirdParty,
+                    reason = reason
+                )
             )
-        )
+        }
     }
 
     fun updateProxyStatus(active: Boolean, dohGlobal: Boolean, port: Int?) {
@@ -133,12 +141,16 @@ class SecurityController {
     }
 
     fun addConnection(id: String, host: String, port: Int, type: String) {
-        _activeConnections.removeAll { it.id == id }
-        _activeConnections.add(ConnectionEntry(id = id, host = host, port = port, type = type))
+        synchronized(lock) {
+            _activeConnections.removeAll { it.id == id }
+            _activeConnections.add(ConnectionEntry(id = id, host = host, port = port, type = type))
+        }
     }
 
     fun removeConnection(id: String) {
-        _activeConnections.removeAll { it.id == id }
+        synchronized(lock) {
+            _activeConnections.removeAll { it.id == id }
+        }
     }
 
     fun mapKind(kind: RequestKind): RequestType = when (kind) {
@@ -156,6 +168,7 @@ class SecurityController {
     }
 
     fun blockedCount(): Int {
+        // Compose state list is safe for snapshots, but counts are done on UI thread usually
         return requestLog.count { it.disposition == RequestDisposition.BLOCKED }
     }
 
@@ -167,10 +180,12 @@ class SecurityController {
     }
 
     fun clearLog() {
-        _requestLog.clear()
-        _activeConnections.clear()
-        internalLogs.clear()
-        webRtcAttemptCount.intValue = 0
-        webSocketAttemptCount.intValue = 0
+        synchronized(lock) {
+            _requestLog.clear()
+            _activeConnections.clear()
+            internalLogs.clear()
+            webRtcAttemptCount.intValue = 0
+            webSocketAttemptCount.intValue = 0
+        }
     }
 }
