@@ -183,35 +183,52 @@ class NetworkSecurityManager(
             .method(request.method, null)
             .build()
 
+        var response: okhttp3.Response? = null
         return try {
             val startTime = System.currentTimeMillis()
             AmnosLog.d("NetworkSecurityManager", "Fetching proxied request: ${request.method} $httpUrl")
-            val response = DnsManager.secureClient(policy.blockIpv6).newCall(okHttpRequest).execute()
+            
+            response = DnsManager.secureClient(policy.blockIpv6).newCall(okHttpRequest).execute()
             val duration = System.currentTimeMillis() - startTime
             AmnosLog.d("NetworkSecurityManager", "Proxied response [${response.code}] in ${duration}ms: $httpUrl")
 
+            if (!response.isSuccessful) {
+                AmnosLog.w("NetworkSecurityManager", "Proxied request UNSUCCESSFUL [${response.code}] for $httpUrl")
+                response.close()
+                return null
+            }
+
             val body = response.body
-            val contentLength = body?.contentLength() ?: -1
+            if (body == null) {
+                response.close()
+                return null
+            }
+
+            val contentLength = body.contentLength()
             AmnosLog.d("NetworkSecurityManager", "Response body size: $contentLength bytes")
-            val contentType = body?.contentType()
+            
+            val contentType = body.contentType()
             val mimeType = if (contentType != null) {
                 "${contentType.type}/${contentType.subtype}"
             } else {
                 AmnosLog.w("NetworkSecurityManager", "Missing Content-Type for $httpUrl, defaulting to text/html")
-                "text/html" // Default to HTML for better compatibility
+                "text/html"
             }
             val charset = contentType?.charset(Charsets.UTF_8)?.name() ?: "UTF-8"
 
+            // NOT using response.use because we need to hand off the InputStream to WebView.
+            // WebView will close the InputStream (and thus the ResponseBody/Response).
             WebResourceResponse(
                 mimeType,
                 charset,
                 response.code,
                 response.message.ifBlank { "OK" },
                 buildResponseHeaders(response, decision.kind),
-                body?.byteStream() // Use the already-captured body reference
+                ResilientInputStream(body.byteStream(), httpUrl.toString())
             )
         } catch (e: Exception) {
             AmnosLog.e("NetworkSecurityManager", "Proxied fetch FAILED for $httpUrl", e)
+            response?.close()
             null
         }
     }
@@ -332,7 +349,10 @@ class NetworkSecurityManager(
             builder.set("User-Agent", profile.userAgent)
             builder.set("Accept-Language", profile.acceptLanguageHeader)
         }
-        builder.set("Accept-Encoding", "identity") // Force uncompressed for manual intercept to avoid header clash
+        
+        // Transparent decompression is handled by OkHttp automatically 
+        // if we don't force 'identity' here.
+        
         builder.set("DNT", "1")
         builder.set("Sec-GPC", "1")
         builder.set("Cache-Control", "no-cache, no-store")
@@ -361,8 +381,8 @@ class NetworkSecurityManager(
                 return@forEach
             }
             if (name.equals("Content-Security-Policy", ignoreCase = true)) return@forEach
-            if (name.equals("Content-Encoding", ignoreCase = true)) return@forEach // Strip encoding since we forced identity
-            if (name.equals("Content-Length", ignoreCase = true)) return@forEach // Strip length to let WebView calculate it
+            if (name.equals("Content-Encoding", ignoreCase = true)) return@forEach 
+            if (name.equals("Content-Length", ignoreCase = true)) return@forEach 
             headers[name] = value
         }
 
@@ -450,4 +470,48 @@ class NetworkSecurityManager(
             (octets[0] == 172 && octets[1] in 16..31) ||
             (octets[0] == 192 && octets[1] == 168)
     }
+}
+
+/**
+ * A wrapper InputStream that catches SocketTimeoutExceptions and returns EOF instead.
+ * This prevents the WebView from failing the entire request if a slow stream times out
+ * during a read() operation.
+ */
+private class ResilientInputStream(
+    private val inner: java.io.InputStream,
+    private val url: String
+) : java.io.InputStream() {
+    override fun read(): Int {
+        return try {
+            inner.read()
+        } catch (e: java.net.SocketTimeoutException) {
+            AmnosLog.w("NetworkSecurityManager", "Read timeout for $url - returning EOF")
+            -1
+        } catch (e: Exception) {
+            -1
+        }
+    }
+
+    override fun read(b: ByteArray): Int = read(b, 0, b.size)
+
+    override fun read(b: ByteArray, off: Int, len: Int): Int {
+        return try {
+            inner.read(b, off, len)
+        } catch (e: java.net.SocketTimeoutException) {
+            AmnosLog.w("NetworkSecurityManager", "Read timeout for $url - returning EOF")
+            -1
+        } catch (e: Exception) {
+            -1
+        }
+    }
+
+    override fun close() {
+        try {
+            inner.close()
+        } catch (e: Exception) {
+            // Ignore
+        }
+    }
+
+    override fun available(): Int = try { inner.available() } catch (e: Exception) { 0 }
 }

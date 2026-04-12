@@ -66,9 +66,15 @@ class StorageController(private val context: Context) {
      * Wipes the ephemeral download directory.
      */
     fun clearVolatileDownloads() {
-        AmnosLog.d("StorageController", "Wiping ephemeral downloads...")
-        deleteRecursive(volatileDownloadDir)
-        volatileDownloadDir.mkdirs() // Recreate for next session
+        Thread {
+            try {
+                AmnosLog.d("StorageController", "Wiping ephemeral downloads in background...")
+                deleteRecursive(volatileDownloadDir)
+                volatileDownloadDir.mkdirs() // Recreate for next session
+            } catch (e: Exception) {
+                AmnosLog.e("StorageController", "Background wipe failed", e)
+            }
+        }.start()
     }
 
     /**

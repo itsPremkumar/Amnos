@@ -9,6 +9,7 @@ import okhttp3.dnsoverhttps.DnsOverHttps
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.Proxy
+import java.util.concurrent.TimeUnit
 
 object DnsManager {
     private val bootstrapClient = OkHttpClient.Builder()
@@ -49,6 +50,7 @@ object DnsManager {
         }
     }
 
+
     fun dns(blockIpv6: Boolean): Dns = object : Dns {
         override fun lookup(hostname: String): List<InetAddress> {
             return DnsManager.lookup(hostname, blockIpv6)
@@ -67,6 +69,14 @@ object DnsManager {
                 .proxy(Proxy.NO_PROXY)
                 .dns(dns(blockIpv6))
                 .cookieJar(CookieJar.NO_COOKIES)
+                .connectTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(60, TimeUnit.SECONDS)
+                .callTimeout(java.time.Duration.ofSeconds(60))
+                .dispatcher(okhttp3.Dispatcher().apply {
+                    maxRequests = 64
+                    maxRequestsPerHost = 20
+                })
                 .build().also { cachedClient = it }
         }
     }

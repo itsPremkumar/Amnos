@@ -8,10 +8,14 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.util.regex.Pattern
 
 class AdBlocker(context: Context) {
-    private val blockedDomains = mutableSetOf<String>()
-    private val blockedPatterns = mutableListOf<Pattern>()
-    private val allowedDomains = mutableSetOf<String>()
+    private val blockedDomains = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
+    private val blockedPatterns = java.util.concurrent.CopyOnWriteArrayList<Pattern>()
+    private val allowedDomains = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
     
+    // Flag to track initialization state
+    @Volatile
+    private var isInitialized = false
+
     // Known ad/tracker URL patterns
     private val knownAdPatterns = listOf(
         ".*\\/ads?\\/.*",
@@ -29,8 +33,17 @@ class AdBlocker(context: Context) {
     )
 
     init {
-        loadFilterLists(context)
-        compileAdPatterns()
+        // Load in a background thread to prevent UI jank
+        Thread {
+            try {
+                loadFilterLists(context)
+                compileAdPatterns()
+                isInitialized = true
+                AmnosLog.d("AdBlocker", "Background initialization complete. Blocked domains: ${blockedDomains.size}")
+            } catch (e: Exception) {
+                AmnosLog.e("AdBlocker", "Async initialization failed", e)
+            }
+        }.start()
     }
 
     private fun loadFilterLists(context: Context) {

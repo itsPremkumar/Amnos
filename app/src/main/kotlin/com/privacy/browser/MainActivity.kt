@@ -11,11 +11,22 @@ import com.privacy.browser.core.session.SessionManager
 import com.privacy.browser.ui.screens.browser.BrowserScreen
 import com.privacy.browser.ui.screens.browser.BrowserViewModel
 import com.privacy.browser.ui.theme.PrivacyBrowserTheme
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var sessionManager: SessionManager
     private lateinit var viewModel: BrowserViewModel
+    private var isInitialized by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
@@ -34,50 +45,53 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         AmnosLog.d("MainActivity", "onCreate: Initializing Amnos UI")
 
-        try {
-            val prefs = getSharedPreferences("amnos_debug_prefs", MODE_PRIVATE)
-            val developerDebugEnabled = prefs.getBoolean("enable_remote_debugging", false)
-            val debugEnabled = BuildConfig.DEBUG && developerDebugEnabled
-
-            WebView.setWebContentsDebuggingEnabled(debugEnabled)
-            AmnosLog.d(
-                "MainActivity",
-                "Web debugging: ${if (debugEnabled) "enabled" else "disabled"} (debugBuild=${BuildConfig.DEBUG}, developerMode=$developerDebugEnabled)"
-            )
-        } catch (e: Exception) {
-            AmnosLog.e("MainActivity", "Failed to set web debugging state", e)
-        }
-
-        try {
-            AmnosLog.d("MainActivity", "Creating SessionManager")
-            sessionManager = SessionManager(this)
-
-            if (com.privacy.browser.core.security.RootDetector.isRooted(this)) {
-                sessionManager.securityController.logInternal(
-                    "SystemHealth",
-                    "SECURITY WARNING: Root access detected. Device integrity is compromised. Entering Strict Privacy Mode.",
-                    "ERROR"
-                )
-                sessionManager.setFingerprintProtectionLevel(com.privacy.browser.core.security.FingerprintProtectionLevel.STRICT)
-            } else {
-                sessionManager.securityController.logInternal("SystemHealth", "Device integrity verified: Normal environment.", "INFO")
-            }
-
-            updateSecurityFlags(sessionManager.privacyPolicy)
-
-            AmnosLog.d("MainActivity", "Creating BrowserViewModel")
-            viewModel = BrowserViewModel(sessionManager)
-        } catch (e: Exception) {
-            AmnosLog.e("MainActivity", "Initialization failed during component creation", e)
-            throw e 
-        }
-
-        AmnosLog.d("MainActivity", "Setting content")
+        // 1. Set the initial loading content immediately
         setContent {
             PrivacyBrowserTheme {
-                Surface {
-                    BrowserScreen(viewModel)
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    if (!isInitialized) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Hardening Session...", style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    } else {
+                        BrowserScreen(viewModel)
+                    }
                 }
+            }
+        }
+
+        // 2. Perform heavy initialization in a coroutine
+        lifecycleScope.launch {
+            try {
+                // Initialize SessionManager (some parts are IO-bound)
+                withContext(Dispatchers.IO) {
+                    AmnosLog.d("MainActivity", "Creating SessionManager (Background)")
+                    sessionManager = SessionManager(this@MainActivity)
+                }
+
+                // Security checks and UI-bound setup
+                if (com.privacy.browser.core.security.RootDetector.isRooted(this@MainActivity)) {
+                    sessionManager.securityController.logInternal("SystemHealth", "SECURITY WARNING: Root access detected.", "ERROR")
+                    sessionManager.setFingerprintProtectionLevel(com.privacy.browser.core.security.FingerprintProtectionLevel.STRICT)
+                }
+
+                updateSecurityFlags(sessionManager.privacyPolicy)
+
+                // ViewModel and WebView must be created on the Main thread
+                AmnosLog.d("MainActivity", "Creating BrowserViewModel (Main)")
+                viewModel = BrowserViewModel(sessionManager)
+                
+                isInitialized = true
+                AmnosLog.d("MainActivity", "Amnos Bootstrap Complete")
+            } catch (e: Exception) {
+                AmnosLog.e("MainActivity", "Initialization failed during bootstrap", e)
             }
         }
     }
