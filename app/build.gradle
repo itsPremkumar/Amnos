@@ -1,9 +1,17 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
+def enableReleaseMinify = project.findProperty("amnos.release.minify")?.toString()?.toBoolean() ?: false
+
 android {
     namespace 'com.privacy.browser'
     compileSdk 34
+
+    lint {
+        checkReleaseBuilds true
+        abortOnError true
+        textReport true
+    }
 
     buildFeatures {
         compose true
@@ -81,12 +89,12 @@ android {
         release {
             if (signingConfigs.release.storeFile != null && signingConfigs.release.storeFile.exists()) {
                 signingConfig signingConfigs.release
-            } else {
-                signingConfig signingConfigs.debug
             }
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            minifyEnabled enableReleaseMinify
+            shrinkResources enableReleaseMinify
+            if (enableReleaseMinify) {
+                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), rootProject.file('proguard-rules.pro')
+            }
         }
     }
 

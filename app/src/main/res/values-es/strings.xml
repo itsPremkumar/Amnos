@@ -1,6 +1,4 @@
 <resources>
     <string name="app_name">Amnos</string>
     <string name="app_short_description">Navegador Android reforzado y centrado en la privacidad.</string>
-    <string name="app_full_description">Amnos es un navegador Android de alta seguridad y privacidad reforzada basado en WebView. Cuenta con bloqueo agresivo de rastreadores, apagado de WebRTC, ofuscación de huellas digitales y un modelo de huella persistente cero. Diseñado para sesiones de navegación solo locales con la máxima privacidad.</string>
-    <string name="app_keywords">navegador, privacidad, seguridad, reforzado, webview, bloqueador de rastreadores, anonimato, navegador android, amnos</string>
 </resources>

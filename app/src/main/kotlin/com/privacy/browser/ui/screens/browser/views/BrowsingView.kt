@@ -103,9 +103,9 @@ fun BrowsingView(viewModel: BrowserViewModel) {
                 }
                 
                 // Progress Indicator
-                if (viewModel.loadingProgress.value in 1..99) {
+                if (viewModel.loadingProgress.intValue in 1..99) {
                     LinearProgressIndicator(
-                        progress = viewModel.loadingProgress.value / 100f,
+                        progress = viewModel.loadingProgress.intValue / 100f,
                         modifier = Modifier.fillMaxWidth().height(2.dp),
                         color = AccentBlue,
                         trackColor = Color.Transparent,
@@ -148,7 +148,7 @@ fun TrackerBadge(viewModel: BrowserViewModel) {
             Icon(Icons.Default.Shield, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(6.dp))
             Text(
-                text = viewModel.blockedTrackersCount.value.toString(),
+                text = viewModel.blockedTrackersCount.intValue.toString(),
                 color = Color.White,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold

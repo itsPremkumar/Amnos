@@ -1,6 +1,6 @@
 package com.privacy.browser.core.network
 
-import android.util.Log
+import com.privacy.browser.core.session.AmnosLog
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.net.InetAddress
@@ -68,7 +68,7 @@ class LoopbackProxyServer(
             } catch (_: SocketException) {
                 break
             } catch (error: Exception) {
-                Log.e("LoopbackProxy", "Proxy accept failed", error)
+                AmnosLog.e("LoopbackProxy", "Proxy accept failed", error)
             }
         }
     }
@@ -113,7 +113,7 @@ class LoopbackProxyServer(
             )
         } catch (_: SocketException) {
         } catch (error: Exception) {
-            Log.e("LoopbackProxy", "Proxy client failed", error)
+            AmnosLog.e("LoopbackProxy", "Proxy client failed", error)
         } finally {
             sockets.remove(client)
             try {
@@ -168,7 +168,7 @@ class LoopbackProxyServer(
             upstream.get()
             downstream.get()
         } catch (error: Exception) {
-            Log.e("LoopbackProxy", "CONNECT tunnel failed for $host:$port", error)
+            AmnosLog.e("LoopbackProxy", "CONNECT tunnel failed for $host:$port", error)
         } finally {
             onTunnelClosed(id)
             try {

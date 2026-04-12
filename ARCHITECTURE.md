@@ -1,85 +1,50 @@
 # Amnos Architecture
 
-## Core modules
+## Layered design
 
-- `core/fingerprint`
-  - [FingerprintManager.kt](app/src/main/kotlin/com/privacy/browser/core/fingerprint/FingerprintManager.kt)
-  - [ScriptInjector.kt](app/src/main/kotlin/com/privacy/browser/core/fingerprint/ScriptInjector.kt)
-  - [FingerprintObfuscator.js](app/src/main/assets/FingerprintObfuscator.js)
-- `core/network`
-  - [DnsManager.kt](app/src/main/kotlin/com/privacy/browser/core/network/DnsManager.kt)
-  - [NetworkSecurityManager.kt](app/src/main/kotlin/com/privacy/browser/core/network/NetworkSecurityManager.kt)
-  - [LoopbackProxyServer.kt](app/src/main/kotlin/com/privacy/browser/core/network/LoopbackProxyServer.kt)
-  - [UrlSanitizer.kt](app/src/main/kotlin/com/privacy/browser/core/network/UrlSanitizer.kt)
-  - [RequestDecision.kt](app/src/main/kotlin/com/privacy/browser/core/network/RequestDecision.kt)
-- `core/webview`
-  - [SecureWebView.kt](app/src/main/kotlin/com/privacy/browser/core/webview/SecureWebView.kt)
-  - [PrivacyWebViewClient.kt](app/src/main/kotlin/com/privacy/browser/core/webview/PrivacyWebViewClient.kt)
-  - [PrivacyWebChromeClient.kt](app/src/main/kotlin/com/privacy/browser/core/webview/PrivacyWebChromeClient.kt)
-- `core/session`
-  - [SessionManager.kt](app/src/main/kotlin/com/privacy/browser/core/session/SessionManager.kt)
-  - [SecurityController.kt](app/src/main/kotlin/com/privacy/browser/core/session/SecurityController.kt)
-  - [StorageController.kt](app/src/main/kotlin/com/privacy/browser/core/session/StorageController.kt)
-  - [TabInstance.kt](app/src/main/kotlin/com/privacy/browser/core/session/TabInstance.kt)
-- `core/security`
-  - [PrivacyPolicy.kt](app/src/main/kotlin/com/privacy/browser/core/security/PrivacyPolicy.kt)
-  - [PermissionSentinel.kt](app/src/main/kotlin/com/privacy/browser/core/security/PermissionSentinel.kt)
-  - [ClipboardSentinel.kt](app/src/main/kotlin/com/privacy/browser/core/security/ClipboardSentinel.kt)
-- `core/adblock`
-  - [AdBlocker.kt](app/src/main/kotlin/com/privacy/browser/core/adblock/AdBlocker.kt)
+1. `ui`
+   Compose surfaces including the browser shell and Security Cockpit.
+2. `ui/screens/browser/BrowserViewModel.kt`
+   Orchestrates navigation, address-bar state, policy toggles, and diagnostic exposure.
+3. `core/session/SessionManager.kt`
+   Owns tab creation, proxy lifecycle, volatile storage, and GHOST wipe behavior.
+4. `core/network/NetworkSecurityManager.kt`
+   Applies HTTPS-only rules, sanitizes URLs, classifies requests, strips stateful headers, and builds proxied responses.
+5. `core/fingerprint`
+   Generates deterministic session/tab silos and injects the document-start spoofing script.
+6. `core/webview`
+   Hosts the hardened `SecureWebView`, the privacy WebView client, and the Chrome client bridge.
 
-## Runtime flow
+## Navigation flow
 
-1. `MainActivity` creates a fresh WebView data-directory suffix and instantiates `SessionManager`.
-2. `SessionManager` applies the active `PrivacyPolicy`, starts the loopback proxy if supported, and creates the current tab.
-3. `SecureWebView` hardens settings, installs the document-start script, and registers the WebMessage telemetry bridge.
-4. `PrivacyWebViewClient` filters navigations and request loads through `NetworkSecurityManager`.
-5. `LoopbackProxyServer` handles CONNECT tunnels for broader DoH-backed hostname resolution when proxy override is active.
-6. `SecurityController` tracks RAM-only request events, active connections, WebRTC/WebSocket state, and dashboard status strings.
+1. User input enters `BrowserViewModel.navigate`.
+2. `NavigationResolver` classifies the input as either direct URL or search using the Amnos Search Dog heuristic.
+3. The transformed target is sanitized by `UrlSanitizer` before any `WebView` load.
+4. `SessionManager.loadUrl` applies final HTTPS-only normalization and request headers.
+5. `PrivacyWebViewClient` commits the address bar only after top-level navigation is visibly committed.
+6. Failures are logged to the in-memory diagnostics stream without smearing transient URLs into the address bar.
 
-## Privacy policy model
+## Storage and wipe model
 
-[PrivacyPolicy.kt](app/src/main/kotlin/com/privacy/browser/core/security/PrivacyPolicy.kt) is the central switchboard for:
+- WebView cookies are disabled.
+- `Set-Cookie` response headers are stripped before responses reach WebView.
+- Volatile downloads are stored under `cacheDir/volatile_downloads`.
+- Session startup and teardown both purge cookies, `WebStorage`, form data, auth data, and volatile downloads.
+- The kill switch and background wipe both rebuild the active session ID and tab silos.
 
-- JavaScript mode
-- WebGL mode
-- fingerprint protection level
-- WebRTC/WebSocket blocking
-- first-party isolation
-- loopback proxy usage
-- timing and script-hardening behavior
+## Diagnostics model
 
-## Transport model
+- `SecurityController` owns RAM-only request logs, active connections, status banners, and internal logs.
+- `AmnosLog` routes subsystem events into `SecurityController.logInternal` when a session exists and falls back safely otherwise.
+- Navigation trace tags follow the sequence `[Nav:Navigate]`, `[Nav:Transform]`, `[Nav:Sanitize]`, `[Nav:Load]`, `[Nav:Commit]`, and `[Nav:Failure]`.
 
-Amnos now has two network-control layers:
+## Release safeguards
 
-1. Intercepted request proxying in `NetworkSecurityManager`
-   Used for intercepted GET/HEAD traffic where the app can return its own `WebResourceResponse`.
-
-2. Loopback CONNECT proxy in `LoopbackProxyServer`
-   Used with `ProxyController` to extend DoH-backed resolution to more of WebView’s native traffic.
-
-This is the strongest practical transport model available without building a custom browser engine or TLS-intercepting proxy.
-
-## Fingerprinting model
-
-The fingerprint layer combines:
-
-- deterministic Android-like device profiles
-- strict and balanced protection levels
-- document-start JS overrides
-- canvas and audio perturbation
-- font restriction
-- timing quantization and jitter
-
-## Isolation model
-
-- cookies and persistent storage are disabled globally
-- each tab gets its own identity profile
-- refresh can rotate identity
-- strict first-party isolation recreates the tab silo on cross-site top-level navigation
-- session teardown wipes clipboard, downloads, logs, WebView storage, and WebView databases
+- `android:usesCleartextTraffic="false"`
+- release signing no longer falls back to the debug keystore
+- remote debugging and relaxed diagnostics only work in debug builds
+- user CAs are accepted only inside `<debug-overrides>`
 
 ## Honest boundary
 
-Amnos is optimized for privacy within Android WebView. It is not a substitute for Tor Browser or a full custom browser engine.
+Amnos hardens Android WebView aggressively, but the browser engine, OS networking stack, and WebView implementation still set the outer security boundary. It should be treated as a privacy-hardened browser, not a full anonymity platform.

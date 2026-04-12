@@ -1,7 +1,7 @@
 package com.privacy.browser.core.adblock
 
 import android.content.Context
-import android.util.Log
+import com.privacy.browser.core.session.AmnosLog
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -41,10 +41,10 @@ class AdBlocker(context: Context) {
         try {
             loadFilterList(context, "blocklist_comprehensive.txt")
         } catch (e: Exception) {
-            Log.d("AdBlocker", "Comprehensive blocklist not found, using main list only")
+            AmnosLog.d("AdBlocker", "Comprehensive blocklist not found, using main list only")
         }
         
-        Log.d("AdBlocker", "Loaded ${blockedDomains.size} blocked domains")
+        AmnosLog.d("AdBlocker", "Loaded ${blockedDomains.size} blocked domains")
     }
 
     private fun loadFilterList(context: Context, filename: String) {
@@ -56,7 +56,7 @@ class AdBlocker(context: Context) {
             }
             reader.close()
         } catch (e: Exception) {
-            Log.e("AdBlocker", "Error loading $filename", e)
+            AmnosLog.e("AdBlocker", "Error loading $filename", e)
         }
     }
     
@@ -65,7 +65,7 @@ class AdBlocker(context: Context) {
             try {
                 blockedPatterns.add(Pattern.compile(pattern, Pattern.CASE_INSENSITIVE))
             } catch (e: Exception) {
-                Log.e("AdBlocker", "Error compiling pattern: $pattern", e)
+                AmnosLog.e("AdBlocker", "Error compiling pattern: $pattern", e)
             }
         }
     }
@@ -101,19 +101,19 @@ class AdBlocker(context: Context) {
         
         // Check domain blocklist
         if (isBlockedByDomain(host)) {
-            Log.d("AdBlocker", "Blocked by domain: $url")
+            AmnosLog.d("AdBlocker", "Blocked by domain: $url")
             return true
         }
         
         // Check URL pattern matching
         if (isBlockedByPattern(url)) {
-            Log.d("AdBlocker", "Blocked by pattern: $url")
+            AmnosLog.d("AdBlocker", "Blocked by pattern: $url")
             return true
         }
         
         // Check for common ad/tracker keywords in path
         if (containsAdKeywords(url)) {
-            Log.d("AdBlocker", "Blocked by keyword: $url")
+            AmnosLog.d("AdBlocker", "Blocked by keyword: $url")
             return true
         }
         

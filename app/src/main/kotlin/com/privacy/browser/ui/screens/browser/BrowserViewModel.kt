@@ -1,12 +1,14 @@
 package com.privacy.browser.ui.screens.browser
 
-import android.util.Log
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
-import com.privacy.browser.core.network.UrlSanitizer
+import com.privacy.browser.BuildConfig
+import com.privacy.browser.core.network.NavigationResolver
 import com.privacy.browser.core.security.FingerprintProtectionLevel
 import com.privacy.browser.core.security.JavaScriptMode
 import com.privacy.browser.core.security.WebGlMode
+import com.privacy.browser.core.session.AmnosLog
 import com.privacy.browser.core.session.SessionManager
 import com.privacy.browser.core.session.TabInstance
 
@@ -17,9 +19,9 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     var canGoBack = mutableStateOf(false)
     var canGoForward = mutableStateOf(false)
-    var loadingProgress = mutableStateOf(0)
+    var loadingProgress = mutableIntStateOf(0)
 
-    var blockedTrackersCount = mutableStateOf(0)
+    var blockedTrackersCount = mutableIntStateOf(0)
     var privacyPolicy = mutableStateOf(sessionManager.privacyPolicy)
     var javaScriptMode = mutableStateOf(sessionManager.privacyPolicy.javascriptMode)
     var isWebGLEnabled = mutableStateOf(sessionManager.privacyPolicy.webGlMode == WebGlMode.SPOOF)
@@ -41,56 +43,76 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var pinInput = mutableStateOf("")
     var enableRemoteDebugging = mutableStateOf(sessionManager.privacyPolicy.enableRemoteDebugging)
     var forceRelaxSecurityForDebug = mutableStateOf(sessionManager.privacyPolicy.forceRelaxSecurityForDebug)
+    val debugControlsAvailable = BuildConfig.DEBUG
+
+    private var pendingAddressBarValue: String? = null
 
     private val stateChangedCallback: (String, Boolean, Boolean) -> Unit = { url, back, forward ->
-        Log.v("BrowserViewModel", "State changed: $url (back=$back, forward=$forward)")
+        AmnosLog.d("BrowserViewModel", "State changed: $url (back=$back, forward=$forward)")
         currentTab.value?.currentUrl = url
-        if (uiState.value == BrowserUIState.BROWSING) {
-            urlInput.value = url
-        }
         canGoBack.value = back
         canGoForward.value = forward
-        if (loadingProgress.value >= 100) {
-            loadingProgress.value = 0
+        if (loadingProgress.intValue >= 100) {
+            loadingProgress.intValue = 0
         }
     }
 
     private val progressChangedCallback: (Int) -> Unit = { progress ->
-        loadingProgress.value = progress
+        loadingProgress.intValue = progress
     }
 
     private val trackerBlockedCallback: () -> Unit = {
-        blockedTrackersCount.value = sessionManager.securityController.trackerBlockCount()
+        blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount()
+    }
+
+    private val navigationCommittedCallback: (String) -> Unit = { committedUrl ->
+        sessionManager.securityController.logInternal("[Nav:Commit]", committedUrl, "DEBUG")
+        currentTab.value?.currentUrl = committedUrl
+        if (uiState.value == BrowserUIState.BROWSING) {
+            urlInput.value = committedUrl
+        }
+        pendingAddressBarValue = null
+    }
+
+    private val navigationFailedCallback: (String?) -> Unit = { failedUrl ->
+        sessionManager.securityController.logInternal(
+            "[Nav:Failure]",
+            failedUrl ?: pendingAddressBarValue ?: "unknown",
+            "WARN"
+        )
+        pendingAddressBarValue = null
     }
 
     init {
-        Log.d("BrowserViewModel", "Initializing BrowserViewModel")
+        AmnosLog.d("BrowserViewModel", "Initializing BrowserViewModel")
         sessionManager.registerTimeoutListener {
-            Log.d("BrowserViewModel", "Session timeout triggered")
+            AmnosLog.d("BrowserViewModel", "Session timeout triggered")
             handleSessionTimeout()
         }
         initializeSession()
     }
 
     private fun initializeSession(loadUrl: String? = null) {
-        Log.d("BrowserViewModel", "Initializing session (loadUrl=$loadUrl)")
+        AmnosLog.d("BrowserViewModel", "Initializing session (loadUrl=$loadUrl)")
         try {
             val tab = sessionManager.createTab(
                 onStateChanged = stateChangedCallback,
                 onProgressChanged = progressChangedCallback,
                 onTrackerBlocked = trackerBlockedCallback,
-                onNavigationRequested = ::handleMainFrameNavigation
+                onNavigationRequested = ::handleMainFrameNavigation,
+                onNavigationCommitted = navigationCommittedCallback,
+                onNavigationFailed = navigationFailedCallback
             )
             currentTab.value = tab
             sessionLabel.value = sessionManager.sessionId.take(8)
             refreshPolicyState()
             loadUrl?.let {
-                Log.d("BrowserViewModel", "Initial URL load: $it")
+                AmnosLog.d("BrowserViewModel", "Initial URL load: $it")
                 uiState.value = BrowserUIState.BROWSING
                 sessionManager.loadUrl(tab, it)
             }
         } catch (e: Exception) {
-            Log.e("BrowserViewModel", "CRITICAL: Initialization of session failed", e)
+            AmnosLog.e("BrowserViewModel", "CRITICAL: Initialization of session failed", e)
             throw e
         }
     }
@@ -157,19 +179,33 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     }
 
     fun toggleRemoteDebugging(enabled: Boolean) {
+        if (!BuildConfig.DEBUG) {
+            sessionManager.securityController.logInternal(
+                "[Diagnostics:RemoteDebugging]",
+                "Ignored remote debugging toggle outside debug builds.",
+                "WARN"
+            )
+            return
+        }
         sessionManager.updatePrivacyPolicy { it.copy(enableRemoteDebugging = enabled) }
         refreshPolicyState()
-        // Note: Remote debugging toggle requires a restart or manual set in MainActivity for already-created WebViews
-        // However, we can also try to set it dynamically here
         try {
             android.webkit.WebView.setWebContentsDebuggingEnabled(enabled)
-            Log.d("BrowserViewModel", "Remote debugging dynamically set to: $enabled")
+            AmnosLog.d("BrowserViewModel", "Remote debugging dynamically set to: $enabled")
         } catch (e: Exception) {
-            Log.e("BrowserViewModel", "Failed to set remote debugging dynamically", e)
+            AmnosLog.e("BrowserViewModel", "Failed to set remote debugging dynamically", e)
         }
     }
 
     fun toggleForceRelaxSecurity(enabled: Boolean) {
+        if (!BuildConfig.DEBUG) {
+            sessionManager.securityController.logInternal(
+                "[Diagnostics:RelaxedMode]",
+                "Ignored relaxed security toggle outside debug builds.",
+                "WARN"
+            )
+            return
+        }
         sessionManager.updatePrivacyPolicy { it.copy(forceRelaxSecurityForDebug = enabled) }
         refreshPolicyState()
         reload()
@@ -184,39 +220,23 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
                 onStateChanged = stateChangedCallback,
                 onProgressChanged = progressChangedCallback,
                 onTrackerBlocked = trackerBlockedCallback,
-                onNavigationRequested = ::handleMainFrameNavigation
+                onNavigationRequested = ::handleMainFrameNavigation,
+                onNavigationCommitted = navigationCommittedCallback,
+                onNavigationFailed = navigationFailedCallback
             )
         }
     }
 
     fun navigate(input: String) {
-        val trimmedInput = input.trim()
-        if (trimmedInput.isEmpty()) return
+        val resolvedNavigation = NavigationResolver.resolve(input) ?: return
+        sessionManager.securityController.logInternal("[Nav:Navigate]", resolvedNavigation.input, "DEBUG")
+        sessionManager.securityController.logInternal("[Nav:Transform]", resolvedNavigation.transformedUrl, "DEBUG")
+        sessionManager.securityController.logInternal("[Nav:Sanitize]", resolvedNavigation.sanitizedUrl, "DEBUG")
 
-        sessionManager.securityController.logInternal("BrowserViewModel", "Navigation requested: $trimmedInput", "DEBUG")
-
-        val isUrl = (trimmedInput.startsWith("http://") || trimmedInput.startsWith("https://")) ||
-                    (trimmedInput.contains(".") && !trimmedInput.contains(" ") && trimmedInput.length > 3)
-
-        val destinationUrl = if (isUrl) {
-            val withScheme = if (trimmedInput.startsWith("http")) trimmedInput else "https://$trimmedInput"
-            // Final check: if it looks like a hostname without TLD, and it's not localhost/IP/proxy, treat as search
-            if (!withScheme.contains("/") && !withScheme.contains(".") && !withScheme.contains(":") && !withScheme.contains("localhost")) {
-                "https://duckduckgo.com/?q=${java.net.URLEncoder.encode(trimmedInput, "UTF-8")}&ia=web"
-            } else {
-                withScheme
-            }
-        } else {
-            "https://duckduckgo.com/?q=${java.net.URLEncoder.encode(trimmedInput, "UTF-8")}&ia=web"
-        }
-
-        sessionManager.securityController.logInternal("BrowserViewModel", "Constructed: $destinationUrl (isUrl=$isUrl)", "DEBUG")
-
-        val sanitizedUrl = UrlSanitizer.sanitize(destinationUrl)
-        sessionManager.securityController.logInternal("BrowserViewModel", "Sanitized final: $sanitizedUrl", "DEBUG")
-        
         uiState.value = BrowserUIState.BROWSING
-        handleMainFrameNavigation(sanitizedUrl)
+        urlInput.value = resolvedNavigation.displayText
+        pendingAddressBarValue = resolvedNavigation.displayText
+        handleMainFrameNavigation(resolvedNavigation.sanitizedUrl, resolvedNavigation.displayText)
     }
 
     fun goBack() {
@@ -240,11 +260,12 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     fun goHome() {
         uiState.value = BrowserUIState.HOME
         urlInput.value = ""
+        pendingAddressBarValue = null
         currentTab.value?.apply {
             currentUrl = "about:blank"
             webView.loadUrl("about:blank")
         }
-        blockedTrackersCount.value = sessionManager.securityController.trackerBlockCount()
+        blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount()
     }
 
     fun reload() {
@@ -255,7 +276,9 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
                 onStateChanged = stateChangedCallback,
                 onProgressChanged = progressChangedCallback,
                 onTrackerBlocked = trackerBlockedCallback,
-                onNavigationRequested = ::handleMainFrameNavigation
+                onNavigationRequested = ::handleMainFrameNavigation,
+                onNavigationCommitted = navigationCommittedCallback,
+                onNavigationFailed = navigationFailedCallback
             )
             return
         }
@@ -267,7 +290,8 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     fun killSwitch() {
         uiState.value = BrowserUIState.HOME
         urlInput.value = ""
-        blockedTrackersCount.value = 0
+        blockedTrackersCount.intValue = 0
+        pendingAddressBarValue = null
 
         currentTab.value = null
         sessionManager.killAll(terminateProcess = false)
@@ -276,9 +300,10 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     private fun handleSessionTimeout() {
         currentTab.value = null
-        blockedTrackersCount.value = 0
+        blockedTrackersCount.intValue = 0
         uiState.value = BrowserUIState.HOME
         urlInput.value = ""
+        pendingAddressBarValue = null
         sessionManager.killAll(terminateProcess = false)
         initializeSession()
     }
@@ -288,13 +313,16 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         javaScriptMode.value = sessionManager.privacyPolicy.javascriptMode
         isWebGLEnabled.value = sessionManager.privacyPolicy.webGlMode == WebGlMode.SPOOF
         fingerprintProtectionLevel.value = sessionManager.privacyPolicy.fingerprintProtectionLevel
-        blockedTrackersCount.value = sessionManager.securityController.trackerBlockCount()
+        blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount()
         enableRemoteDebugging.value = sessionManager.privacyPolicy.enableRemoteDebugging
         forceRelaxSecurityForDebug.value = sessionManager.privacyPolicy.forceRelaxSecurityForDebug
     }
 
-    private fun handleMainFrameNavigation(url: String): Boolean {
-        Log.d("BrowserViewModel", "Handling main frame navigation to: $url")
+    private fun handleMainFrameNavigation(url: String): Boolean = handleMainFrameNavigation(url, null)
+
+    private fun handleMainFrameNavigation(url: String, addressBarValue: String? = null): Boolean {
+        AmnosLog.d("BrowserViewModel", "Handling main frame navigation to: $url")
+        sessionManager.securityController.logInternal("[Nav:Load]", url, "DEBUG")
         uiState.value = BrowserUIState.BROWSING
         val current = currentTab.value ?: return false
         val activeTab = if (sessionManager.shouldRecreateForTopLevelNavigation(current, url)) {
@@ -303,15 +331,18 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
                 onStateChanged = stateChangedCallback,
                 onProgressChanged = progressChangedCallback,
                 onTrackerBlocked = trackerBlockedCallback,
-                onNavigationRequested = ::handleMainFrameNavigation
+                onNavigationRequested = ::handleMainFrameNavigation,
+                onNavigationCommitted = navigationCommittedCallback,
+                onNavigationFailed = navigationFailedCallback
             ).also { currentTab.value = it }
         } else {
             current
         }
 
         return sessionManager.loadUrl(activeTab, url).also { loaded ->
-            if (loaded) {
-                urlInput.value = activeTab.currentUrl ?: url
+            if (loaded && addressBarValue != null) {
+                pendingAddressBarValue = addressBarValue
+                urlInput.value = addressBarValue
             }
         }
     }

@@ -1,10 +1,10 @@
 package com.privacy.browser.core.network
 
-import android.util.Log
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import com.privacy.browser.core.fingerprint.DeviceProfile
 import com.privacy.browser.core.security.PrivacyPolicy
+import com.privacy.browser.core.session.AmnosLog
 import okhttp3.Headers
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -36,11 +36,7 @@ class NetworkSecurityManager(
         }
 
         if (normalized != rawUrl) {
-            policyProvider().let { p ->
-                 // We can't log directly to securityController easily without a reference, 
-                 // but we can log to system and let the ViewModel/SessionManager handle the diagnostics log.
-                 Log.d("NetworkSecurityManager", "Normalized $rawUrl -> $normalized")
-            }
+            AmnosLog.d("NetworkSecurityManager", "Normalized $rawUrl -> $normalized")
         }
 
         return normalized?.let { sanitizeUrlIfEnabled(it) }
@@ -66,7 +62,7 @@ class NetworkSecurityManager(
         
         // GLOBAL DEBUG BYPASS - If relaxed mode is active, override blocking decisions
         if (policy.forceRelaxSecurityForDebug && decision.isBlocked) {
-            Log.w("NetworkSecurityManager", "OVERRIDING block decision for ${decision.sanitizedUrl} due to RELAXED mode")
+            AmnosLog.w("NetworkSecurityManager", "OVERRIDING block decision for ${decision.sanitizedUrl} due to RELAXED mode")
             return decision.copy(blockReason = null)
         }
         
@@ -174,19 +170,19 @@ class NetworkSecurityManager(
 
         return try {
             val startTime = System.currentTimeMillis()
-            Log.d("NetworkSecurityManager", "Fetching proxied request: ${request.method} $httpUrl")
+            AmnosLog.d("NetworkSecurityManager", "Fetching proxied request: ${request.method} $httpUrl")
             val response = DnsManager.secureClient(policy.blockIpv6).newCall(okHttpRequest).execute()
             val duration = System.currentTimeMillis() - startTime
-            Log.d("NetworkSecurityManager", "Proxied response received in ${duration}ms: code=${response.code} url=$httpUrl")
-            
+            AmnosLog.d("NetworkSecurityManager", "Proxied response received in ${duration}ms: code=${response.code} url=$httpUrl")
+
             val body = response.body
             val contentLength = body?.contentLength() ?: -1
-            Log.v("NetworkSecurityManager", "Response body size: $contentLength bytes")
+            AmnosLog.d("NetworkSecurityManager", "Response body size: $contentLength bytes")
             val contentType = body?.contentType()
             val mimeType = if (contentType != null) {
                 "${contentType.type}/${contentType.subtype}"
             } else {
-                Log.w("NetworkSecurityManager", "Missing Content-Type for $httpUrl, defaulting to text/html")
+                AmnosLog.w("NetworkSecurityManager", "Missing Content-Type for $httpUrl, defaulting to text/html")
                 "text/html" // Default to HTML for better compatibility
             }
             val charset = contentType?.charset(Charsets.UTF_8)?.name() ?: "UTF-8"
@@ -200,7 +196,7 @@ class NetworkSecurityManager(
                 body?.byteStream() // Use the already-captured body reference
             )
         } catch (e: Exception) {
-            Log.e("NetworkSecurityManager", "Proxied fetch FAILED for $httpUrl", e)
+            AmnosLog.e("NetworkSecurityManager", "Proxied fetch FAILED for $httpUrl", e)
             null
         }
     }
@@ -347,9 +343,6 @@ class NetworkSecurityManager(
 
         response.headers.forEach { (name, value) ->
             if (name.equals("Set-Cookie", ignoreCase = true)) {
-                 // Log cookies but keep them for now to test if it fixes search results
-                Log.v("NetworkSecurityManager", "Preserving cookie from server for privacy debug")
-                headers[name] = value
                 return@forEach
             }
             if (name.equals("Content-Security-Policy", ignoreCase = true)) return@forEach
@@ -377,7 +370,7 @@ class NetworkSecurityManager(
 
     private fun buildContentSecurityPolicy(policy: PrivacyPolicy): String? {
         if (policy.forceRelaxSecurityForDebug) {
-            Log.d("NetworkSecurityManager", "Skipping CSP injection due to RELAXED mode")
+            AmnosLog.d("NetworkSecurityManager", "Skipping CSP injection due to RELAXED mode")
             return null
         }
         

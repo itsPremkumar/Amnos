@@ -1,7 +1,7 @@
 package com.privacy.browser.core.security
 
-import android.util.Log
 import android.webkit.PermissionRequest
+import com.privacy.browser.core.session.AmnosLog
 
 /**
  * Amnos Permission Sentinel
@@ -12,7 +12,7 @@ object PermissionSentinel {
 
     fun handlePermissionRequest(request: PermissionRequest?) {
         request?.resources?.forEach { resource ->
-            Log.w("PermissionSentinel", "SILENTLY DENIED hardware permission: $resource")
+            AmnosLog.w("PermissionSentinel", "SILENTLY DENIED hardware permission: $resource")
         }
         
         // Block all intrusive hardware resources

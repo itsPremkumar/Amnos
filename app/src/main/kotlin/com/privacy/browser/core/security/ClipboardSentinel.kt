@@ -3,7 +3,7 @@ package com.privacy.browser.core.security
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.util.Log
+import com.privacy.browser.core.session.AmnosLog
 
 /**
  * Amnos Clipboard Sentinel
@@ -16,9 +16,9 @@ object ClipboardSentinel {
         try {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(ClipData.newPlainText("", ""))
-            Log.d("ClipboardSentinel", "Forensic clipboard scrub successful.")
+            AmnosLog.d("ClipboardSentinel", "Forensic clipboard scrub successful.")
         } catch (e: Exception) {
-            Log.e("ClipboardSentinel", "Failed to scrub clipboard", e)
+            AmnosLog.e("ClipboardSentinel", "Failed to scrub clipboard", e)
         }
     }
 }

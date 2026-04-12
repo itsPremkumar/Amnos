@@ -7,6 +7,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebChromeClient.FileChooserParams
 import android.webkit.ValueCallback
 import android.webkit.WebView
+import com.privacy.browser.core.session.AmnosLog
 
 class PrivacyWebChromeClient(
     private val onProgressChanged: (Int) -> Unit
@@ -32,7 +33,7 @@ class PrivacyWebChromeClient(
                 ConsoleMessage.MessageLevel.WARNING -> "WARNING"
                 else -> "LOG"
             }
-            android.util.Log.d("WebConsole", "[$level] ${it.message()} (at ${it.sourceId()}:${it.lineNumber()})")
+            AmnosLog.d("WebConsole", "[$level] ${it.message()} (at ${it.sourceId()}:${it.lineNumber()})")
         }
         return true
     }

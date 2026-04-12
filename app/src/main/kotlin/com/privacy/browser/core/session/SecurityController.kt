@@ -1,6 +1,7 @@
 package com.privacy.browser.core.session
 
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import com.privacy.browser.core.network.RequestKind
 import com.privacy.browser.core.security.FingerprintProtectionLevel
@@ -17,8 +18,8 @@ class SecurityController {
     val webRtcStatus = mutableStateOf("Blocked")
     val webSocketStatus = mutableStateOf("Blocked")
     val fingerprintLevel = mutableStateOf(FingerprintProtectionLevel.STRICT)
-    val webRtcAttemptCount = mutableStateOf(0)
-    val webSocketAttemptCount = mutableStateOf(0)
+    val webRtcAttemptCount = mutableIntStateOf(0)
+    val webSocketAttemptCount = mutableIntStateOf(0)
     val warningMessage = mutableStateOf("Strong privacy protections enabled. Network anonymity is not guaranteed.")
 
     val internalLogs = mutableStateListOf<InternalLogEntry>()
@@ -108,7 +109,7 @@ class SecurityController {
     }
 
     fun recordWebRtcAttempt(detail: String, blocked: Boolean) {
-        webRtcAttemptCount.value += 1
+        webRtcAttemptCount.intValue += 1
         webRtcStatus.value = if (blocked) "Blocked and spoofed" else "Observed"
         logRequest(
             url = detail,
@@ -120,7 +121,7 @@ class SecurityController {
     }
 
     fun recordWebSocketAttempt(detail: String, blocked: Boolean) {
-        webSocketAttemptCount.value += 1
+        webSocketAttemptCount.intValue += 1
         webSocketStatus.value = if (blocked) "Blocked" else "Allowed"
         logRequest(
             url = detail,
@@ -168,7 +169,8 @@ class SecurityController {
     fun clearLog() {
         _requestLog.clear()
         _activeConnections.clear()
-        webRtcAttemptCount.value = 0
-        webSocketAttemptCount.value = 0
+        internalLogs.clear()
+        webRtcAttemptCount.intValue = 0
+        webSocketAttemptCount.intValue = 0
     }
 }

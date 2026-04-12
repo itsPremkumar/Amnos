@@ -125,7 +125,7 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
                                 Column {
                                     Text("Active Defense", color = Color.Gray, fontSize = 12.sp)
                                     Text(
-                                        "${viewModel.blockedTrackersCount.value} Trackers Blocked",
+                                        "${viewModel.blockedTrackersCount.intValue} Trackers Blocked",
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -147,8 +147,8 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
                             lines = listOf(
                                 "Proxy: ${viewModel.proxyStatus.value}",
                                 "DoH: ${viewModel.dohStatus.value}",
-                                "WebRTC: ${viewModel.webRtcStatus.value} (${viewModel.webRtcAttemptCount.value} events)",
-                                "WebSocket: ${viewModel.webSocketStatus.value} (${viewModel.webSocketAttemptCount.value} events)"
+                                "WebRTC: ${viewModel.webRtcStatus.value} (${viewModel.webRtcAttemptCount.intValue} events)",
+                                "WebSocket: ${viewModel.webSocketStatus.value} (${viewModel.webSocketAttemptCount.intValue} events)"
                             )
                         )
 
@@ -282,19 +282,27 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
 
                         Spacer(Modifier.height(16.dp))
 
-                        SecurityToggle(
-                            title = "Remote WebView Debugging",
-                            description = "Enables USB debugging via chrome://inspect on a PC. WARNING: REDUCES PRIVACY.",
-                            checked = viewModel.enableRemoteDebugging.value,
-                            onCheckedChange = viewModel::toggleRemoteDebugging
-                        )
+                        if (viewModel.debugControlsAvailable) {
+                            SecurityToggle(
+                                title = "Remote WebView Debugging",
+                                description = "Debug-build only. Enables USB inspection via chrome://inspect on a connected workstation.",
+                                checked = viewModel.enableRemoteDebugging.value,
+                                onCheckedChange = viewModel::toggleRemoteDebugging
+                            )
 
-                        SecurityToggle(
-                            title = "Relax Security for Diagnostics",
-                            description = "Master bypass for CSP, trackers, and proxy policies to isolate engine issues.",
-                            checked = viewModel.forceRelaxSecurityForDebug.value,
-                            onCheckedChange = viewModel::toggleForceRelaxSecurity
-                        )
+                            SecurityToggle(
+                                title = "Relax Security for Diagnostics",
+                                description = "Debug-build only. Temporarily bypasses strict shields to isolate rendering issues.",
+                                checked = viewModel.forceRelaxSecurityForDebug.value,
+                                onCheckedChange = viewModel::toggleForceRelaxSecurity
+                            )
+                        } else {
+                            Text(
+                                "Release builds lock remote debugging and relaxed diagnostics behind compile-time guards.",
+                                color = Color.Gray,
+                                fontSize = 11.sp
+                            )
+                        }
                     }
                 }
             }

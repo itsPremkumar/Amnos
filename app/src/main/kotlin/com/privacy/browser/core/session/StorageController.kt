@@ -1,7 +1,6 @@
 package com.privacy.browser.core.session
 
 import android.content.Context
-import android.util.Log
 import android.webkit.URLUtil
 import com.privacy.browser.core.network.DnsManager
 import okhttp3.Request
@@ -37,7 +36,7 @@ class StorageController(private val context: Context) {
 
                 downloadClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
-                        Log.w("StorageController", "Ephemeral download failed: HTTP ${response.code}")
+                        AmnosLog.w("StorageController", "Ephemeral download failed: HTTP ${response.code}")
                         return@use
                     }
 
@@ -55,10 +54,10 @@ class StorageController(private val context: Context) {
                         }
                     }
 
-                    Log.i("StorageController", "Ephemeral download saved to ${outFile.absolutePath}")
+                    AmnosLog.i("StorageController", "Ephemeral download saved to ${outFile.absolutePath}")
                 }
             } catch (error: Exception) {
-                Log.e("StorageController", "Failed to store ephemeral download", error)
+                AmnosLog.e("StorageController", "Failed to store ephemeral download", error)
             }
         }.start()
     }
@@ -67,7 +66,7 @@ class StorageController(private val context: Context) {
      * Wipes the ephemeral download directory.
      */
     fun clearVolatileDownloads() {
-        Log.d("StorageController", "Wiping ephemeral downloads...")
+        AmnosLog.d("StorageController", "Wiping ephemeral downloads...")
         deleteRecursive(volatileDownloadDir)
         volatileDownloadDir.mkdirs() // Recreate for next session
     }

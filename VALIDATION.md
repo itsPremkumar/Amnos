@@ -1,126 +1,106 @@
 # Amnos Validation Guide
 
-Last updated: April 10, 2026
+Last updated: April 12, 2026
 
-## Current status from this machine
+## Automated validation
 
-Completed:
+Run from the repository root:
 
-- `./gradlew testDebugUnitTest`
+```powershell
+.\gradlew.bat clean testDebugUnitTest lintDebug assembleRelease
+```
 
-Not completed:
+Or use:
 
-- physical device testing
-- emulator testing
-- live WebRTC leak-site validation
-- live DNS leak validation
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_build.ps1
+```
 
-Environment note:
+The automated gate covers:
 
-- `adb` is installed
-- no Android devices were attached when this update was performed
-- no emulator binary was available on PATH
+- JVM unit tests for navigation resolution, URL sanitization, network boundary logic, and fingerprint profile determinism
+- Android lint for manifest, WebView, and security-config regressions
+- release build generation
 
-## Manual real-device checklist
+## Manual device validation
 
-### 1. Build and install
+Automated checks are not enough for a privacy browser. Before shipping a release candidate, validate on at least:
 
-```bash
-./gradlew installDebug
+- 1 physical Android 14 device
+- 1 alternate WebView provider version if available
+- 1 emulator image for repeatable smoke tests
+
+## Device checklist
+
+### Install and launch
+
+```powershell
+.\gradlew.bat assembleDebug
+adb install -r .\app\build\outputs\apk\debug\app-debug.apk
 adb devices -l
 ```
 
-### 2. Confirm loopback proxy and DoH status
+Verify:
 
-Open Amnos and verify in the Security Dashboard:
+- app launches without crash
+- initial dashboard loads
+- backgrounding the app triggers a wipe and relaunches cleanly
 
-- proxy status is active
-- DoH status reports loopback/global coverage
-- no active connections remain after returning to home or wiping the session
+### Navigation and Search Dog validation
 
-### 3. WebRTC leak testing
+Test these inputs in the address bar:
 
-Visit real leak-test pages such as:
+- `duckduck`
+- `https://duckduck`
+- `google.com`
+- `https://example.com/?utm_source=test&id=7`
+- `what is the weather`
 
-- browserleaks WebRTC test
-- ipleak WebRTC test
+Verify:
 
-Expected behavior:
+- malformed bare hosts become searches
+- direct domains normalize to `https://`
+- tracking parameters are stripped before page load
+- failed navigations do not flicker a transient malformed URL into the address bar
 
-- dashboard shows WebRTC as blocked/spoofed
-- no real ICE candidates appear
-- no public or local IP candidates are exposed
+### Privacy transport validation
 
-### 4. DNS leak testing
+In the Security Cockpit, confirm:
 
-Use a DNS leak test website and confirm:
+- loopback proxy status is active when supported
+- DoH status reflects the proxy path
+- active connections fall back to zero after wipe
 
-- observed DNS provider matches the configured DoH path
-- system DNS is not visible when loopback proxy support is active
+Use live sites to validate:
 
-### 5. Fingerprint testing
+- DNS leak tests
+- WebRTC leak tests
+- fingerprint test pages across fresh sessions
 
-Use a fingerprint test site and compare:
+### Persistence validation
 
-- two fresh sessions with strict fingerprint protection
-- balanced vs strict modes
-- refresh identity reset enabled vs disabled
+After browsing, then triggering:
 
-Expected behavior:
-
-- hardware concurrency and device memory stay normalized
-- timezone remains consistent in strict mode
-- fingerprint values change less erratically and remain internally coherent
-
-### 6. Compatibility testing
-
-Test at least:
-
-- a login-heavy site
-- a media streaming site
-- a JavaScript-heavy SPA
-- a site that tries WebSocket or WebRTC features
-
-Record:
-
-- crashes
-- broken layouts
-- blocked-media regressions
-- login failures tied to strict third-party or inline-script policies
-
-### 7. Session wipe verification
-
-Verify after:
-
-- tab close
 - kill switch
 - app background
 - app relaunch
 
-that:
+Verify:
 
-- cookies do not persist
-- downloads are deleted
-- clipboard is cleared
-- request inspector is empty on a fresh session
+- cookies do not survive
+- volatile downloads are deleted
+- diagnostics/request logs reset
+- clipboard scrub still occurs
 
-## Suggested adb-assisted workflow
+## Release sign-off checklist
 
-Useful commands:
+- `testDebugUnitTest` passed
+- `lintDebug` passed
+- `assembleRelease` passed
+- physical-device checklist completed
+- WebRTC/DNS/fingerprint leak checks recorded
+- release keys present and used for signing
 
-```bash
-adb logcat | findstr Amnos
-adb shell pm list packages | findstr webview
-adb shell dumpsys webviewupdate
-```
+## Honest note
 
-Capture and record:
-
-- device model
-- Android version
-- WebView provider package and version
-- whether proxy override is reported as active in the dashboard
-
-## Honest validation note
-
-If a device or emulator is not available, Amnos should not claim that live leak testing was completed. In that case, report only JVM/build validation plus the pending manual checklist above.
+If device or emulator validation has not been run, do not claim live privacy validation was completed. Report only the automated checks that actually passed.

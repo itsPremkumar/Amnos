@@ -4,7 +4,7 @@ import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.CookieJar
-import android.util.Log
+import com.privacy.browser.core.session.AmnosLog
 import okhttp3.dnsoverhttps.DnsOverHttps
 import java.net.Inet4Address
 import java.net.InetAddress
@@ -31,20 +31,20 @@ object DnsManager {
 
     fun lookup(hostname: String, blockIpv6: Boolean): List<InetAddress> {
         return try {
-            Log.d("DnsManager", "Resolving hostname via DoH: $hostname")
+            AmnosLog.d("DnsManager", "Resolving hostname via DoH: $hostname")
             val resolved = dnsOverHttps.lookup(hostname)
-            Log.d("DnsManager", "Resolved $hostname to ${resolved.size} addresses")
+            AmnosLog.d("DnsManager", "Resolved $hostname to ${resolved.size} addresses")
             
             if (!blockIpv6) {
                 resolved
             } else {
                 resolved.filterIsInstance<Inet4Address>().ifEmpty { 
-                    Log.v("DnsManager", "No IPv4 found for $hostname, falling back to all")
+                    AmnosLog.d("DnsManager", "No IPv4 found for $hostname, falling back to all")
                     resolved 
                 }
             }
         } catch (e: Exception) {
-            Log.e("DnsManager", "DNS resolution FAILED for $hostname", e)
+            AmnosLog.e("DnsManager", "DNS resolution FAILED for $hostname", e)
             throw e
         }
     }

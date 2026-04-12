@@ -1,6 +1,4 @@
 <resources>
     <string name="app_name">Amnos</string>
-    <string name="app_short_description">गोपनीयता-केंद्रित, कठोर एंड्रॉइड ब्राउज़र।</string>
-    <string name="app_full_description">Amnos WebView पर निर्मित एक उच्च-सुरक्षा, गोपनीयता-कठोर एंड्रॉइड ब्राउज़र है। इसमें आक्रामक ट्रैकर ब्लॉकिंग, WebRTC शटडाउन, फिंगर-प्रिंट ऑब्फ्यूस्केशन और जीरो-परसिस्टेंट-फुटप्रिंट मॉडल है। अधिकतम गोपनीयता के साथ केवल स्थानीय ब्राउज़िंग सत्रों के लिए डिज़ाइन किया गया।</string>
-    <string name="app_keywords">ब्राउज़र, गोपनीयता, सुरक्षा, कठोर, वेबव्यू, ट्रैकर ब्लॉकर, गुमनामी, एंड्रॉइड ब्राउज़र, amnos</string>
+    <string name="app_short_description">गोपनीयता-केंद्रित, कठोर एंड्रॉइड ब्राउज़र.</string>
 </resources>

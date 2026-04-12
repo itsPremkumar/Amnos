@@ -1,8 +1,7 @@
 package com.privacy.browser.core.webview
 
+import android.annotation.SuppressLint
 import android.content.Context
-import android.os.Build
-import android.util.Log
 import android.view.View
 import android.webkit.CookieManager
 import android.webkit.WebSettings
@@ -10,12 +9,12 @@ import android.webkit.WebView
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.ServiceWorkerControllerCompat
 import androidx.webkit.WebMessageCompat
-import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import androidx.webkit.ScriptHandler
 import com.privacy.browser.core.fingerprint.DeviceProfile
 import com.privacy.browser.core.security.PrivacyPolicy
+import com.privacy.browser.core.session.AmnosLog
 import android.net.Uri
 
 class SecureWebView(context: Context) : WebView(context) {
@@ -40,7 +39,7 @@ class SecureWebView(context: Context) : WebView(context) {
             javaScriptCanOpenWindowsAutomatically = false
             domStorageEnabled = if (policy.forceRelaxSecurityForDebug) true else policy.domStorageEnabled
             databaseEnabled = if (policy.forceRelaxSecurityForDebug) true else policy.domStorageEnabled
-            cacheMode = if (policy.forceRelaxSecurityForDebug) WebSettings.LOAD_DEFAULT else WebSettings.LOAD_DEFAULT
+            cacheMode = if (policy.forceRelaxSecurityForDebug) WebSettings.LOAD_DEFAULT else WebSettings.LOAD_NO_CACHE
 
             userAgentString = if (policy.forceRelaxSecurityForDebug) android.webkit.WebSettings.getDefaultUserAgent(context) else profile.userAgent
             setSupportMultipleWindows(false)
@@ -56,22 +55,16 @@ class SecureWebView(context: Context) : WebView(context) {
             savePassword = false
             saveFormData = false
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                safeBrowsingEnabled = true
-            }
+            safeBrowsingEnabled = true
         }
 
         overScrollMode = View.OVER_SCROLL_NEVER
         isHapticFeedbackEnabled = false
         setOnLongClickListener { true }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            importantForAutofill = IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
-        }
+        importantForAutofill = IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
 
         configureCookies()
-        configureRequestedWithHeader()
         configureServiceWorkers(policy)
         installSecurityBridge(onSecurityEvent)
         installDocumentStartScript(policy, injectionScript)
@@ -93,7 +86,7 @@ class SecureWebView(context: Context) : WebView(context) {
     }
 
     fun clearVolatileState() {
-        scriptHandler?.remove()
+        removeDocumentStartScript()
         scriptHandler = null
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             try {
@@ -114,7 +107,7 @@ class SecureWebView(context: Context) : WebView(context) {
     }
 
     private fun installDocumentStartScript(policy: PrivacyPolicy, injectionScript: String) {
-        scriptHandler?.remove()
+        removeDocumentStartScript()
         scriptHandler = null
 
         if (!policy.isJavaScriptEnabled) {
@@ -130,9 +123,10 @@ class SecureWebView(context: Context) : WebView(context) {
         }
     }
 
+    @SuppressLint("RequiresFeature")
     private fun installSecurityBridge(onSecurityEvent: (String) -> Unit) {
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
-            Log.d("SecureWebView", "WEB_MESSAGE_LISTENER not supported")
+            AmnosLog.d("SecureWebView", "WEB_MESSAGE_LISTENER not supported")
             return
         }
 
@@ -149,22 +143,17 @@ class SecureWebView(context: Context) : WebView(context) {
             ) { _: WebView, message: WebMessageCompat, _: Uri, _: Boolean, _: JavaScriptReplyProxy ->
                 message.data?.let(onSecurityEvent)
             }
-            Log.d("SecureWebView", "Security bridge (WebMessageListener) installed")
+            AmnosLog.d("SecureWebView", "Security bridge (WebMessageListener) installed")
         } catch (e: Exception) {
-            Log.e("SecureWebView", "Failed to install security bridge", e)
-        }
-    }
-
-    private fun configureRequestedWithHeader() {
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
-            WebSettingsCompat.setRequestedWithHeaderOriginAllowList(settings, emptySet())
+            AmnosLog.e("SecureWebView", "Failed to install security bridge", e)
         }
     }
 
     private fun configureCookies() {
         val cookieManager = CookieManager.getInstance()
-        cookieManager.setAcceptCookie(true)
+        cookieManager.setAcceptCookie(false)
         cookieManager.setAcceptThirdPartyCookies(this, false)
+        cookieManager.removeSessionCookies(null)
         cookieManager.flush()
     }
 
@@ -187,6 +176,12 @@ class SecureWebView(context: Context) : WebView(context) {
         }
         if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BLOCK_NETWORK_LOADS)) {
             serviceWorkerSettings.setBlockNetworkLoads(policy.blockServiceWorkers)
+        }
+    }
+
+    private fun removeDocumentStartScript() {
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            scriptHandler?.remove()
         }
     }
 }

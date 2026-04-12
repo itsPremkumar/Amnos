@@ -7,11 +7,11 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.util.Log
 import com.privacy.browser.core.adblock.AdBlocker
 import com.privacy.browser.core.fingerprint.DeviceProfile
 import com.privacy.browser.core.network.BlockReason
 import com.privacy.browser.core.network.NetworkSecurityManager
+import com.privacy.browser.core.session.AmnosLog
 import com.privacy.browser.core.session.SecurityController
 
 class PrivacyWebViewClient(
@@ -21,7 +21,9 @@ class PrivacyWebViewClient(
     private val securityController: SecurityController,
     private val onTrackerBlocked: () -> Unit,
     private val onStateChanged: (String) -> Unit,
-    private val onNavigationRequested: (String) -> Boolean
+    private val onNavigationRequested: (String) -> Boolean,
+    private val onNavigationCommitted: (String) -> Unit,
+    private val onNavigationFailed: (String?) -> Unit
 ) : WebViewClient() {
 
     private var currentHost: String? = null
@@ -99,23 +101,25 @@ class PrivacyWebViewClient(
                     disposition = SecurityController.RequestDisposition.ALLOWED,
                     thirdParty = decision.thirdParty
                 )
-                Log.d("PrivacyWebViewClient", "Interception SUCCESS: ${decision.sanitizedUrl}")
+                AmnosLog.d("PrivacyWebViewClient", "Interception SUCCESS: ${decision.sanitizedUrl}")
                 return proxiedResponse
             }
         } catch (e: Exception) {
-            Log.e("PrivacyWebViewClient", "Interception CRITICAL FAILURE for ${decision.sanitizedUrl}", e)
-            // If manual interception fails, we definitely want to know why, but falling through
-            // might be safer than a blank page if it's not a security risk.
+            AmnosLog.e("PrivacyWebViewClient", "Interception CRITICAL FAILURE for ${decision.sanitizedUrl}", e)
         }
 
-        Log.d("PrivacyWebViewClient", "Interception FALLTHROUGH to system: ${decision.sanitizedUrl}")
+        AmnosLog.d("PrivacyWebViewClient", "Interception FALLTHROUGH to system: ${decision.sanitizedUrl}")
         securityController.logRequest(
             url = decision.sanitizedUrl,
             method = request.method,
             type = securityController.mapKind(decision.kind),
             disposition = SecurityController.RequestDisposition.PASSTHROUGH,
             thirdParty = decision.thirdParty,
-            reason = networkSecurityManager.blockReasonLabel(BlockReason.UNSAFE_METHOD)
+            reason = if (request.method.equals("GET", ignoreCase = true) || request.method.equals("HEAD", ignoreCase = true)) {
+                "proxy_fallback"
+            } else {
+                networkSecurityManager.blockReasonLabel(BlockReason.UNSAFE_METHOD)
+            }
         )
         return null
     }
@@ -134,11 +138,49 @@ class PrivacyWebViewClient(
         }
     }
 
+    override fun onPageCommitVisible(view: WebView?, url: String?) {
+        super.onPageCommitVisible(view, url)
+        url?.let {
+            currentHost = Uri.parse(it).host
+            onNavigationCommitted(it)
+        }
+    }
+
     override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) {
+        securityController.logInternal("PrivacyWebViewClient", "SSL ERROR: ${error?.url ?: "unknown"}", "ERROR")
+        onNavigationFailed(error?.url)
         handler?.cancel()
     }
 
+    override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: android.webkit.WebResourceError?) {
+        if (request?.isForMainFrame == true) {
+            securityController.logInternal(
+                "PrivacyWebViewClient", 
+                "NAVIGATION ERROR: ${error?.description} (${error?.errorCode}) for ${request.url}", 
+                "ERROR"
+            )
+            onNavigationFailed(request.url.toString())
+        } else {
+            securityController.logInternal(
+                "PrivacyWebViewClient",
+                "RESOURCE ERROR: ${error?.description} for ${request?.url}",
+                "WARN"
+            )
+        }
+    }
+
+    override fun onReceivedHttpError(view: WebView?, request: WebResourceRequest?, errorResponse: WebResourceResponse?) {
+        if (request?.isForMainFrame == true) {
+            securityController.logInternal(
+                "PrivacyWebViewClient",
+                "HTTP ERROR: ${errorResponse?.statusCode} ${errorResponse?.reasonPhrase} for ${request.url}",
+                "ERROR"
+            )
+        }
+    }
+
     private fun showBlockedPage(view: WebView?, reason: BlockReason) {
+        securityController.logInternal("PrivacyWebViewClient", "Blocked main-frame navigation due to ${reason.name}", "WARN")
         view?.loadDataWithBaseURL(
             null,
             """

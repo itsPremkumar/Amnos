@@ -1,10 +1,10 @@
 package com.privacy.browser.core.session
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebStorage
 import android.webkit.WebViewDatabase
@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import androidx.webkit.ProxyConfig
 import androidx.webkit.ProxyController
 import androidx.webkit.WebViewFeature
+import com.privacy.browser.BuildConfig
 import com.privacy.browser.core.adblock.AdBlocker
 import com.privacy.browser.core.fingerprint.DeviceProfile
 import com.privacy.browser.core.fingerprint.FingerprintManager
@@ -49,8 +50,9 @@ class SessionManager(private val context: Context) {
     )
 
     var privacyPolicy: PrivacyPolicy = PrivacyPolicy(
-        enableRemoteDebugging = context.getSharedPreferences("amnos_debug_prefs", Context.MODE_PRIVATE)
-            .getBoolean("enable_remote_debugging", false)
+        enableRemoteDebugging = BuildConfig.DEBUG &&
+            context.getSharedPreferences("amnos_debug_prefs", Context.MODE_PRIVATE)
+                .getBoolean("enable_remote_debugging", false)
     )
         private set
 
@@ -59,13 +61,16 @@ class SessionManager(private val context: Context) {
     }
 
     init {
-        Log.d("SessionManager", "Initializing SessionManager")
+        AmnosLog.attach { securityController }
+        AmnosLog.d("SessionManager", "Initializing SessionManager")
         securityController.setFingerprintLevel(privacyPolicy.fingerprintProtectionLevel)
         try {
+            purgeGlobalStorage()
+            storageController.clearVolatileDownloads()
             configureProxy()
-            Log.d("SessionManager", "Proxy configured successfully")
+            AmnosLog.d("SessionManager", "Proxy configured successfully")
         } catch (e: Exception) {
-            Log.e("SessionManager", "Failed to configure proxy during init", e)
+            AmnosLog.e("SessionManager", "Failed to configure proxy during init", e)
         }
     }
 
@@ -89,26 +94,28 @@ class SessionManager(private val context: Context) {
         onStateChanged: (url: String, canGoBack: Boolean, canGoForward: Boolean) -> Unit,
         onProgressChanged: (progress: Int) -> Unit,
         onTrackerBlocked: () -> Unit,
-        onNavigationRequested: (String) -> Boolean
+        onNavigationRequested: (String) -> Boolean,
+        onNavigationCommitted: (String) -> Unit,
+        onNavigationFailed: (String?) -> Unit
     ): TabInstance {
-        Log.d("SessionManager", "Creating new tab instance")
+        AmnosLog.d("SessionManager", "Creating new tab instance")
         val tabId = FingerprintManager.newTabId()
         val profile = FingerprintManager.generateCoherentProfile(
             activeSessionId,
             tabId,
             privacyPolicy.fingerprintProtectionLevel
         )
-        
-        Log.d("SessionManager", "Instantiating SecureWebView")
+
+        AmnosLog.d("SessionManager", "Instantiating SecureWebView")
         val webView = SecureWebView(context)
         val finalScript = buildInjectionScript(profile)
-        
-        Log.d("SessionManager", "Applying hardening to WebView")
+
+        AmnosLog.d("SessionManager", "Applying hardening to WebView")
         webView.applyHardening(profile, privacyPolicy, finalScript, ::handleSecurityEvent)
         webView.resumeTimers()
 
         webView.setDownloadListener { url, _, _, _, _ ->
-            Log.d("SessionManager", "Ephemeral download triggered: $url")
+            AmnosLog.d("SessionManager", "Ephemeral download triggered: $url")
             storageController.downloadEphemeralFile(url, profile.userAgent)
         }
 
@@ -122,7 +129,9 @@ class SessionManager(private val context: Context) {
                 touchSession()
                 onStateChanged(url, webView.canGoBack(), webView.canGoForward())
             },
-            onNavigationRequested = onNavigationRequested
+            onNavigationRequested = onNavigationRequested,
+            onNavigationCommitted = onNavigationCommitted,
+            onNavigationFailed = onNavigationFailed
         )
 
         webView.webViewClient = client
@@ -144,7 +153,9 @@ class SessionManager(private val context: Context) {
         onStateChanged: (url: String, canGoBack: Boolean, canGoForward: Boolean) -> Unit,
         onProgressChanged: (progress: Int) -> Unit,
         onTrackerBlocked: () -> Unit,
-        onNavigationRequested: (String) -> Boolean
+        onNavigationRequested: (String) -> Boolean,
+        onNavigationCommitted: (String) -> Unit,
+        onNavigationFailed: (String?) -> Unit
     ): TabInstance {
         val previousUrl = tab.currentUrl
         val previousIndex = tabs.indexOf(tab).coerceAtLeast(0)
@@ -153,7 +164,9 @@ class SessionManager(private val context: Context) {
             onStateChanged = onStateChanged,
             onProgressChanged = onProgressChanged,
             onTrackerBlocked = onTrackerBlocked,
-            onNavigationRequested = onNavigationRequested
+            onNavigationRequested = onNavigationRequested,
+            onNavigationCommitted = onNavigationCommitted,
+            onNavigationFailed = onNavigationFailed
         )
         tabs.remove(replacement)
         tabs.add(previousIndex.coerceAtMost(tabs.size), replacement)
@@ -163,9 +176,11 @@ class SessionManager(private val context: Context) {
 
     fun updatePrivacyPolicy(update: (PrivacyPolicy) -> PrivacyPolicy) {
         val oldDebugging = privacyPolicy.enableRemoteDebugging
-        privacyPolicy = update(privacyPolicy)
+        privacyPolicy = update(privacyPolicy).let { updated ->
+            if (BuildConfig.DEBUG) updated else updated.copy(enableRemoteDebugging = false, forceRelaxSecurityForDebug = false)
+        }
         
-        if (privacyPolicy.enableRemoteDebugging != oldDebugging) {
+        if (BuildConfig.DEBUG && privacyPolicy.enableRemoteDebugging != oldDebugging) {
             context.getSharedPreferences("amnos_debug_prefs", Context.MODE_PRIVATE)
                 .edit()
                 .putBoolean("enable_remote_debugging", privacyPolicy.enableRemoteDebugging)
@@ -253,7 +268,7 @@ class SessionManager(private val context: Context) {
     }
 
     fun killAll(terminateProcess: Boolean = false) {
-        Log.d("SessionManager", "AMNOS GHOST WIPE ACTIVATED (terminateProcess=$terminateProcess)")
+        AmnosLog.d("SessionManager", "AMNOS GHOST WIPE ACTIVATED (terminateProcess=$terminateProcess)")
         mainHandler.removeCallbacks(timeoutRunnable)
 
         storageController.wipeClipboard()
@@ -265,7 +280,7 @@ class SessionManager(private val context: Context) {
                 tab.webView.clearVolatileState()
                 tab.webView.destroy()
             } catch (e: Exception) {
-                Log.e("SessionManager", "Error destroying webView during wipe", e)
+                AmnosLog.e("SessionManager", "Error destroying webView during wipe", e)
             }
         }
         tabs.clear()
@@ -274,7 +289,7 @@ class SessionManager(private val context: Context) {
         configureProxy()
 
         if (terminateProcess) {
-            Log.w("SessionManager", "SELF-TERMINATING PROCESS AS REQUESTED")
+            AmnosLog.w("SessionManager", "SELF-TERMINATING PROCESS AS REQUESTED")
             android.os.Process.killProcess(android.os.Process.myPid())
         }
     }
@@ -282,7 +297,11 @@ class SessionManager(private val context: Context) {
     private fun purgeGlobalStorage() {
         val cookieManager = CookieManager.getInstance()
         cookieManager.setAcceptCookie(false)
-        cookieManager.removeAllCookies { Log.d("SessionManager", "Cookies purged") }
+        cookieManager.removeAllCookies { removed ->
+            if (removed) {
+                securityController.logInternal("[Storage:Cookies]", "Cookies purged", "DEBUG")
+            }
+        }
         cookieManager.flush()
 
         WebStorage.getInstance().deleteAllData()
@@ -293,7 +312,7 @@ class SessionManager(private val context: Context) {
         try {
             android.webkit.WebView.clearClientCertPreferences(null)
         } catch (ignored: Throwable) {
-            Log.w("SessionManager", "Client cert wipe unavailable", ignored)
+            AmnosLog.w("SessionManager", "Client cert wipe unavailable", ignored)
         }
     }
 
@@ -301,12 +320,11 @@ class SessionManager(private val context: Context) {
         return ScriptInjector(profile, privacyPolicy).wrapScript(baseObfuscatorScript)
     }
 
+    @SuppressLint("RequiresFeature")
     private fun configureProxy() {
         if (privacyPolicy.forceRelaxSecurityForDebug) {
-            Log.w("SessionManager", "TOTAL PROXY BYPASS - Diagnostics mode active")
-            ProxyController.getInstance().clearProxyOverride(ContextCompat.getMainExecutor(context)) {
-                securityController.updateProxyStatus(active = false, dohGlobal = false, port = null)
-            }
+            AmnosLog.w("SessionManager", "TOTAL PROXY BYPASS - Diagnostics mode active")
+            clearProxyOverride()
             return
         }
 
@@ -357,7 +375,19 @@ class SessionManager(private val context: Context) {
                 }
             }
         } catch (error: Exception) {
-            Log.w("SessionManager", "Failed to parse security event: $rawMessage", error)
+            AmnosLog.w("SessionManager", "Failed to parse security event: $rawMessage", error)
+        }
+    }
+
+    @SuppressLint("RequiresFeature")
+    private fun clearProxyOverride() {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+            securityController.updateProxyStatus(active = false, dohGlobal = false, port = null)
+            return
+        }
+
+        ProxyController.getInstance().clearProxyOverride(ContextCompat.getMainExecutor(context)) {
+            securityController.updateProxyStatus(active = false, dohGlobal = false, port = null)
         }
     }
 }

@@ -1,114 +1,58 @@
 # Amnos
 
-![License](https://img.shields.io/github/license/itsPremkumar/Amnos)
-![Android](https://img.shields.io/badge/Platform-Android-green?logo=android)
-![Build](https://img.shields.io/github/actions/workflow/status/itsPremkumar/Amnos/android.yml?branch=main)
+Amnos is a privacy-first hardened Android browser built on `WebView` for local-only sessions and zero durable browsing state. It prioritizes privacy over compatibility: no persistent cookies, no cache retention, aggressive tracker blocking, HTTPS-only upgrades, strict first-party isolation, and deterministic fingerprint silos scoped to the active session.
 
-**[Project Status]** Active | **[Type]** Hardened Android Browser | **[Focus]** Privacy, Security, Local-Only
+Amnos is not Tor, not a VPN, and not a custom browser engine. It reduces exposure inside Android WebView constraints; it does not provide network-layer anonymity against every observer.
 
-## 🔍 SEO & Project Metadata
+## Production posture
 
-| Attribute | Details |
-| :--- | :--- |
-| **Official Name** | Amnos |
-| **Category** | Privacy-focused Web Browser |
-| **Platform** | Android (API 34+) |
-| **Key Features** | Aggressive Tracker Blocking, WebRTC Isolation, Fingerprint Mitigation |
-| **Tech Stack** | Kotlin, WebView, JavaScript Injection |
+- Cleartext traffic disabled in the manifest and network security config
+- User-installed CAs trusted only through `debug-overrides`
+- Release builds no longer fall back to debug signing
+- Release APK generation is stable by default on normal developer machines; optional shrinking can be enabled with `-Pamnos.release.minify=true` on higher-memory builders
+- Remote WebView debugging and relaxed diagnostics locked behind debug-build guards
+- Navigation now routes through a tested resolver that applies the Search Dog heuristic before load
+- Address bar updates commit on successful top-level navigation instead of transient load state
+- `Set-Cookie` headers are stripped and WebView cookies are disabled
+- Session startup and teardown both purge WebView storage to limit crash-leftover persistence
+- Diagnostic logging is centralized through `AmnosLog` and surfaced in the in-app dashboard
 
----
+## Core modules
 
-Amnos is a privacy-focused Android browser built on top of `WebView` and hardened as far as the platform realistically allows. It is designed for local-only browsing sessions, zero persistent footprint, aggressive tracker blocking, and reduced browser fingerprint entropy.
+- `core/network`
+  Request classification, URL sanitization, navigation resolution, HTTPS-only enforcement, and proxy-backed fetch logic.
+- `core/session`
+  Tab lifecycle, GHOST wipe flow, volatile downloads, internal diagnostics, and loopback proxy orchestration.
+- `core/webview`
+  Hardened `WebView` settings plus the privacy-aware WebView and Chrome clients.
+- `core/fingerprint`
+  Deterministic device-profile generation and document-start API spoofing.
+- `ui`
+  Compose browser shell plus the Security Cockpit / diagnostics surface.
 
-Amnos does **not** provide Tor-class anonymity. It is a hardened WebView browser, not an anonymity network client.
+## Validation commands
 
-## Current privacy model
+Windows:
 
-Amnos now includes:
-
-- HTTPS-only navigation and cleartext denial
-- loopback proxy support for broader DoH coverage via `ProxyController` where supported
-- DoH-backed request proxying for intercepted traffic
-- WebRTC shutdown via document-start API replacement and fake peer connection objects
-- WebSocket blocking by default, with JS telemetry for attempted socket use
-- document-start fingerprint overrides for UA, screen, timezone, language, hardware, fonts, canvas, audio, and timing
-- RAM-only request inspection and active-connection visibility
-- strict first-party isolation that can rebuild the tab silo when top-level site identity changes
-- disabled cookies, storage, service workers, file chooser access, and persistent downloads
-- volatile internal-only download storage that is wiped with the session
-
-## Important limitation
-
-Amnos provides strong privacy protections, but **not full network anonymity**.
-
-Known WebView constraints include:
-
-- Chromium internals are still underneath the browser engine
-- not every network path is as controllable as in a custom browser engine
-- encrypted WebSocket payloads inside HTTPS tunnels cannot be deeply inspected without TLS interception
-- real anonymity against network observers still requires a separate anonymity layer such as Tor or a trusted VPN
-
-## Architecture highlights
-
-- [FingerprintManager.kt](app/src/main/kotlin/com/privacy/browser/core/fingerprint/FingerprintManager.kt)
-  deterministic per-session and per-tab identity generation
-- [FingerprintObfuscator.js](app/src/main/assets/FingerprintObfuscator.js)
-  document-start API overrides, timing mitigation, WebRTC shutdown, WebSocket telemetry
-- [NetworkSecurityManager.kt](app/src/main/kotlin/com/privacy/browser/core/network/NetworkSecurityManager.kt)
-  HTTPS-only policy, request classification, header hardening, site-key logic
-- [LoopbackProxyServer.kt](app/src/main/kotlin/com/privacy/browser/core/network/LoopbackProxyServer.kt)
-  local CONNECT proxy for broader DoH-backed resolution
-- [SessionManager.kt](app/src/main/kotlin/com/privacy/browser/core/session/SessionManager.kt)
-  policy ownership, loopback proxy activation, tab recreation, wipe behavior
-- [SecurityDashboard.kt](app/src/main/kotlin/com/privacy/browser/ui/components/SecurityDashboard.kt)
-  live status, counters, toggles, fingerprint mode, and visibility into active connections
-
-More detail lives in:
-
-- [ARCHITECTURE.md](ARCHITECTURE.md)
-- [SECURITY_AUDIT.md](SECURITY_AUDIT.md)
-- [VALIDATION.md](VALIDATION.md)
-
-## Build
-
-Requirements:
-
-- Android Studio Giraffe or newer
-- JDK 17
-- Android SDK for API 34
-
-Commands:
-
-```bash
-./gradlew testDebugUnitTest
-./gradlew assembleDebug
+```powershell
+.\gradlew.bat clean testDebugUnitTest lintDebug assembleRelease
 ```
 
-## Validation status
+Project verification script:
 
-Validated from this machine on April 10, 2026:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_build.ps1
+```
 
-- `./gradlew testDebugUnitTest` passed
+## Documentation map
 
-Not completed from this machine:
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [VALIDATION.md](VALIDATION.md)
+- [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md)
+- [docs/DIAGNOSTICS.md](docs/DIAGNOSTICS.md)
 
-- physical device validation
-- emulator-based leak testing
-- on-device WebRTC, DNS, and compatibility sweeps
+## Honest limits
 
-See [VALIDATION.md](VALIDATION.md) for the exact manual test plan and current gaps.
-
-## 🤝 Community & Support
-
-We welcome contributions from everyone! To keep our community healthy and welcoming, please follow our standards:
-
-- **[Contributing](CONTRIBUTING.md)**: Guidelines on how to help.
-- **[Code of Conduct](CODE_OF_CONDUCT.md)**: How we interact with each other.
-- **[Security Policy](SECURITY.md)**: How to report vulnerabilities.
-
-## ⚖️ License
-
-Amnos is released under the **[MIT License](LICENSE)**. See the `LICENSE` file for more details.
-
----
-*Amnos - Browsing without a trace.*
+- Some sites will break by design because Amnos disables cookies, strips tracking state, and blocks invasive browser capabilities.
+- Real leak validation still requires device or emulator testing against live WebRTC, DNS, and fingerprint test sites.
+- WebView and Android system behavior still define the ultimate trust boundary.
