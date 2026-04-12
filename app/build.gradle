@@ -97,6 +97,11 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+
+    tasks.withType(JavaCompile) {
+        options.compilerArgs << "-Xlint:-options"
+    }
+
     composeOptions {
         kotlinCompilerExtensionVersion '1.5.1'
     }
