@@ -11,9 +11,14 @@ import androidx.compose.ui.unit.dp
 import com.amnos.browser.ui.screens.browser.BrowserViewModel
 import com.amnos.browser.ui.theme.GlassBorder
 import com.amnos.browser.ui.theme.SurfaceGray
+import com.amnos.browser.ui.components.keyboard.KeyboardViewModel
 
 @Composable
-fun TopBrowsingBar(viewModel: BrowserViewModel, focusManager: androidx.compose.ui.focus.FocusManager) {
+fun TopBrowsingBar(
+    viewModel: BrowserViewModel,
+    keyboardViewModel: KeyboardViewModel,
+    focusManager: androidx.compose.ui.focus.FocusManager
+) {
     Surface(
         color = SurfaceGray.copy(alpha = 0.9f),
         modifier = Modifier
@@ -37,7 +42,7 @@ fun TopBrowsingBar(viewModel: BrowserViewModel, focusManager: androidx.compose.u
             ) {
                 TrackerBadge(viewModel)
                 Spacer(Modifier.width(12.dp))
-                AddressField(viewModel, focusManager, modifier = Modifier.weight(1f))
+                AddressField(viewModel, keyboardViewModel, focusManager, modifier = Modifier.weight(1f))
                 Spacer(Modifier.width(12.dp))
                 BurnSessionButton(viewModel)
             }

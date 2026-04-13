@@ -18,10 +18,11 @@ import com.amnos.browser.ui.utils.WindowSize
 import com.amnos.browser.ui.utils.rememberWindowSize
 import com.amnos.browser.ui.components.browser.BurnOverlay
 import com.amnos.browser.ui.components.browser.TopBrowsingBar
+import com.amnos.browser.ui.components.keyboard.KeyboardViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BrowsingView(viewModel: BrowserViewModel) {
+fun BrowsingView(viewModel: BrowserViewModel, keyboardViewModel: KeyboardViewModel) {
     val focusManager = LocalFocusManager.current
     val windowSize = rememberWindowSize()
     val isCompact = windowSize == WindowSize.COMPACT
@@ -29,7 +30,7 @@ fun BrowsingView(viewModel: BrowserViewModel) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopBrowsingBar(viewModel, focusManager)
+            TopBrowsingBar(viewModel, keyboardViewModel, focusManager)
         }
     ) { padding ->
         Box(modifier = Modifier

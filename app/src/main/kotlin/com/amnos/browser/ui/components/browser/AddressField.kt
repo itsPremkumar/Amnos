@@ -21,43 +21,50 @@ import com.amnos.browser.ui.theme.AccentBlue
 import com.amnos.browser.ui.theme.GlassWhite
 import com.amnos.browser.ui.theme.KillRed
 import com.amnos.browser.ui.theme.TextGray
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Alignment
+import com.amnos.browser.ui.components.keyboard.GhostTextField
+import com.amnos.browser.ui.components.keyboard.KeyboardViewModel
 
 @Composable
 fun AddressField(
     viewModel: BrowserViewModel,
+    keyboardViewModel: KeyboardViewModel,
     focusManager: androidx.compose.ui.focus.FocusManager,
     modifier: Modifier = Modifier
 ) {
-    TextField(
-        value = viewModel.urlInput.value,
-        onValueChange = { viewModel.urlInput.value = it },
-        modifier = modifier.height(50.dp),
-        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
-        placeholder = { Text("Search or type URL", fontSize = 14.sp, color = TextGray) },
-        singleLine = true,
-        shape = RoundedCornerShape(25.dp),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = GlassWhite,
-            unfocusedContainerColor = GlassWhite,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White.copy(alpha = 0.8f),
-            cursorColor = AccentBlue
-        ),
-        leadingIcon = {
+    Surface(
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(22.dp),
+        color = GlassWhite
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             val isHttps = viewModel.urlInput.value.startsWith("https")
             Icon(
                 imageVector = if (isHttps) Icons.Default.Lock else Icons.Default.LockOpen,
                 contentDescription = "Security",
                 tint = if (isHttps) AccentBlue else KillRed,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(14.dp)
             )
-        },
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = {
-            viewModel.navigate(viewModel.urlInput.value)
-            focusManager.clearFocus()
-        })
-    )
+            
+            Spacer(Modifier.width(12.dp))
+            
+            GhostTextField(
+                value = viewModel.urlInput.value,
+                onValueChange = { viewModel.urlInput.value = it },
+                keyboardViewModel = keyboardViewModel,
+                modifier = Modifier.weight(1f),
+                placeholder = "Search or type URL",
+                onSearch = {
+                    viewModel.navigate(viewModel.urlInput.value)
+                    focusManager.clearFocus()
+                }
+            )
+        }
+    }
 }

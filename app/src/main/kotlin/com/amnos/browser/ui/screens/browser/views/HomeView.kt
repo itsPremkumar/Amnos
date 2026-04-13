@@ -33,8 +33,11 @@ import com.amnos.browser.ui.theme.GlassWhite
 import com.amnos.browser.ui.utils.WindowSize
 import com.amnos.browser.ui.utils.rememberWindowSize
 
+import com.amnos.browser.ui.components.keyboard.GhostTextField
+import com.amnos.browser.ui.components.keyboard.KeyboardViewModel
+
 @Composable
-fun HomeView(viewModel: BrowserViewModel) {
+fun HomeView(viewModel: BrowserViewModel, keyboardViewModel: KeyboardViewModel) {
     val focusManager = LocalFocusManager.current
     val windowSize = rememberWindowSize()
 
@@ -42,15 +45,19 @@ fun HomeView(viewModel: BrowserViewModel) {
         val isExpanded = windowSize == WindowSize.EXPANDED
 
         if (isExpanded) {
-            HomeViewExpanded(viewModel, focusManager)
+            HomeViewExpanded(viewModel, keyboardViewModel, focusManager)
         } else {
-            HomeViewCompact(viewModel, focusManager)
+            HomeViewCompact(viewModel, keyboardViewModel, focusManager)
         }
     }
 }
 
 @Composable
-fun HomeViewCompact(viewModel: BrowserViewModel, focusManager: androidx.compose.ui.focus.FocusManager) {
+fun HomeViewCompact(
+    viewModel: BrowserViewModel,
+    keyboardViewModel: KeyboardViewModel,
+    focusManager: androidx.compose.ui.focus.FocusManager
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -62,7 +69,7 @@ fun HomeViewCompact(viewModel: BrowserViewModel, focusManager: androidx.compose.
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        AddressSearchBar(viewModel, focusManager)
+        AddressSearchBar(viewModel, keyboardViewModel, focusManager)
         
         Spacer(modifier = Modifier.height(32.dp))
         
@@ -71,7 +78,11 @@ fun HomeViewCompact(viewModel: BrowserViewModel, focusManager: androidx.compose.
 }
 
 @Composable
-fun HomeViewExpanded(viewModel: BrowserViewModel, focusManager: androidx.compose.ui.focus.FocusManager) {
+fun HomeViewExpanded(
+    viewModel: BrowserViewModel,
+    keyboardViewModel: KeyboardViewModel,
+    focusManager: androidx.compose.ui.focus.FocusManager
+) {
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -93,7 +104,7 @@ fun HomeViewExpanded(viewModel: BrowserViewModel, focusManager: androidx.compose
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            AddressSearchBar(viewModel, focusManager)
+            AddressSearchBar(viewModel, keyboardViewModel, focusManager)
             Spacer(modifier = Modifier.height(32.dp))
             SecurityStatusFooter()
         }
@@ -141,34 +152,42 @@ fun AppLogoSection() {
 }
 
 @Composable
-fun AddressSearchBar(viewModel: BrowserViewModel, focusManager: androidx.compose.ui.focus.FocusManager) {
-    OutlinedTextField(
-        value = viewModel.urlInput.value,
-        onValueChange = { viewModel.urlInput.value = it },
+fun AddressSearchBar(
+    viewModel: BrowserViewModel,
+    keyboardViewModel: KeyboardViewModel,
+    focusManager: androidx.compose.ui.focus.FocusManager
+) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
             .clip(RoundedCornerShape(32.dp))
             .background(GlassWhite)
-            .border(1.dp, GlassBorder, RoundedCornerShape(32.dp)),
-        placeholder = { Text("Search or enter secure URL", color = TextGray, fontSize = 16.sp) },
-        singleLine = true,
-        shape = RoundedCornerShape(32.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = AccentBlue.copy(alpha = 0.5f),
-            unfocusedBorderColor = Color.Transparent,
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White
-        ),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = {
-            viewModel.navigate(viewModel.urlInput.value)
-            focusManager.clearFocus()
-        }),
-        leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+            .border(1.dp, GlassBorder, RoundedCornerShape(32.dp))
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.Search,
+                contentDescription = null,
+                tint = AccentBlue,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            GhostTextField(
+                value = viewModel.urlInput.value,
+                onValueChange = { viewModel.urlInput.value = it },
+                keyboardViewModel = keyboardViewModel,
+                placeholder = "Search or enter secure URL",
+                modifier = Modifier.fillMaxWidth(),
+                onSearch = {
+                    viewModel.navigate(viewModel.urlInput.value)
+                    focusManager.clearFocus()
+                }
+            )
         }
-    )
+    }
 }
 
 @Composable
