@@ -1,4 +1,4 @@
-package com.privacy.browser.core.session
+package com.amnos.browser.core.session
 
 import android.content.ComponentCallbacks2
 import android.content.Context
@@ -10,7 +10,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowLog
-import com.privacy.browser.MainActivity
+import com.amnos.browser.MainActivity
 
 /**
  * Bug Condition Exploration Test for Excessive Memory Pressure Wipes

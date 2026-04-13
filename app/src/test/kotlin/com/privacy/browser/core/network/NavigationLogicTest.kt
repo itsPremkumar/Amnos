@@ -1,4 +1,4 @@
-package com.privacy.browser.core.network
+package com.amnos.browser.core.network
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

@@ -1,4 +1,4 @@
-package com.privacy.browser.core.session
+package com.amnos.browser.core.session
 
 import android.os.Build
 import android.os.Looper
@@ -10,7 +10,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowLog
 import org.robolectric.shadows.ShadowLooper
-import com.privacy.browser.MainActivity
+import com.amnos.browser.MainActivity
 
 /**
  * Bug Condition Exploration Test for Main Thread Performance Issues

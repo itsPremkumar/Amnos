@@ -1,4 +1,4 @@
-package com.privacy.browser.core.security
+package com.amnos.browser.core.security
 
 import android.content.ClipboardManager
 import android.content.Context
@@ -38,7 +38,7 @@ import org.robolectric.shadows.ShadowLog
  * - Android Version: 29+ (Android 10+)
  * - App has focus: false (backgrounded during onStop/onTrimMemory)
  * - Operation: ClipboardSentinel.wipe()
- * - System logs: "Denying clipboard access to com.privacy.browser"
+ * - System logs: "Denying clipboard access to com.amnos.browser"
  * - Current behavior: Exception is caught but system error is logged
  * - Expected behavior: Skip clipboard access gracefully without system errors
  */

@@ -1,4 +1,4 @@
-package com.privacy.browser.core.webview
+package com.amnos.browser.core.webview
 
 import android.content.Context
 import android.os.Build
@@ -10,10 +10,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowLog
-import com.privacy.browser.core.fingerprint.DeviceProfile
-import com.privacy.browser.core.fingerprint.ScriptInjector
-import com.privacy.browser.core.security.PrivacyPolicy
-import com.privacy.browser.core.security.FingerprintProtectionLevel
+import com.amnos.browser.core.fingerprint.DeviceProfile
+import com.amnos.browser.core.fingerprint.ScriptInjector
+import com.amnos.browser.core.security.PrivacyPolicy
+import com.amnos.browser.core.security.FingerprintProtectionLevel
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -185,7 +185,7 @@ class JavaScriptRuntimeErrorTest {
             timeZone = "America/New_York",
             timezoneOffsetMinutes = -300,
             noiseSeed = 12345,
-            screen = com.privacy.browser.core.fingerprint.ScreenSpecs(
+            screen = com.amnos.browser.core.fingerprint.ScreenSpecs(
                 width = 1080,
                 height = 2400,
                 availWidth = 1080,
@@ -213,11 +213,11 @@ class JavaScriptRuntimeErrorTest {
             blockPreconnect = true,
             blockEval = true,
             blockServiceWorkers = true,
-            webGlMode = com.privacy.browser.core.security.WebGlMode.DISABLED,
+            webGlMode = com.amnos.browser.core.security.WebGlMode.DISABLED,
             strictFirstPartyIsolation = true,
             fingerprintProtectionLevel = FingerprintProtectionLevel.STRICT,
             forceRelaxSecurityForDebug = false,
-            javascriptMode = com.privacy.browser.core.security.JavaScriptMode.FULL
+            javascriptMode = com.amnos.browser.core.security.JavaScriptMode.FULL
         )
     }
 }

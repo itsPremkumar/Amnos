@@ -1,4 +1,4 @@
-package com.privacy.browser.core.webview
+package com.amnos.browser.core.webview
 
 import android.content.Context
 import android.os.Build

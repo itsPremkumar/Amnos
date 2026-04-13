@@ -1,6 +1,6 @@
-package com.privacy.browser.core.fingerprint
+package com.amnos.browser.core.fingerprint
 
-import com.privacy.browser.core.security.FingerprintProtectionLevel
+import com.amnos.browser.core.security.FingerprintProtectionLevel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue

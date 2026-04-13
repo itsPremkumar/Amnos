@@ -4,7 +4,7 @@ apply plugin: 'kotlin-android'
 def enableReleaseMinify = project.findProperty("amnos.release.minify")?.toString()?.toBoolean() ?: false
 
 android {
-    namespace 'com.privacy.browser'
+    namespace 'com.amnos.browser'
     compileSdk 34
 
     lint {
@@ -19,7 +19,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.privacy.browser"
+        applicationId "com.amnos.browser"
         minSdk 28
         targetSdk 34
         versionCode 1

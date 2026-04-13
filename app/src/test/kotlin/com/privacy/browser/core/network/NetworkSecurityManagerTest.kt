@@ -1,8 +1,8 @@
-package com.privacy.browser.core.network
+package com.amnos.browser.core.network
 
 import android.content.Context
-import com.privacy.browser.core.adblock.AdBlocker
-import com.privacy.browser.core.security.PrivacyPolicy
+import com.amnos.browser.core.adblock.AdBlocker
+import com.amnos.browser.core.security.PrivacyPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
