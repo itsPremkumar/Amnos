@@ -3,6 +3,8 @@ package com.amnos.browser.core.webview
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputConnection
 import android.webkit.CookieManager
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -30,6 +32,27 @@ class SecureWebView(context: Context) : WebView(context) {
     override fun destroy() {
         isDecommissioned = true
         super.destroy()
+    }
+
+    override fun onCreateInputConnection(outAttrs: EditorInfo?): InputConnection? {
+        AmnosLog.d("SecureWebView", "onCreateInputConnection requested. EditorInfo: actionLabel=${outAttrs?.actionLabel}, actionId=${outAttrs?.actionId}")
+        // AMNOS HARDENED INPUT: Rejection of system IME to prevent keystroke leakage
+        return null
+    }
+
+    override fun onCheckIsTextEditor(): Boolean {
+        AmnosLog.d("SecureWebView", "onCheckIsTextEditor called. Returning FALSE.")
+        // AMNOS HARDENED INPUT: Tell the system this is not a text editor
+        return false
+    }
+
+    override fun onFocusChanged(focused: Boolean, direction: Int, previouslyFocusedRect: android.graphics.Rect?) {
+        super.onFocusChanged(focused, direction, previouslyFocusedRect)
+        AmnosLog.d("SecureWebView", "onFocusChanged: focused=$focused")
+        if (focused) {
+            val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+            imm?.hideSoftInputFromWindow(windowToken, 0)
+        }
     }
 
     @Suppress("DEPRECATION")
@@ -86,6 +109,29 @@ class SecureWebView(context: Context) : WebView(context) {
         applyHardening(profile, policy, injectionScript, onSecurityEvent)
     }
 
+    fun injectInput(text: String) {
+        val escaped = text.replace("'", "\\'")
+        evaluateJavascript("document.execCommand('insertText', false, '$escaped')", null)
+    }
+
+    fun injectBackspace() {
+        evaluateJavascript("document.execCommand('delete', false, null)", null)
+    }
+
+    fun injectSearch() {
+        evaluateJavascript("""
+            (function() {
+                const active = document.activeElement;
+                if (!active) return;
+                const event = new KeyboardEvent('keydown', {
+                    key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true
+                });
+                active.dispatchEvent(event);
+                if (active.form) active.form.submit();
+            })();
+        """.trimIndent(), null)
+    }
+
     fun injectFallbackScript() {
         if (scriptHandler == null && settings.javaScriptEnabled) {
             fallbackInjectionScript?.let { evaluateJavascript(it, null) }
@@ -121,10 +167,31 @@ class SecureWebView(context: Context) : WebView(context) {
             return
         }
 
+        val focusSentinel = """
+            (function() {
+                const notify = (action) => {
+                    if (window.amnosBridge) {
+                        window.amnosBridge.postMessage(JSON.stringify({ type: 'keyboard_event', action: action }));
+                    }
+                };
+                window.addEventListener('focusin', (e) => {
+                    const el = e.target;
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable) {
+                        notify('show');
+                    }
+                });
+                window.addEventListener('focusout', (e) => {
+                    notify('hide');
+                });
+            })();
+        """.trimIndent()
+
+        val fullScript = injectionScript + "\n" + focusSentinel
+
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
             scriptHandler = WebViewCompat.addDocumentStartJavaScript(
                 this,
-                injectionScript,
+                fullScript,
                 setOf("*")
             )
         }

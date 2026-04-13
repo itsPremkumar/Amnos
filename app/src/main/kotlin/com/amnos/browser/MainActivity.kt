@@ -11,6 +11,11 @@ import com.amnos.browser.ui.screens.browser.BrowserScreen
 import com.amnos.browser.ui.screens.browser.BrowserViewModel
 import com.amnos.browser.ui.theme.PrivacyBrowserTheme
 import androidx.lifecycle.lifecycleScope
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.WindowInsetsCompat
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -138,5 +143,34 @@ class MainActivity : ComponentActivity() {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             AmnosLog.d("MainActivity", "Screenshot protection DISABLED (via policy)")
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        setupGlobalKeyboardKiller()
+    }
+
+    private fun setupGlobalKeyboardKiller() {
+        val rootView = window.decorView.rootView
+        rootView.viewTreeObserver.addOnGlobalLayoutListener {
+            val controller = WindowInsetsControllerCompat(window, rootView)
+            val isImeVisible = androidx.core.view.ViewCompat.getRootWindowInsets(rootView)
+                ?.isVisible(WindowInsetsCompat.Type.ime()) == true
+            
+            if (isImeVisible) {
+                AmnosLog.w("AmnosKeyboardKiller", "SYSTEM IME DETECTED! Force-hiding Gboard/System keyboard.")
+                controller.hide(WindowInsetsCompat.Type.ime())
+            }
+        }
+    }
+
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
+        // Log deep touch events for diagnostics if keyboard is visible
+        val isImeVisible = androidx.core.view.ViewCompat.getRootWindowInsets(window.decorView)
+            ?.isVisible(WindowInsetsCompat.Type.ime()) == true
+        if (isImeVisible) {
+            AmnosLog.d("MainActivity", "Touch detected while IME visible. Coordinates: ${ev?.x}, ${ev?.y}")
+        }
+        return super.dispatchTouchEvent(ev)
     }
 }

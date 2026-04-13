@@ -26,6 +26,23 @@ fun BrowsingView(viewModel: BrowserViewModel, keyboardViewModel: KeyboardViewMod
     val focusManager = LocalFocusManager.current
     val windowSize = rememberWindowSize()
     val isCompact = windowSize == WindowSize.COMPACT
+    val webKeyboardRequested by viewModel.webKeyboardRequested
+
+    LaunchedEffect(webKeyboardRequested) {
+        if (webKeyboardRequested) {
+            keyboardViewModel.show(
+                onInput = { viewModel.injectWebInput(it) },
+                onBackspace = { viewModel.injectWebBackspace() },
+                onSearch = { viewModel.injectWebSearch() }
+            )
+        } else {
+            // Only hide if the keyboard was actually triggered by web focus
+            // (prevents hiding when address bar focus triggers it)
+            if (keyboardViewModel.isVisible.value) {
+                keyboardViewModel.hide()
+            }
+        }
+    }
 
     Scaffold(
         containerColor = Color.Transparent,

@@ -98,7 +98,8 @@ class SessionManager(private val context: Context) {
         onTrackerBlocked: () -> Unit,
         onNavigationRequested: (String) -> Boolean,
         onNavigationCommitted: (String) -> Unit,
-        onNavigationFailed: (String?) -> Unit
+        onNavigationFailed: (String?) -> Unit,
+        onKeyboardRequested: (show: Boolean) -> Unit
     ): TabInstance {
         AmnosLog.d("SessionManager", "Creating new tab instance")
         val tabId = FingerprintManager.newTabId()
@@ -113,7 +114,9 @@ class SessionManager(private val context: Context) {
         val finalScript = buildInjectionScript(profile)
 
         AmnosLog.d("SessionManager", "Applying hardening to WebView")
-        webView.applyHardening(profile, privacyPolicy, finalScript, ::handleSecurityEvent)
+        webView.applyHardening(profile, privacyPolicy, finalScript) { rawMessage ->
+            handleSecurityEvent(rawMessage, onKeyboardRequested)
+        }
         webView.resumeTimers()
 
         webView.setDownloadListener { url, _, _, _, _ ->
@@ -157,7 +160,8 @@ class SessionManager(private val context: Context) {
         onTrackerBlocked: () -> Unit,
         onNavigationRequested: (String) -> Boolean,
         onNavigationCommitted: (String) -> Unit,
-        onNavigationFailed: (String?) -> Unit
+        onNavigationFailed: (String?) -> Unit,
+        onKeyboardRequested: (show: Boolean) -> Unit
     ): TabInstance {
         val previousUrl = tab.currentUrl
         val previousIndex = tabs.indexOf(tab).coerceAtLeast(0)
@@ -168,7 +172,8 @@ class SessionManager(private val context: Context) {
             onTrackerBlocked = onTrackerBlocked,
             onNavigationRequested = onNavigationRequested,
             onNavigationCommitted = onNavigationCommitted,
-            onNavigationFailed = onNavigationFailed
+            onNavigationFailed = onNavigationFailed,
+            onKeyboardRequested = onKeyboardRequested
         )
         tabs.remove(replacement)
         tabs.add(previousIndex.coerceAtMost(tabs.size), replacement)
@@ -327,10 +332,14 @@ class SessionManager(private val context: Context) {
         }
     }
 
-    private fun handleSecurityEvent(rawMessage: String) {
+    private fun handleSecurityEvent(rawMessage: String, onKeyboardRequested: ((Boolean) -> Unit)? = null) {
         try {
             val payload = JSONObject(rawMessage)
             when (payload.optString("type")) {
+                "keyboard_event" -> {
+                    val action = payload.optString("action")
+                    onKeyboardRequested?.invoke(action == "show")
+                }
                 "webrtc" -> {
                     securityController.recordWebRtcAttempt(
                         detail = payload.optString("detail", "webrtc"),

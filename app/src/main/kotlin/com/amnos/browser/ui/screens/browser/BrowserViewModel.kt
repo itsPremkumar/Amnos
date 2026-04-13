@@ -93,6 +93,13 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         pendingAddressBarValue = null
     }
 
+    internal val keyboardRequestedCallback: (Boolean) -> Unit = { show ->
+        AmnosLog.d("BrowserViewModel", "WebView keyboard requested: $show")
+        webKeyboardRequested.value = show
+    }
+
+    var webKeyboardRequested = mutableStateOf(false)
+
     init {
         AmnosLog.d("BrowserViewModel", "Initializing BrowserViewModel")
         sessionManager.registerTimeoutListener {
@@ -113,9 +120,10 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
                 onStateChanged = stateChangedCallback,
                 onProgressChanged = progressChangedCallback,
                 onTrackerBlocked = trackerBlockedCallback,
-                onNavigationRequested = navHandler::handleMainFrameNavigation,
+                onNavigationRequested = { navHandler.handleMainFrameNavigation(it) },
                 onNavigationCommitted = navigationCommittedCallback,
-                onNavigationFailed = navigationFailedCallback
+                onNavigationFailed = navigationFailedCallback,
+                onKeyboardRequested = keyboardRequestedCallback
             )
             currentTab.value = tab
             sessionLabel.value = sessionManager.sessionId.take(8)
@@ -150,6 +158,18 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     fun goForward() = navHandler.goForward()
     fun goHome() = navHandler.goHome()
     fun reload() = navHandler.reload()
+
+    fun injectWebInput(text: String) {
+        currentTab.value?.webView?.injectInput(text)
+    }
+
+    fun injectWebBackspace() {
+        currentTab.value?.webView?.injectBackspace()
+    }
+
+    fun injectWebSearch() {
+        currentTab.value?.webView?.injectSearch()
+    }
 
     fun killSwitch() {
         viewModelScope.launch {
@@ -191,9 +211,10 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
                 onStateChanged = stateChangedCallback,
                 onProgressChanged = progressChangedCallback,
                 onTrackerBlocked = trackerBlockedCallback,
-                onNavigationRequested = navHandler::handleMainFrameNavigation,
+                onNavigationRequested = { navHandler.handleMainFrameNavigation(it) },
                 onNavigationCommitted = navigationCommittedCallback,
-                onNavigationFailed = navigationFailedCallback
+                onNavigationFailed = navigationFailedCallback,
+                onKeyboardRequested = keyboardRequestedCallback
             )
         }
     }

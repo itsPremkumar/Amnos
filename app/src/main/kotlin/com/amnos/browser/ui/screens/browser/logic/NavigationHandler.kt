@@ -80,9 +80,10 @@ class NavigationHandler(
                 onStateChanged = viewModel.stateChangedCallback,
                 onProgressChanged = viewModel.progressChangedCallback,
                 onTrackerBlocked = viewModel.trackerBlockedCallback,
-                onNavigationRequested = ::handleMainFrameNavigation,
+                onNavigationRequested = { handleMainFrameNavigation(it) },
                 onNavigationCommitted = viewModel.navigationCommittedCallback,
-                onNavigationFailed = viewModel.navigationFailedCallback
+                onNavigationFailed = viewModel.navigationFailedCallback,
+                onKeyboardRequested = viewModel.keyboardRequestedCallback
             ).also { viewModel.currentTab.value = it }
         } else {
             current

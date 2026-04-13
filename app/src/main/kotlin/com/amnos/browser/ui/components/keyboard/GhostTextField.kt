@@ -101,6 +101,7 @@ fun GhostTextField(
         },
         modifier = modifier.onFocusChanged { focusState ->
             if (focusState.isFocused) {
+                com.amnos.browser.core.session.AmnosLog.d("GhostTextField", "Focused! Suppressing Gboard and showing Ghost Keyboard.")
                 keyboardController?.hide()
                 keyboardViewModel.show(
                     onInput = onInput,
