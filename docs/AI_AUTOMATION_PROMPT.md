@@ -37,7 +37,7 @@ Amnos features a built-in **Diagnostic Suite**:
 
 ## 📂 Project Structure Registry
 Amnos follows a strict domain-driven architecture:
-- `app/src/main/kotlin/com/privacy/browser/`:
+- `app/src/main/kotlin/com.amnos.browser/`:
     - `core/adblock/`: Ad-blocking and tracker list management.
     - `core/fingerprint/`: JS injection and identity silo generation.
     - `core/network/`: Sanitization, classification, and loopback proxy logic.

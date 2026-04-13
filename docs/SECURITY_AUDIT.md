@@ -41,9 +41,9 @@ Impact:
 
 Implemented in:
 
-- [DnsManager.kt](app/src/main/kotlin/com/privacy/browser/core/network/DnsManager.kt)
-- [LoopbackProxyServer.kt](app/src/main/kotlin/com/privacy/browser/core/network/LoopbackProxyServer.kt)
-- [SessionManager.kt](app/src/main/kotlin/com/privacy/browser/core/session/SessionManager.kt)
+- [DnsManager.kt](app/src/main/kotlin/com.amnos.browser/core/network/DnsManager.kt)
+- [LoopbackProxyServer.kt](app/src/main/kotlin/com.amnos.browser/core/network/LoopbackProxyServer.kt)
+- [SessionManager.kt](app/src/main/kotlin/com.amnos.browser/core/session/SessionManager.kt)
 
 What changed:
 
@@ -67,7 +67,7 @@ Remaining limit:
 Implemented in:
 
 - [FingerprintObfuscator.js](app/src/main/assets/FingerprintObfuscator.js)
-- [SecurityController.kt](app/src/main/kotlin/com/privacy/browser/core/session/SecurityController.kt)
+- [SecurityController.kt](app/src/main/kotlin/com.amnos.browser/core/session/SecurityController.kt)
 
 What changed:
 
@@ -85,8 +85,8 @@ Remaining limit:
 
 Implemented in:
 
-- [FingerprintManager.kt](app/src/main/kotlin/com/privacy/browser/core/fingerprint/FingerprintManager.kt)
-- [ScriptInjector.kt](app/src/main/kotlin/com/privacy/browser/core/fingerprint/ScriptInjector.kt)
+- [FingerprintManager.kt](app/src/main/kotlin/com.amnos.browser/core/fingerprint/FingerprintManager.kt)
+- [ScriptInjector.kt](app/src/main/kotlin/com.amnos.browser/core/fingerprint/ScriptInjector.kt)
 - [FingerprintObfuscator.js](app/src/main/assets/FingerprintObfuscator.js)
 
 What changed:
@@ -101,9 +101,9 @@ What changed:
 
 Implemented in:
 
-- [NetworkSecurityManager.kt](app/src/main/kotlin/com/privacy/browser/core/network/NetworkSecurityManager.kt)
-- [SessionManager.kt](app/src/main/kotlin/com/privacy/browser/core/session/SessionManager.kt)
-- [BrowserViewModel.kt](app/src/main/kotlin/com/privacy/browser/ui/screens/browser/BrowserViewModel.kt)
+- [NetworkSecurityManager.kt](app/src/main/kotlin/com.amnos.browser/core/network/NetworkSecurityManager.kt)
+- [SessionManager.kt](app/src/main/kotlin/com.amnos.browser/core/session/SessionManager.kt)
+- [BrowserViewModel.kt](app/src/main/kotlin/com.amnos.browser/ui/screens/browser/BrowserViewModel.kt)
 
 What changed:
 
@@ -117,7 +117,7 @@ Impact:
 
 ### 6. Download and file leak protection
 
-Implemented in [StorageController.kt](app/src/main/kotlin/com/privacy/browser/core/session/StorageController.kt):
+Implemented in [StorageController.kt](app/src/main/kotlin/com.amnos.browser/core/session/StorageController.kt):
 
 - downloads stay in the app’s internal cache area
 - external app opening is not triggered by the browser
@@ -125,7 +125,7 @@ Implemented in [StorageController.kt](app/src/main/kotlin/com/privacy/browser/co
 
 ### 7. Dashboard and transparency
 
-Updated [SecurityDashboard.kt](app/src/main/kotlin/com/privacy/browser/ui/components/SecurityDashboard.kt) to show:
+Updated [SecurityDashboard.kt](app/src/main/kotlin/com.amnos.browser/ui/components/SecurityDashboard.kt) to show:
 
 - proxy status
 - DoH status
@@ -161,9 +161,9 @@ Executed successfully on April 10, 2026:
 
 Unit coverage now includes:
 
-- [FingerprintManagerTest.kt](app/src/test/kotlin/com/privacy/browser/core/fingerprint/FingerprintManagerTest.kt)
-- [UrlSanitizerTest.kt](app/src/test/kotlin/com/privacy/browser/core/network/UrlSanitizerTest.kt)
-- [NetworkSecurityManagerTest.kt](app/src/test/kotlin/com/privacy/browser/core/network/NetworkSecurityManagerTest.kt)
+- [FingerprintManagerTest.kt](app/src/test/kotlin/com.amnos.browser/core/fingerprint/FingerprintManagerTest.kt)
+- [UrlSanitizerTest.kt](app/src/test/kotlin/com.amnos.browser/core/network/UrlSanitizerTest.kt)
+- [NetworkSecurityManagerTest.kt](app/src/test/kotlin/com.amnos.browser/core/network/NetworkSecurityManagerTest.kt)
 
 ## Validation not completed from this machine
 

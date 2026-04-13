@@ -6,7 +6,7 @@
 # ============================================================================
 
 # Keep application class
--keep class com.privacy.browser.** { *; }
+-keep class com.amnos.browser.** { *; }
 
 # Obfuscation settings
 -repackageclasses ''
@@ -79,12 +79,12 @@
 -keep class androidx.webkit.** { *; }
 
 # Keep BuildConfig
--keep class com.privacy.browser.BuildConfig { *; }
+-keep class com.amnos.browser.BuildConfig { *; }
 
 # Anti-tampering: Keep security-critical classes from being renamed
--keep class com.privacy.browser.core.security.** { *; }
--keep class com.privacy.browser.core.fingerprint.** { *; }
--keep class com.privacy.browser.core.network.NetworkSecurityManager { *; }
+-keep class com.amnos.browser.core.security.** { *; }
+-keep class com.amnos.browser.core.fingerprint.** { *; }
+-keep class com.amnos.browser.core.network.NetworkSecurityManager { *; }
 
 # Remove debug information
 -renamesourcefileattribute SourceFile

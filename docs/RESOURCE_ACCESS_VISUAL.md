@@ -139,7 +139,7 @@ Survives: App restart, device reboot
 
 ### Amnos:
 ```
-/data/data/com.privacy.browser/
+/data/data/com.amnos.browser/
 ├── Cookies:          ❌ Disabled
 ├── localStorage:     ❌ Blocked
 ├── indexedDB:        ❌ Blocked

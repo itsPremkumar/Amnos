@@ -55,8 +55,8 @@ This document details **exactly** what device resources, sensors, and informatio
 
 ### 5. **Storage (Internal)** ✅ MINIMAL
 **What it accesses:**
-- App private directory: `/data/data/com.privacy.browser/`
-- WebView data directory: `/data/data/com.privacy.browser/app_webview/`
+- App private directory: `/data/data/com.amnos.browser/`
+- WebView data directory: `/data/data/com.amnos.browser/app_webview/`
 - Temporary cache (RAM-only when possible)
 
 **Why:** To store app code and temporary data  
@@ -70,7 +70,7 @@ This document details **exactly** what device resources, sensors, and informatio
 
 **Storage location:**
 ```
-/data/data/com.privacy.browser/
+/data/data/com.amnos.browser/
 ├── app_webview/          (WebView temporary data - wiped)
 ├── cache/                (App cache - wiped)
 ├── code_cache/           (Compiled code)
@@ -363,7 +363,7 @@ safeBrowsingEnabled = true               // Google Safe Browsing ON
 
 ### What Gets Stored:
 ```
-/data/data/com.privacy.browser/
+/data/data/com.amnos.browser/
 ├── app_webview/
 │   ├── Cache/              → WIPED on app close
 │   ├── Cookies/            → DISABLED (empty)

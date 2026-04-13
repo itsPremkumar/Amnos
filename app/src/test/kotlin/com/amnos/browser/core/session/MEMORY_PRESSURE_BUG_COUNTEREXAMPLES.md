@@ -35,7 +35,7 @@
 4. **No evaluation logic**: No check if wipe is actually necessary
 
 ### Code Location
-- **File**: `app/src/main/kotlin/com/privacy/browser/MainActivity.kt`
+- **File**: `app/src/main/kotlin/com.amnos.browser/MainActivity.kt`
 - **Method**: `onTrimMemory(level: Int)`
 - **Current code**:
 ```kotlin

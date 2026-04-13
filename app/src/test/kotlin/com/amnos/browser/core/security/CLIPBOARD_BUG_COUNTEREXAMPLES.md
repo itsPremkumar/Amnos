@@ -19,7 +19,7 @@
 
 **Actual Behavior**:
 - System denies clipboard access
-- System logs: "Denying clipboard access to com.privacy.browser"
+- System logs: "Denying clipboard access to com.amnos.browser"
 - Exception is caught by try-catch in ClipboardSentinel
 - App continues but system error is logged
 
@@ -38,7 +38,7 @@
 
 **Actual Behavior**:
 - System denies clipboard access
-- System logs: "Denying clipboard access to com.privacy.browser"
+- System logs: "Denying clipboard access to com.amnos.browser"
 - Exception is caught but system error is logged repeatedly
 
 **Expected Behavior**:
