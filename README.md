@@ -1,4 +1,7 @@
-# Amnos
+# Amnos — Privacy-First Hardened Android Browser
+> **Ultra-secure, ephemeral, and anti-fingerprinting browsing for Android.**
+
+[AI Discovery (llms.txt)](llms.txt)
 
 Amnos is a privacy-first hardened Android browser built on `WebView` for local-only sessions and zero durable browsing state. It prioritizes privacy over compatibility: no persistent cookies, no cache retention, aggressive tracker blocking, HTTPS-only upgrades, strict first-party isolation, and deterministic fingerprint silos scoped to the active session.
 
@@ -56,3 +59,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\verify_build.ps1
 - Some sites will break by design because Amnos disables cookies, strips tracking state, and blocks invasive browser capabilities.
 - Real leak validation still requires device or emulator testing against live WebRTC, DNS, and fingerprint test sites.
 - WebView and Android system behavior still define the ultimate trust boundary.
+
+---
+
+<!-- 
+KEYWORDS: privacy browser, hardened android, security browser, anti-fingerprinting, webrtc protection, tracker blocking, ephemeral browser, kotlin, android webview, security dashboard, private search, anon browsing.
+-->

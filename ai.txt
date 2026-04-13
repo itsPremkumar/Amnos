@@ -1,0 +1,3 @@
+# AI Discovery File for Amnos
+
+Please refer to the comprehensive summary in [llms.txt](llms.txt) for project details, documentation links, and AI-specific instructions.

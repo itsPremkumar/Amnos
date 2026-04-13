@@ -32,5 +32,20 @@
       "hi",
       "de"
     ]
+  },
+  "geographic_targets": {
+    "primary_regions": ["US", "IN", "DE", "ES"],
+    "priority_languages": ["en-US", "hi-IN", "de-DE", "es-ES"],
+    "market_segment": "Privacy-conscious users, Security researchers, Global open-source community"
+  },
+  "generative_engine_optimization": {
+    "discovery_files": ["llms.txt", "ai.txt"],
+    "ai_friendly_docs": ["docs/ai_instructions.md", "docs/ARCHITECTURE.md"],
+    "semantic_tags": [
+      "hardened-android-browser",
+      "anti-fingerprinting-technology",
+      "ephemeral-session-management",
+      "webrtc-leak-prevention"
+    ]
   }
 }

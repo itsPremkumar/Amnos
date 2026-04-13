@@ -1,4 +1,6 @@
 <resources>
     <string name="app_name">Amnos</string>
     <string name="app_short_description">Datenschutzorientierter, gehärteter Android-Browser.</string>
+    <string name="app_full_description">Amnos ist ein datenschutzorientierter, gehärteter Android-Browser, der auf WebView basiert.</string>
+    <string name="app_keywords">Datenschutz, Sicherheit, gehärtet, Browser, Android, Anti-Fingerprinting</string>
 </resources>

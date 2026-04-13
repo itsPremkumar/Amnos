@@ -1,0 +1,19 @@
+# robots.txt for Amnos
+
+User-agent: *
+Allow: /
+Allow: /docs/
+Allow: /README.md
+
+# Specific bots for AI crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+# Sitemap (if GitHub Pages is enabled later)
+# Sitemap: https://itsPremkumar.github.io/Amnos/sitemap.xml

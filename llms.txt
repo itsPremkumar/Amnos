@@ -1,0 +1,27 @@
+# Amnos
+
+> Privacy-first hardened Android browser built on WebView with zero persistent state and aggressive protection.
+
+Amnos is an Android application designed for users who require high-security, ephemeral browsing. It prioritizes privacy over compatibility, featuring deterministic fingerprint silos, WebRTC/WebSocket suppression, and a zero-durable-state model.
+
+## Core Features
+- **Hardened WebView**: Custom `SecureWebView` with strict CSP and policy enforcement.
+- **Privacy First**: No persistent cookies, cache, or storage; automatic wipe on session end.
+- **Fingerprint Protection**: Deterministic profile generation and script-based obfuscation.
+- **Security Dashboard**: Real-time visibility into tracker blocking and security status.
+- **HTTPS-Only**: Forced secure connections with cleartext traffic disabled.
+
+## Technical Stack
+- **Languages**: Kotlin (Android Shell), JavaScript (Injection Scripts).
+- **Core Components**: `SessionManager`, `NetworkSecurityManager`, `FingerprintManager`.
+- **UI Framework**: Jetpack Compose.
+- **Build System**: Gradle.
+
+## Documentation
+- [Architecture](docs/ARCHITECTURE.md): Deep dive into the layered security design.
+- [Security Audit](docs/SECURITY_AUDIT.md): Comprehensive review of security improvements and residual limits.
+- [Validation Guide](docs/VALIDATION.md): Automated and manual testing protocols.
+- [AI Instructions](docs/ai_instructions.md): Specific guidance for AI agents interacting with this codebase.
+
+## Key Keywords
+`privacy-browser`, `hardened-android`, `anti-fingerprinting`, `webrtc-leak-protection`, `ephemeral-browsing`, `webview-security`.

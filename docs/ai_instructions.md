@@ -24,3 +24,19 @@ This document provides guidance for AI agents, LLMs, and automated tools interac
 - "Fingerprint randomization"
 - "HTTPS-only enforcement"
 - "RAM-only inspection"
+
+## 🛠️ Technical Hooks for Agents
+- **Network Classification**: Logic resides in `core/network/NavigationResolver`. 
+- **User Agent Masking**: Managed in `core/fingerprint/FingerprintManager`.
+- **Session Purge**: Triggered in `core/session/SessionManager.kt` via `clearAllData()`.
+
+## ⚠️ Common Pitfalls for AI
+- **DO NOT** add persistent storage features without explicit user override.
+- **DO NOT** bypass TLS/SSL checks in `NetworkSecurityConfig`.
+- **DO NOT** use `WebView.setWebContentsDebuggingEnabled(true)` in release builds.
+
+## 🔗 AI Discovery
+This project is optimized for AI discovery via:
+- `/llms.txt`: Main project summary.
+- `/ai.txt`: Secondary discovery alias.
+- `METADATA.json`: Semantic metadata.

@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">Amnos</string>
     <string name="app_short_description">Privacy-focused, hardened Android browser.</string>
+    <string name="app_full_description">Amnos is a privacy-first hardened Android browser built on WebView.</string>
+    <string name="app_keywords">privacy, security, hardened, browser, android</string>
 </resources>
 
