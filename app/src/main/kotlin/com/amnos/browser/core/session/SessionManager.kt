@@ -273,11 +273,13 @@ class SessionManager(private val context: Context) {
         touchSession()
     }
 
-    fun killAll(terminateProcess: Boolean = false) {
-        AmnosLog.d("SessionManager", "AMNOS GHOST WIPE ACTIVATED (terminateProcess=$terminateProcess)")
+    fun killAll(terminateProcess: Boolean = false, wipeClipboard: Boolean = true) {
+        AmnosLog.d("SessionManager", "AMNOS GHOST WIPE ACTIVATED (terminateProcess=$terminateProcess, wipeClipboard=$wipeClipboard)")
         mainHandler.removeCallbacks(timeoutRunnable)
 
-        storageService.wipeClipboard()
+        if (wipeClipboard) {
+            storageService.wipeClipboard()
+        }
         storageService.clearVolatileDownloads()
         securityController.clearLog()
 

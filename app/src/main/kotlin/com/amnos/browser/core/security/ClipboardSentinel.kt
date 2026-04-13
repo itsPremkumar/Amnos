@@ -16,15 +16,18 @@ object ClipboardSentinel {
         try {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             
-            // On Android 10+ (API 29), we can only access the clipboard if we have focus.
-            // Since this is often called during backgrounding/memory trim, we expect it might fail.
-            // We use a silent check to avoid cluttering logs with system errors.
-            if (android.os.Build.VERSION.SDK_INT >= 29) {
-                // We attempt to set it; if it fails due to focus, we catch it below.
-                clipboard.setPrimaryClip(ClipData.newPlainText("", ""))
-            } else {
-                clipboard.setPrimaryClip(ClipData.newPlainText("", ""))
+            // On Android 13+ (API 33), we can hint to the system that this is sensitive
+            // to suppress the visual preview (the "Copied" text preview).
+            val clipData = ClipData.newPlainText("", "")
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                val extras = android.os.PersistableBundle().apply {
+                    putBoolean("android.content.extra.IS_SENSITIVE", true)
+                }
+                clipData.description.extras = extras
             }
+
+            // On Android 10+ (API 29), we can only access the clipboard if we have focus.
+            clipboard.setPrimaryClip(clipData)
             AmnosLog.d("ClipboardSentinel", "Forensic clipboard scrub successful.")
         } catch (e: Exception) {
             // Silently skip if denied due to focus; this is expected on modern Android when backgrounded.

@@ -122,16 +122,16 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         if (::sessionManager.isInitialized && !isChangingConfigurations) {
-            AmnosLog.d("MainActivity", "Idle wipe triggered: application moved to background.")
-            sessionManager.killAll(terminateProcess = false)
+            AmnosLog.d("MainActivity", "Idle wipe triggered: application moved to background (Clipboard retained for UX).")
+            sessionManager.killAll(terminateProcess = false, wipeClipboard = false)
         }
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (::sessionManager.isInitialized && level >= TRIM_MEMORY_UI_HIDDEN && !isChangingConfigurations) {
-            AmnosLog.d("MainActivity", "Memory pressure wipe triggered.")
-            sessionManager.killAll(terminateProcess = false)
+            AmnosLog.d("MainActivity", "Memory pressure wipe triggered (Clipboard retained for UX).")
+            sessionManager.killAll(terminateProcess = false, wipeClipboard = false)
         }
     }
 
