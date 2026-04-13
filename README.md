@@ -46,8 +46,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\verify_build.ps1
 
 ## Documentation map
 
-- [ARCHITECTURE.md](ARCHITECTURE.md)
-- [VALIDATION.md](VALIDATION.md)
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [VALIDATION.md](docs/VALIDATION.md)
 - [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md)
 - [docs/DIAGNOSTICS.md](docs/DIAGNOSTICS.md)
 
