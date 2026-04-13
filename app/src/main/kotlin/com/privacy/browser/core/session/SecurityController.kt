@@ -20,6 +20,7 @@ class SecurityController {
     // Synchronize access to mutable state collections
     private val lock = Any()
 
+
     val proxyStatus = mutableStateOf("Inactive")
     val dohStatus = mutableStateOf("Partial")
     val webRtcStatus = mutableStateOf("Blocked")
@@ -41,7 +42,7 @@ class SecurityController {
     fun logInternal(tag: String, message: String, level: String = "INFO") {
         synchronized(lock) {
             internalLogs.add(0, InternalLogEntry(tag = tag, message = message, level = level))
-            while (internalLogs.size > 200) {
+            while (internalLogs.size > 100) {
                 internalLogs.removeAt(internalLogs.size - 1)
             }
         }
@@ -111,6 +112,7 @@ class SecurityController {
             
             if (disposition == RequestDisposition.BLOCKED) {
                 _blockedCount.intValue++
+                // Atomically update tracker count without iterating requestLog
                 if (reason == "tracker" || reason == "third_party" || reason == "third_party_script" || reason == "webrtc") {
                     _trackerBlockCount.intValue++
                 }
@@ -180,6 +182,10 @@ class SecurityController {
 
     fun blockedCount(): Int = _blockedCount.intValue
 
+    /**
+     * Retrieves the tracker block count from an atomic counter.
+     * This avoids ConcurrentModificationException by NOT iterating the request log.
+     */
     fun trackerBlockCount(): Int = _trackerBlockCount.intValue
 
     fun clearLog() {

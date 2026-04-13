@@ -1,14 +1,22 @@
 package com.privacy.browser.core.network
 
+import android.content.Context
+import com.privacy.browser.core.adblock.AdBlocker
 import com.privacy.browser.core.security.PrivacyPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class NetworkSecurityManagerTest {
 
-    private val manager = NetworkSecurityManager { PrivacyPolicy(removeTrackingParameters = true) }
+    private val context: Context = RuntimeEnvironment.getApplication()
+    private val adBlocker = AdBlocker(context)
+    private val manager = NetworkSecurityManager(adBlocker) { PrivacyPolicy(removeTrackingParameters = true) }
 
     @Test
     fun rejectsUnsupportedSchemesInNavigationInput() {

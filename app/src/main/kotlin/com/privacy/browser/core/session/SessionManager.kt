@@ -2,7 +2,8 @@ package com.privacy.browser.core.session
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.net.Uri
+import androidx.core.net.toUri
+import androidx.core.content.edit
 import android.os.Handler
 import android.os.Looper
 import android.webkit.CookieManager
@@ -77,9 +78,6 @@ class SessionManager(private val context: Context) {
 
     val sessionId: String
         get() = activeSessionId
-
-    val activeTabs: List<TabInstance>
-        get() = tabs.toList()
 
     fun registerTimeoutListener(listener: () -> Unit) {
         timeoutListener = listener
@@ -186,10 +184,9 @@ class SessionManager(private val context: Context) {
         }
         
         if (BuildConfig.DEBUG && privacyPolicy.enableRemoteDebugging != oldDebugging) {
-            context.getSharedPreferences("amnos_debug_prefs", Context.MODE_PRIVATE)
-                .edit()
-                .putBoolean("enable_remote_debugging", privacyPolicy.enableRemoteDebugging)
-                .apply()
+            context.getSharedPreferences("amnos_debug_prefs", Context.MODE_PRIVATE).edit {
+                putBoolean("enable_remote_debugging", privacyPolicy.enableRemoteDebugging)
+            }
         }
 
         securityController.setFingerprintLevel(privacyPolicy.fingerprintProtectionLevel)
@@ -247,7 +244,7 @@ class SessionManager(private val context: Context) {
         val headers = networkSecurityManager.buildNavigationHeaders(
             url = sanitizedUrl,
             profile = tab.profile,
-            topLevelHost = Uri.parse(sanitizedUrl).host
+            topLevelHost = sanitizedUrl.toUri().host
         )
         tab.webView.loadUrl(sanitizedUrl, headers)
         touchSession()

@@ -1,7 +1,7 @@
 package com.privacy.browser.core.webview
 
 import android.graphics.Bitmap
-import android.net.Uri
+import androidx.core.net.toUri
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -115,7 +115,7 @@ class PrivacyWebViewClient(
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
-        currentHost = url?.let { Uri.parse(it).host }
+        currentHost = url?.toUri()?.host
         (view as? SecureWebView)?.injectFallbackScript()
     }
 
@@ -125,7 +125,7 @@ class PrivacyWebViewClient(
         
         securityController.logInternal("PrivacyWebViewClient", "Page finished: $url", "DEBUG")
         url?.let {
-            currentHost = Uri.parse(it).host
+            currentHost = it.toUri().host
             onStateChanged(it)
         }
     }
@@ -134,7 +134,7 @@ class PrivacyWebViewClient(
         super.onPageCommitVisible(view, url)
         securityController.logInternal("PrivacyWebViewClient", "Page commit visible: $url", "DEBUG")
         url?.let {
-            currentHost = Uri.parse(it).host
+            currentHost = it.toUri().host
             onNavigationCommitted(it)
         }
     }

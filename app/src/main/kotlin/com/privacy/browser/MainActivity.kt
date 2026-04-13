@@ -2,7 +2,6 @@ package com.privacy.browser
 
 import android.os.Bundle
 import android.view.WindowManager
-import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.Surface
@@ -30,7 +29,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // GLOBAL RESILIENCE ENGINE - Capture crashes to prevent force-close
-        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             AmnosLog.e("AmnosResilience", "FATAL RECOVERY: Exception in ${thread.name}", throwable)
             
@@ -41,7 +39,7 @@ class MainActivity : ComponentActivity() {
             if (thread == android.os.Looper.getMainLooper().thread) {
                 AmnosLog.w("AmnosResilience", "Attempting UI rescue...")
                 isInitialized = false // Force the loading screen to reappear
-                // We don't call defaultHandler?.uncaughtException(thread, throwable) 
+                // We don't call the default handler's uncaughtException(thread, throwable) 
                 // because that will kill the process on most Android versions.
                 // Restarting the main looper is risky but keeps the app 'alive'.
                 kotlin.concurrent.thread {
