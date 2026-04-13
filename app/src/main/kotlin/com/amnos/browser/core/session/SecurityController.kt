@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import com.amnos.browser.core.network.RequestKind
 import com.amnos.browser.core.security.FingerprintProtectionLevel
+import com.amnos.browser.core.model.*
 
 class SecurityController {
 
@@ -13,13 +14,12 @@ class SecurityController {
     private val _activeConnections = mutableStateListOf<ConnectionEntry>()
     val activeConnections: List<ConnectionEntry> = _activeConnections
 
-    // Cached counters to avoid thread-unsafe iteration during UI updates
-    private val _blockedCount = mutableIntStateOf(0)
-    private val _trackerBlockCount = mutableIntStateOf(0)
-
     // Synchronize access to mutable state collections
     private val lock = Any()
 
+    // Cached counters to avoid thread-unsafe iteration during UI updates
+    private val _blockedCount = mutableIntStateOf(0)
+    private val _trackerBlockCount = mutableIntStateOf(0)
 
     val proxyStatus = mutableStateOf("Inactive")
     val dohStatus = mutableStateOf("Partial")
@@ -31,13 +31,6 @@ class SecurityController {
     val warningMessage = mutableStateOf("Strong privacy protections enabled. Network anonymity is not guaranteed.")
 
     val internalLogs = mutableStateListOf<InternalLogEntry>()
-
-    data class InternalLogEntry(
-        val timestamp: Long = System.currentTimeMillis(),
-        val tag: String,
-        val message: String,
-        val level: String = "INFO"
-    )
 
     fun logInternal(tag: String, message: String, level: String = "INFO") {
         synchronized(lock) {
@@ -57,34 +50,6 @@ class SecurityController {
             tag,
             message
         )
-    }
-
-    data class RequestEntry(
-        val url: String,
-        val method: String,
-        val type: RequestType,
-        val disposition: RequestDisposition,
-        val thirdParty: Boolean = false,
-        val reason: String? = null,
-        val timestamp: Long = System.currentTimeMillis()
-    )
-
-    data class ConnectionEntry(
-        val id: String,
-        val host: String,
-        val port: Int,
-        val type: String,
-        val openedAt: Long = System.currentTimeMillis()
-    )
-
-    enum class RequestType {
-        DOCUMENT, SCRIPT, STYLESHEET, IMAGE, MEDIA, FONT, XHR, WEBSOCKET, DOWNLOAD, SERVICE_WORKER, OTHER
-    }
-
-    enum class RequestDisposition {
-        ALLOWED,
-        BLOCKED,
-        PASSTHROUGH
     }
 
     fun logRequest(

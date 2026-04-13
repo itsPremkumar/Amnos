@@ -1,14 +1,18 @@
-package com.amnos.browser.core.session
+package com.amnos.browser.core.service
 
 import android.content.Context
+import android.webkit.CookieManager
 import android.webkit.URLUtil
+import android.webkit.WebStorage
+import android.webkit.WebViewDatabase
 import com.amnos.browser.core.network.DnsManager
+import com.amnos.browser.core.session.AmnosLog
 import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
 
-class StorageController(private val context: Context) {
+class StorageService(private val context: Context) {
     private val downloadClient by lazy { DnsManager.secureClient(blockIpv6 = true) }
 
     private val volatileDownloadDir: File by lazy {
@@ -36,7 +40,7 @@ class StorageController(private val context: Context) {
 
                 downloadClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
-                        AmnosLog.w("StorageController", "Ephemeral download failed: HTTP ${response.code}")
+                        AmnosLog.w("StorageService", "Ephemeral download failed: HTTP ${response.code}")
                         return@use
                     }
 
@@ -54,10 +58,10 @@ class StorageController(private val context: Context) {
                         }
                     }
 
-                    AmnosLog.i("StorageController", "Ephemeral download saved to ${outFile.absolutePath}")
+                    AmnosLog.i("StorageService", "Ephemeral download saved to ${outFile.absolutePath}")
                 }
             } catch (error: Exception) {
-                AmnosLog.e("StorageController", "Failed to store ephemeral download", error)
+                AmnosLog.e("StorageService", "Failed to store ephemeral download", error)
             }
         }.start()
     }
@@ -68,11 +72,11 @@ class StorageController(private val context: Context) {
     fun clearVolatileDownloads() {
         Thread {
             try {
-                AmnosLog.d("StorageController", "Wiping ephemeral downloads in background...")
+                AmnosLog.d("StorageService", "Wiping ephemeral downloads in background...")
                 deleteRecursive(volatileDownloadDir)
                 volatileDownloadDir.mkdirs() // Recreate for next session
             } catch (e: Exception) {
-                AmnosLog.e("StorageController", "Background wipe failed", e)
+                AmnosLog.e("StorageService", "Background wipe failed", e)
             }
         }.start()
     }
@@ -82,6 +86,31 @@ class StorageController(private val context: Context) {
      */
     fun wipeClipboard() {
         com.amnos.browser.core.security.ClipboardSentinel.wipe(context)
+    }
+
+    /**
+     * Purges all persistent WebView data, cookies, and storage.
+     */
+    fun purgeGlobalStorage(logCallback: ((String, String) -> Unit)? = null) {
+        val cookieManager = CookieManager.getInstance()
+        cookieManager.setAcceptCookie(false)
+        cookieManager.removeAllCookies { removed ->
+            if (removed) {
+                logCallback?.invoke("[Storage:Cookies]", "Cookies purged")
+            }
+        }
+        cookieManager.flush()
+
+        WebStorage.getInstance().deleteAllData()
+        val webViewDB = WebViewDatabase.getInstance(context)
+        webViewDB.clearHttpAuthUsernamePassword()
+        @Suppress("DEPRECATION")
+        webViewDB.clearFormData()
+        try {
+            android.webkit.WebView.clearClientCertPreferences(null)
+        } catch (ignored: Throwable) {
+            AmnosLog.w("StorageService", "Client cert wipe unavailable", ignored)
+        }
     }
 
     private fun deleteRecursive(file: File) {

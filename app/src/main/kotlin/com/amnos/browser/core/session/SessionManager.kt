@@ -6,9 +6,6 @@ import androidx.core.net.toUri
 import androidx.core.content.edit
 import android.os.Handler
 import android.os.Looper
-import android.webkit.CookieManager
-import android.webkit.WebStorage
-import android.webkit.WebViewDatabase
 import androidx.core.content.ContextCompat
 import androidx.webkit.ProxyConfig
 import androidx.webkit.ProxyController
@@ -27,6 +24,8 @@ import com.amnos.browser.core.security.WebGlMode
 import com.amnos.browser.core.webview.PrivacyWebChromeClient
 import com.amnos.browser.core.webview.PrivacyWebViewClient
 import com.amnos.browser.core.webview.SecureWebView
+import com.amnos.browser.core.service.StorageService
+import com.amnos.browser.core.model.*
 import org.json.JSONObject
 
 class SessionManager(private val context: Context) {
@@ -39,7 +38,7 @@ class SessionManager(private val context: Context) {
     private var activeSessionId: String = FingerprintManager.newSessionId()
 
     val securityController = SecurityController()
-    val storageController = StorageController(context)
+    val storageService = StorageService(context)
     private val networkSecurityManager = NetworkSecurityManager(adBlocker) { privacyPolicy }
     private val loopbackProxyServer = LoopbackProxyServer(
         networkSecurityManager = networkSecurityManager,
@@ -67,8 +66,8 @@ class SessionManager(private val context: Context) {
         AmnosLog.d("SessionManager", "Initializing SessionManager")
         securityController.setFingerprintLevel(privacyPolicy.fingerprintProtectionLevel)
         try {
-            purgeGlobalStorage()
-            storageController.clearVolatileDownloads()
+            storageService.purgeGlobalStorage(securityController::logInternal)
+            storageService.clearVolatileDownloads()
             configureProxy()
             AmnosLog.d("SessionManager", "Proxy configured successfully")
         } catch (e: Exception) {
@@ -119,7 +118,7 @@ class SessionManager(private val context: Context) {
 
         webView.setDownloadListener { url, _, _, _, _ ->
             AmnosLog.d("SessionManager", "Ephemeral download triggered: $url")
-            storageController.downloadEphemeralFile(url, profile.userAgent)
+            storageService.downloadEphemeralFile(url, profile.userAgent)
         }
 
         val client = PrivacyWebViewClient(
@@ -265,7 +264,7 @@ class SessionManager(private val context: Context) {
         tab.webView.clearVolatileState()
         tab.webView.destroy()
         tabs.remove(tab)
-        purgeGlobalStorage()
+        storageService.purgeGlobalStorage(securityController::logInternal)
         touchSession()
     }
 
@@ -273,8 +272,8 @@ class SessionManager(private val context: Context) {
         AmnosLog.d("SessionManager", "AMNOS GHOST WIPE ACTIVATED (terminateProcess=$terminateProcess)")
         mainHandler.removeCallbacks(timeoutRunnable)
 
-        storageController.wipeClipboard()
-        storageController.clearVolatileDownloads()
+        storageService.wipeClipboard()
+        storageService.clearVolatileDownloads()
         securityController.clearLog()
 
         tabs.toList().forEach { tab ->
@@ -286,7 +285,7 @@ class SessionManager(private val context: Context) {
             }
         }
         tabs.clear()
-        purgeGlobalStorage()
+        storageService.purgeGlobalStorage(securityController::logInternal)
         activeSessionId = FingerprintManager.newSessionId()
         onSessionWiped?.invoke()
         configureProxy()
@@ -294,28 +293,6 @@ class SessionManager(private val context: Context) {
         if (terminateProcess) {
             AmnosLog.w("SessionManager", "SELF-TERMINATING PROCESS AS REQUESTED")
             android.os.Process.killProcess(android.os.Process.myPid())
-        }
-    }
-
-    private fun purgeGlobalStorage() {
-        val cookieManager = CookieManager.getInstance()
-        cookieManager.setAcceptCookie(false)
-        cookieManager.removeAllCookies { removed ->
-            if (removed) {
-                securityController.logInternal("[Storage:Cookies]", "Cookies purged", "DEBUG")
-            }
-        }
-        cookieManager.flush()
-
-        WebStorage.getInstance().deleteAllData()
-        val webViewDB = WebViewDatabase.getInstance(context)
-        webViewDB.clearHttpAuthUsernamePassword()
-        @Suppress("DEPRECATION")
-        webViewDB.clearFormData()
-        try {
-            android.webkit.WebView.clearClientCertPreferences(null)
-        } catch (ignored: Throwable) {
-            AmnosLog.w("SessionManager", "Client cert wipe unavailable", ignored)
         }
     }
 

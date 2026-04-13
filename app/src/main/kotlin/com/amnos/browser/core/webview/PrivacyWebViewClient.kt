@@ -7,6 +7,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.amnos.browser.core.model.*
 import com.amnos.browser.core.adblock.AdBlocker
 import com.amnos.browser.core.fingerprint.DeviceProfile
 import com.amnos.browser.core.network.BlockReason
@@ -65,7 +66,7 @@ class PrivacyWebViewClient(
                 url = decision.sanitizedUrl,
                 method = request.method,
                 type = securityController.mapKind(decision.kind),
-                disposition = SecurityController.RequestDisposition.BLOCKED,
+                disposition = RequestDisposition.BLOCKED,
                 thirdParty = decision.thirdParty,
                 reason = decision.blockReason?.let { networkSecurityManager.blockReasonLabel(it) }
             )
@@ -87,7 +88,7 @@ class PrivacyWebViewClient(
                     url = decision.sanitizedUrl,
                     method = request.method,
                     type = securityController.mapKind(decision.kind),
-                    disposition = SecurityController.RequestDisposition.ALLOWED,
+                    disposition = RequestDisposition.ALLOWED,
                     thirdParty = decision.thirdParty
                 )
                 AmnosLog.d("PrivacyWebViewClient", "Interception SUCCESS: ${decision.sanitizedUrl}")
@@ -102,7 +103,7 @@ class PrivacyWebViewClient(
             url = decision.sanitizedUrl,
             method = request.method,
             type = securityController.mapKind(decision.kind),
-            disposition = SecurityController.RequestDisposition.PASSTHROUGH,
+            disposition = RequestDisposition.PASSTHROUGH,
             thirdParty = decision.thirdParty,
             reason = if (request.method.equals("GET", ignoreCase = true) || request.method.equals("HEAD", ignoreCase = true)) {
                 "proxy_fallback"

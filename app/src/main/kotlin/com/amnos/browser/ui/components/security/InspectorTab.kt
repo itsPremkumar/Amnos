@@ -15,6 +15,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.amnos.browser.core.model.*
 import com.amnos.browser.core.session.SecurityController
 import com.amnos.browser.ui.screens.browser.BrowserViewModel
 import com.amnos.browser.ui.theme.AccentBlue
@@ -32,7 +33,7 @@ fun InspectorTab(viewModel: BrowserViewModel) {
 }
 
 @Composable
-fun RequestInspectorList(logs: List<SecurityController.RequestEntry>) {
+fun RequestInspectorList(logs: List<RequestEntry>) {
     Column(modifier = Modifier.height(250.dp)) {
         Text(
             "Volatile Request Log (Last 100)",
@@ -55,11 +56,11 @@ fun RequestInspectorList(logs: List<SecurityController.RequestEntry>) {
 }
 
 @Composable
-fun RequestItem(entry: SecurityController.RequestEntry) {
+fun RequestItem(entry: RequestEntry) {
     val color = when (entry.disposition) {
-        SecurityController.RequestDisposition.BLOCKED -> KillRed
-        SecurityController.RequestDisposition.PASSTHROUGH -> Color(0xFFFFC857)
-        SecurityController.RequestDisposition.ALLOWED -> AccentBlue
+        RequestDisposition.BLOCKED -> KillRed
+        RequestDisposition.PASSTHROUGH -> Color(0xFFFFC857)
+        RequestDisposition.ALLOWED -> AccentBlue
     }
 
     Row(
