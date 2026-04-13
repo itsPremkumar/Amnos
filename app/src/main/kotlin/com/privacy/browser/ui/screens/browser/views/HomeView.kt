@@ -26,84 +26,176 @@ import com.privacy.browser.ui.theme.AccentBlue
 import com.privacy.browser.ui.theme.CardGray
 import com.privacy.browser.ui.theme.TextGray
 
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Brush
+import com.privacy.browser.ui.theme.GlassBorder
+import com.privacy.browser.ui.theme.GlassWhite
+import com.privacy.browser.ui.utils.WindowSize
+import com.privacy.browser.ui.utils.rememberWindowSize
+
 @Composable
 fun HomeView(viewModel: BrowserViewModel) {
     val focusManager = LocalFocusManager.current
+    val windowSize = rememberWindowSize()
 
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val isExpanded = windowSize == WindowSize.EXPANDED
+
+        if (isExpanded) {
+            HomeViewExpanded(viewModel, focusManager)
+        } else {
+            HomeViewCompact(viewModel, focusManager)
+        }
+    }
+}
+
+@Composable
+fun HomeViewCompact(viewModel: BrowserViewModel, focusManager: androidx.compose.ui.focus.FocusManager) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        AppLogoSection()
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        AddressSearchBar(viewModel, focusManager)
+        
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        SecurityStatusFooter()
+    }
+}
+
+@Composable
+fun HomeViewExpanded(viewModel: BrowserViewModel, focusManager: androidx.compose.ui.focus.FocusManager) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AppLogoSection()
+        }
+
+        Spacer(modifier = Modifier.width(64.dp))
+
+        Column(
+            modifier = Modifier.weight(1.2f),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            AddressSearchBar(viewModel, focusManager)
+            Spacer(modifier = Modifier.height(32.dp))
+            SecurityStatusFooter()
+        }
+    }
+}
+
+@Composable
+fun AppLogoSection() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
-            modifier = Modifier.size(120.dp),
+            modifier = Modifier.size(140.dp),
             shape = CircleShape,
-            color = CardGray,
-            shadowElevation = 8.dp
+            color = Color.White.copy(alpha = 0.03f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     Icons.Default.Shield,
                     contentDescription = null,
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(72.dp),
                     tint = AccentBlue
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = "Privacy Browser",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
+            text = "Amnos",
+            fontSize = 42.sp,
+            fontWeight = FontWeight.ExtraBold,
             color = Color.White,
-            textAlign = TextAlign.Center
+            letterSpacing = 2.sp
         )
 
         Text(
-            text = "Single Session Security. Total Anonymity.",
-            fontSize = 14.sp,
-            color = TextGray,
+            text = "HARDENED EPHEMERAL BROWSER",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = AccentBlue,
+            letterSpacing = 3.sp,
             modifier = Modifier.padding(top = 8.dp)
         )
+    }
+}
 
+@Composable
+fun AddressSearchBar(viewModel: BrowserViewModel, focusManager: androidx.compose.ui.focus.FocusManager) {
+    OutlinedTextField(
+        value = viewModel.urlInput.value,
+        onValueChange = { viewModel.urlInput.value = it },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .clip(RoundedCornerShape(32.dp))
+            .background(GlassWhite)
+            .border(1.dp, GlassBorder, RoundedCornerShape(32.dp)),
+        placeholder = { Text("Search or enter secure URL", color = TextGray, fontSize = 16.sp) },
+        singleLine = true,
+        shape = RoundedCornerShape(32.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = AccentBlue.copy(alpha = 0.5f),
+            unfocusedBorderColor = Color.Transparent,
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White
+        ),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = {
+            viewModel.navigate(viewModel.urlInput.value)
+            focusManager.clearFocus()
+        }),
+        leadingIcon = {
+            Icon(Icons.Default.Search, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+        }
+    )
+}
+
+@Composable
+fun SecurityStatusFooter() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            text = "Strong privacy protections, but not full network anonymity.",
-            fontSize = 12.sp,
-            color = Color(0xFFFFD166),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 10.dp)
+            text = "Active session — Zero durable state",
+            fontSize = 13.sp,
+            color = TextGray
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
-
-        OutlinedTextField(
-            value = viewModel.urlInput.value,
-            onValueChange = { viewModel.urlInput.value = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(32.dp))
-                .background(Color.White.copy(alpha = 0.05f)),
-            placeholder = { Text("Search or enter URL", color = TextGray) },
-            singleLine = true,
-            shape = RoundedCornerShape(32.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = AccentBlue,
-                unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            ),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = {
-                viewModel.navigate(viewModel.urlInput.value)
-                focusManager.clearFocus()
-            }),
-            leadingIcon = {
-                Icon(Icons.Default.Search, contentDescription = null, tint = TextGray)
-            }
-        )
-        
-        Spacer(modifier = Modifier.height(100.dp))
+        Row(
+            modifier = Modifier.padding(top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF4CAF50))
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = "Hardened Engine Active",
+                fontSize = 12.sp,
+                color = TextGray.copy(alpha = 0.8f)
+            )
+        }
     }
 }

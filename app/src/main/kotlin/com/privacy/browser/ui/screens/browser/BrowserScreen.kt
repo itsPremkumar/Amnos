@@ -10,7 +10,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.privacy.browser.ui.screens.browser.views.BrowsingView
 import com.privacy.browser.ui.screens.browser.views.HomeView
+import androidx.compose.ui.graphics.Brush
 import com.privacy.browser.ui.theme.DarkGray
+import com.privacy.browser.ui.theme.DeepSpaceGradient
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -21,11 +23,14 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
         viewModel.goBack()
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(DarkGray)) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(Brush.verticalGradient(DeepSpaceGradient))
+    ) {
         AnimatedContent(
             targetState = viewModel.uiState.value,
             transitionSpec = {
-                fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500))
+                fadeIn(animationSpec = tween(700)) togetherWith fadeOut(animationSpec = tween(700))
             }
         ) { state ->
             when (state) {

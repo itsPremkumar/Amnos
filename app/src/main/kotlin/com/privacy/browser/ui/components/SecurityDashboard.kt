@@ -32,6 +32,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -53,40 +54,32 @@ import com.privacy.browser.ui.screens.browser.BrowserViewModel
 import com.privacy.browser.ui.theme.AccentBlue
 import com.privacy.browser.ui.theme.KillRed
 import com.privacy.browser.ui.theme.SurfaceGray
+import androidx.compose.foundation.border
+import com.privacy.browser.ui.theme.GlassBorder
+import com.privacy.browser.ui.theme.TextGray
+import com.privacy.browser.ui.utils.WindowSize
+import com.privacy.browser.ui.utils.rememberWindowSize
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun SecurityDashboard(viewModel: BrowserViewModel) {
-    val policy = viewModel.privacyPolicy.value
+    val windowSize = rememberWindowSize()
+    val isExpanded = windowSize == WindowSize.EXPANDED
 
     ModalBottomSheet(
         onDismissRequest = { viewModel.showSecurityDashboard.value = false },
-        containerColor = SurfaceGray,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+        containerColor = SurfaceGray.copy(alpha = 0.95f),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = GlassBorder) },
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 24.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 48.dp)
+                .padding(bottom = 64.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 24.dp)
-            ) {
-                Icon(
-                    Icons.Default.Shield,
-                    contentDescription = null,
-                    tint = AccentBlue,
-                    modifier = Modifier.size(32.dp)
-                )
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text("Amnos Security Cockpit", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    Text("Session ${viewModel.sessionLabel.value}", color = Color.Gray, fontSize = 11.sp)
-                }
-            }
+            DashboardHeader(viewModel)
 
             val tabs = listOf("SHIELDS", "INSPECTOR", "LOGS")
             var selectedTab by remember { mutableIntStateOf(0) }
@@ -101,212 +94,209 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                        text = { Text(title, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp) }
                     )
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
 
             when (selectedTab) {
-                0 -> {
-                    Column {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column {
-                                    Text("Active Defense", color = Color.Gray, fontSize = 12.sp)
-                                    Text(
-                                        "${viewModel.blockedTrackersCount.intValue} Trackers Blocked",
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text("${viewModel.activeConnections.size} Active Connections", color = Color.Gray, fontSize = 11.sp)
-                                    Text("${viewModel.requestLog.size} Volatile Events", color = Color.Gray, fontSize = 11.sp)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .background(KillRed.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text("GHOST", color = KillRed, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
-                                }
-                            }
-                        }
-
-                        StatusCard(
-                            title = "Transport",
-                            lines = listOf(
-                                "Proxy: ${viewModel.proxyStatus.value}",
-                                "DoH: ${viewModel.dohStatus.value}",
-                                "WebRTC: ${viewModel.webRtcStatus.value} (${viewModel.webRtcAttemptCount.intValue} events)",
-                                "WebSocket: ${viewModel.webSocketStatus.value} (${viewModel.webSocketAttemptCount.intValue} events)"
-                            )
-                        )
-
-                        JavaScriptModeSelector(
-                            selectedMode = viewModel.javaScriptMode.value,
-                            onModeSelected = viewModel::setJavaScriptMode
-                        )
-
-                        FingerprintLevelSelector(
-                            selectedLevel = viewModel.fingerprintProtectionLevel.value,
-                            onLevelSelected = viewModel::setFingerprintProtectionLevel
-                        )
-
-                        SecurityToggle(
-                            title = "HTTPS-Only",
-                            description = "Upgrade cleartext links and block insecure loads.",
-                            checked = policy.httpsOnlyEnabled,
-                            onCheckedChange = viewModel::toggleHttpsOnly
-                        )
-
-                        SecurityToggle(
-                            title = "Third-Party Blocking",
-                            description = "Blocks third-party requests and remote scripts.",
-                            checked = policy.blockThirdPartyRequests,
-                            onCheckedChange = viewModel::toggleThirdPartyBlocking
-                        )
-
-                        SecurityToggle(
-                            title = "Inline Script Shield",
-                            description = "Applies CSP and blocks dynamic code paths in restricted mode.",
-                            checked = policy.blockInlineScripts,
-                            onCheckedChange = viewModel::toggleInlineScriptBlocking
-                        )
-
-                        SecurityToggle(
-                            title = "WebSocket Shield",
-                            description = "Blocks live socket channels that can leak identifiers.",
-                            checked = policy.blockWebSockets,
-                            onCheckedChange = viewModel::toggleWebSockets
-                        )
-
-                        SecurityToggle(
-                            title = "First-Party Isolation",
-                            description = "Rebuild the browsing silo when top-level site identity changes.",
-                            checked = policy.strictFirstPartyIsolation,
-                            onCheckedChange = viewModel::toggleStrictFirstPartyIsolation
-                        )
-
-                        SecurityToggle(
-                            title = "WebGL Spoofing",
-                            description = "Disable or spoof GPU surfaces to reduce fingerprint entropy.",
-                            checked = viewModel.isWebGLEnabled.value,
-                            onCheckedChange = viewModel::toggleWebGL
-                        )
-
-                        SecurityToggle(
-                            title = "Identity Reset On Refresh",
-                            description = "Rebuilds the current tab with a fresh tab UUID and profile.",
-                            checked = policy.resetIdentityOnRefresh,
-                            onCheckedChange = viewModel::toggleResetIdentityOnRefresh
-                        )
-                        Spacer(Modifier.height(24.dp))
-                        Text(
-                            viewModel.privacyWarning.value,
-                            color = Color(0xFFFFD166),
-                            fontSize = 11.sp,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Text(
-                            "Amnos v1.2.0 - Loopback privacy controls active",
-                            color = Color.Gray,
-                            fontSize = 10.sp,
-                            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 16.dp)
-                        )
-                    }
-                }
-                1 -> {
-                    RequestInspectorList(viewModel.requestLog)
-                }
-                2 -> {
-                    Column {
-                        Text("System Diagnostics", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Text("Sub-surface process execution logs.", color = Color.Gray, fontSize = 12.sp)
-                        
-                        Spacer(Modifier.height(12.dp))
-                        
-                        // Internal Logs List
-                        val internalLogs = viewModel.internalLogs
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(300.dp)
-                                .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                                .padding(8.dp)
-                        ) {
-                            items(internalLogs) { entry ->
-                                Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(8.dp)
-                                                .clip(CircleShape)
-                                                .background(
-                                                    when (entry.level) {
-                                                        "ERROR" -> KillRed
-                                                        "WARN" -> Color(0xFFFFD166)
-                                                        "DEBUG" -> AccentBlue
-                                                        else -> Color.Gray
-                                                    }
-                                                )
-                                        )
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            "[${entry.tag}]",
-                                            color = Color.White,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                    Text(
-                                        entry.message,
-                                        color = Color.LightGray,
-                                        fontSize = 11.sp,
-                                        modifier = Modifier.padding(start = 16.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(Modifier.height(16.dp))
-
-                        if (viewModel.debugControlsAvailable) {
-                            SecurityToggle(
-                                title = "Remote WebView Debugging",
-                                description = "Debug-build only. Enables USB inspection via chrome://inspect on a connected workstation.",
-                                checked = viewModel.enableRemoteDebugging.value,
-                                onCheckedChange = viewModel::toggleRemoteDebugging
-                            )
-
-                            SecurityToggle(
-                                title = "Relax Security for Diagnostics",
-                                description = "Debug-build only. Temporarily bypasses strict shields to isolate rendering issues.",
-                                checked = viewModel.forceRelaxSecurityForDebug.value,
-                                onCheckedChange = viewModel::toggleForceRelaxSecurity
-                            )
-                        } else {
-                            Text(
-                                "Release builds lock remote debugging and relaxed diagnostics behind compile-time guards.",
-                                color = Color.Gray,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-                }
+                0 -> ShieldsTab(viewModel, isExpanded)
+                1 -> InspectorTab(viewModel)
+                2 -> LogsTab(viewModel)
             }
         }
+    }
+}
+
+@Composable
+fun DashboardHeader(viewModel: BrowserViewModel) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(bottom = 24.dp)
+    ) {
+        Icon(
+            Icons.Default.Shield,
+            contentDescription = null,
+            tint = AccentBlue,
+            modifier = Modifier.size(36.dp)
+        )
+        Spacer(Modifier.width(16.dp))
+        Column {
+            Text("Security Cockpit", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            Text("Session ID: ${viewModel.sessionLabel.value}", color = TextGray, fontSize = 11.sp, letterSpacing = 1.sp)
+        }
+    }
+}
+
+@Composable
+fun ShieldsTab(viewModel: BrowserViewModel, isWide: Boolean) {
+    if (isWide) {
+        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            Column(modifier = Modifier.weight(1f)) {
+                ActiveDefenseCard(viewModel)
+                Spacer(Modifier.height(16.dp))
+                StatusCard(
+                    title = "Transport Matrix",
+                    lines = listOf(
+                        "Proxy Tunnel: ${viewModel.proxyStatus.value}",
+                        "DNS-over-HTTPS: ${viewModel.dohStatus.value}",
+                        "WebRTC Block: ${viewModel.webRtcStatus.value}"
+                    )
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                SecurityControlsGroup(viewModel)
+            }
+        }
+    } else {
+        Column {
+            ActiveDefenseCard(viewModel)
+            Spacer(Modifier.height(16.dp))
+            SecurityControlsGroup(viewModel)
+        }
+    }
+}
+
+@Composable
+fun InspectorTab(viewModel: BrowserViewModel) {
+    Column {
+        Text("Volatile Request Log", color = Color.White, fontWeight = FontWeight.Bold)
+        Text("Real-time visibility into all outgoing network traffic.", color = TextGray, fontSize = 12.sp)
+        Spacer(Modifier.height(16.dp))
+        RequestInspectorList(viewModel.requestLog)
+    }
+}
+
+@Composable
+fun LogsTab(viewModel: BrowserViewModel) {
+    Column {
+        Text("Engine Diagnostics", color = Color.White, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(16.dp))
+        
+        val internalLogs = viewModel.internalLogs
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(350.dp)
+                .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                .border(1.dp, GlassBorder, RoundedCornerShape(16.dp))
+                .padding(12.dp)
+        ) {
+            items(internalLogs.reversed()) { entry ->
+                DiagnosticLogItem(entry)
+            }
+        }
+    }
+}
+
+@Composable
+fun ActiveDefenseCard(viewModel: BrowserViewModel) {
+    Surface(
+        color = Color.White.copy(alpha = 0.05f),
+        shape = RoundedCornerShape(20.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("NETWORK SHIELDS", color = AccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                Text(
+                    "${viewModel.blockedTrackersCount.intValue} Pathogens Blocked",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .background(KillRed.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text("GHOST", color = KillRed, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+            }
+        }
+    }
+}
+
+@Composable
+fun SecurityControlsGroup(viewModel: BrowserViewModel) {
+    val policy = viewModel.privacyPolicy.value
+    Column {
+        JavaScriptModeSelector(
+            selectedMode = viewModel.javaScriptMode.value,
+            onModeSelected = viewModel::setJavaScriptMode
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        FingerprintLevelSelector(
+            selectedLevel = viewModel.fingerprintProtectionLevel.value,
+            onLevelSelected = viewModel::setFingerprintProtectionLevel
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        SecurityToggle(
+            title = "HTTPS Enforcement",
+            description = "Blocks all insecure cleartext traffic.",
+            checked = policy.httpsOnlyEnabled,
+            onCheckedChange = viewModel::toggleHttpsOnly
+        )
+
+        SecurityToggle(
+            title = "Siloed Identifiers",
+            description = "Aggressive first-party isolation for all state.",
+            checked = policy.strictFirstPartyIsolation,
+            onCheckedChange = viewModel::toggleStrictFirstPartyIsolation
+        )
+
+        SecurityToggle(
+            title = "WebGL Randomization",
+            description = "Spoofs GPU surfaces to prevent profiling.",
+            checked = viewModel.isWebGLEnabled.value,
+            onCheckedChange = viewModel::toggleWebGL
+        )
+    }
+}
+
+@Composable
+fun DiagnosticLogItem(entry: SecurityController.InternalLogEntry) {
+    Column(modifier = Modifier.padding(vertical = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(
+                        when (entry.level) {
+                            "ERROR" -> KillRed
+                            "WARN" -> Color(0xFFFFD166)
+                            "DEBUG" -> AccentBlue
+                            else -> TextGray
+                        }
+                    )
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                entry.tag,
+                color = Color.White,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Text(
+            entry.message,
+            color = TextGray,
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
+            modifier = Modifier.padding(start = 16.dp, top = 2.dp)
+        )
     }
 }
 
