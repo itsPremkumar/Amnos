@@ -11,6 +11,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,11 +82,55 @@ fun BrowsingView(viewModel: BrowserViewModel) {
                     trackColor = Color.Transparent,
                 )
             }
+            
+            BurnOverlay(viewModel)
         }
     }
 
     if (viewModel.showSecurityDashboard.value) {
         SecurityDashboard(viewModel)
+    }
+}
+
+@Composable
+fun BurnOverlay(viewModel: BrowserViewModel) {
+    AnimatedVisibility(
+        visible = viewModel.isBurning.value,
+        enter = scaleIn(animationSpec = tween(500)) + fadeIn(animationSpec = tween(500)),
+        exit = fadeOut(animationSpec = tween(700))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            KillRed.copy(alpha = 0.3f),
+                            Color(0xFFFFA500).copy(alpha = 0.6f),
+                            Color.White.copy(alpha = 0.9f)
+                        )
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    Icons.Default.Whatshot,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(100.dp)
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "PURGING SESSION",
+                    color = Color.White,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 2.sp,
+                    fontSize = 18.sp
+                )
+            }
+        }
     }
 }
 
@@ -109,7 +157,7 @@ fun TopBrowsingBar(viewModel: BrowserViewModel, focusManager: androidx.compose.u
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AppKillButton(viewModel)
+                BurnSessionButton(viewModel)
                 Spacer(Modifier.width(12.dp))
                 AddressField(viewModel, focusManager, modifier = Modifier.weight(1f))
                 Spacer(Modifier.width(12.dp))
@@ -162,7 +210,7 @@ fun AddressField(
 }
 
 @Composable
-fun AppKillButton(viewModel: BrowserViewModel) {
+fun BurnSessionButton(viewModel: BrowserViewModel) {
     IconButton(
         onClick = { viewModel.killSwitch() },
         modifier = Modifier
@@ -170,7 +218,7 @@ fun AppKillButton(viewModel: BrowserViewModel) {
             .background(KillRed.copy(alpha = 0.1f), CircleShape)
             .border(1.dp, KillRed.copy(alpha = 0.3f), CircleShape)
     ) {
-        Icon(Icons.Default.Delete, contentDescription = "Kill Session", tint = KillRed, modifier = Modifier.size(20.dp))
+        Icon(Icons.Default.Whatshot, contentDescription = "Burn Session", tint = KillRed, modifier = Modifier.size(20.dp))
     }
 }
 

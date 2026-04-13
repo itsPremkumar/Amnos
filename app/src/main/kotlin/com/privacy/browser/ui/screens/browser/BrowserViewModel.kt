@@ -3,6 +3,9 @@ package com.privacy.browser.ui.screens.browser
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.privacy.browser.BuildConfig
 import com.privacy.browser.core.network.NavigationResolver
 import com.privacy.browser.core.security.FingerprintProtectionLevel
@@ -19,6 +22,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     var canGoBack = mutableStateOf(false)
     var canGoForward = mutableStateOf(false)
+    var isBurning = mutableStateOf(false)
     var loadingProgress = mutableIntStateOf(0)
 
     var blockedTrackersCount = mutableIntStateOf(0)
@@ -294,9 +298,13 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     }
 
     fun killSwitch() {
-        sessionManager.killAll(terminateProcess = false)
-        // Note: resetUIState is called via wipe listener
-        initializeSession()
+        viewModelScope.launch {
+            isBurning.value = true
+            sessionManager.killAll(terminateProcess = false)
+            delay(1200) // Allow animation to play
+            initializeSession()
+            isBurning.value = false
+        }
     }
 
     private fun handleSessionTimeout() {
