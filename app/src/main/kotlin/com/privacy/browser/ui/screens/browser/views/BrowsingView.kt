@@ -157,11 +157,11 @@ fun TopBrowsingBar(viewModel: BrowserViewModel, focusManager: androidx.compose.u
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                BurnSessionButton(viewModel)
+                TrackerBadge(viewModel)
                 Spacer(Modifier.width(12.dp))
                 AddressField(viewModel, focusManager, modifier = Modifier.weight(1f))
                 Spacer(Modifier.width(12.dp))
-                TrackerBadge(viewModel)
+                BurnSessionButton(viewModel)
             }
         }
     }
