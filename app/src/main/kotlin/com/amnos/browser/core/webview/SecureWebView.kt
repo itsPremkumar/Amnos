@@ -67,8 +67,11 @@ class SecureWebView(context: Context) : WebView(context) {
         settings.apply {
             javaScriptEnabled = if (policy.forceRelaxSecurityForDebug) true else policy.isJavaScriptEnabled
             javaScriptCanOpenWindowsAutomatically = false
-            domStorageEnabled = if (policy.forceRelaxSecurityForDebug) true else policy.domStorageEnabled
-            databaseEnabled = if (policy.forceRelaxSecurityForDebug) true else policy.domStorageEnabled
+            
+            // 100% PURE RAM MODE: Disable all persistent storage APIs
+            domStorageEnabled = if (policy.forceRelaxSecurityForDebug) true else false 
+            databaseEnabled = if (policy.forceRelaxSecurityForDebug) true else false
+            
             cacheMode = if (policy.forceRelaxSecurityForDebug) WebSettings.LOAD_DEFAULT else WebSettings.LOAD_NO_CACHE
 
             userAgentString = if (policy.forceRelaxSecurityForDebug) android.webkit.WebSettings.getDefaultUserAgent(context) else profile.userAgent
@@ -214,8 +217,14 @@ class SecureWebView(context: Context) : WebView(context) {
                 this,
                 BRIDGE_NAME,
                 setOf("*")
-            ) { _: WebView, message: WebMessageCompat, _: Uri, _: Boolean, _: JavaScriptReplyProxy ->
-                message.data?.let(onSecurityEvent)
+            ) { _: WebView, message: WebMessageCompat, sourceOrigin: Uri, _: Boolean, _: JavaScriptReplyProxy ->
+                // SECURE ORIGIN VALIDATION: Only accept messages from the currently loaded page
+                val currentUri = url?.let { Uri.parse(it) }
+                if (currentUri != null && sourceOrigin.host == currentUri.host) {
+                    message.data?.let(onSecurityEvent)
+                } else {
+                    AmnosLog.w("SecureWebView", "REJECTED cross-origin bridge message from: $sourceOrigin")
+                }
             }
             AmnosLog.d("SecureWebView", "Security bridge (WebMessageListener) installed")
         } catch (e: Exception) {

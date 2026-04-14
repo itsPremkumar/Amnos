@@ -109,7 +109,30 @@ class StorageService(private val context: Context) {
         try {
             android.webkit.WebView.clearClientCertPreferences(null)
         } catch (ignored: Throwable) {
-            AmnosLog.w("StorageService", "Client cert wipe unavailable", ignored)
+            // Logically fine if unavailable
+        }
+
+        // PHYSICAL NUKE: Ensure all disk traces are hard-deleted
+        nukePhysicalWebViewData(logCallback)
+    }
+
+    /**
+     * Physically deletes the WebView session directory from the file system.
+     */
+    private fun nukePhysicalWebViewData(logCallback: ((String, String) -> Unit)? = null) {
+        try {
+            val dataDir = context.dataDir
+            val webViewDirPrefix = "app_webview_"
+            val suffix = "amnos_session"
+            val targetDir = File(dataDir, webViewDirPrefix + suffix)
+            
+            if (targetDir.exists()) {
+                AmnosLog.d("StorageService", "PHYSICAL NUKE: Deleting session directory: ${targetDir.absolutePath}")
+                deleteRecursive(targetDir)
+                logCallback?.invoke("[Storage:Physical]", "Session directory nuked")
+            }
+        } catch (e: Exception) {
+            AmnosLog.e("StorageService", "Physical nuke failed", e)
         }
     }
 

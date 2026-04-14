@@ -118,16 +118,16 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         if (::sessionManager.isInitialized && !isChangingConfigurations) {
-            AmnosLog.d("MainActivity", "Idle wipe triggered: application moved to background (Clipboard retained for UX).")
-            sessionManager.killAll(terminateProcess = false, wipeClipboard = false)
+            AmnosLog.d("MainActivity", "AMNOS GHOST WIPE: Application backgrounded (Pure RAM mode enabled).")
+            sessionManager.killAll(terminateProcess = false, wipeClipboard = true)
         }
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (::sessionManager.isInitialized && level >= TRIM_MEMORY_UI_HIDDEN && !isChangingConfigurations) {
-            AmnosLog.d("MainActivity", "Memory pressure wipe triggered (Clipboard retained for UX).")
-            sessionManager.killAll(terminateProcess = false, wipeClipboard = false)
+            AmnosLog.d("MainActivity", "Memory pressure wipe triggered.")
+            sessionManager.killAll(terminateProcess = false, wipeClipboard = true)
         }
     }
 
@@ -163,12 +163,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
-        // Log deep touch events for diagnostics if keyboard is visible
-        val isImeVisible = androidx.core.view.ViewCompat.getRootWindowInsets(window.decorView)
-            ?.isVisible(WindowInsetsCompat.Type.ime()) == true
-        if (isImeVisible) {
-            AmnosLog.d("MainActivity", "Touch detected while IME visible. Coordinates: ${ev?.x}, ${ev?.y}")
-        }
+        // AMNOS HARNEDING: Logging of touch events removed to prevent coordinate fingerprinting
         return super.dispatchTouchEvent(ev)
     }
 }

@@ -91,7 +91,7 @@ class PrivacyWebViewClient(
                     disposition = RequestDisposition.ALLOWED,
                     thirdParty = decision.thirdParty
                 )
-                AmnosLog.d("PrivacyWebViewClient", "Interception SUCCESS: ${decision.sanitizedUrl}")
+                // AMNOS HARDENING: Full URL logging removed from Logcat
                 return proxiedResponse
             }
         } catch (e: Exception) {
