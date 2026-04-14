@@ -79,9 +79,10 @@ fun AlphaLayout(viewModel: KeyboardViewModel) {
     val row1 = listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")
     val row2 = listOf("a", "s", "d", "f", "g", "h", "j", "k", "l")
     val row3 = listOf("z", "x", "c", "v", "b", "n", "m")
+    val isShifted = shiftState != GhostShiftState.OFF
 
-    KeyboardRow(row1) { viewModel.handleInput(it) }
-    KeyboardRow(row2) { viewModel.handleInput(it) }
+    KeyboardRow(row1, isUppercase = isShifted) { viewModel.handleInput(it) }
+    KeyboardRow(row2, isUppercase = isShifted) { viewModel.handleInput(it) }
     
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -217,14 +218,14 @@ fun SymbolLayout(viewModel: KeyboardViewModel) {
 }
 
 @Composable
-fun KeyboardRow(keys: List<String>, onClick: (String) -> Unit) {
+fun KeyboardRow(keys: List<String>, isUppercase: Boolean = false, onClick: (String) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         keys.forEach { key ->
             GhostKey(
-                text = key,
+                text = if (isUppercase) key.uppercase() else key,
                 modifier = Modifier.weight(1f),
                 onClick = { onClick(key) }
             )

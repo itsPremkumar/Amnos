@@ -116,7 +116,7 @@ fun GhostTextField(
         cursorBrush = SolidColor(cursorColor),
         keyboardOptions = KeyboardOptions(
             imeAction = imeAction,
-            keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+            keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
             autoCorrect = false
         ),
         keyboardActions = KeyboardActions(onSearch = { onSearch() }),
