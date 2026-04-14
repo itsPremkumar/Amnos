@@ -1,7 +1,8 @@
 package com.amnos.browser.ui.components.keyboard
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -10,14 +11,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import com.amnos.browser.ui.theme.TextGray
+import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -39,6 +44,26 @@ fun GhostTextField(
     var textFieldValue by remember { 
         mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length))) 
     }
+    
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    var isFocused by remember { mutableStateOf(false) }
+
+    // Cursor blinking animation
+    val infiniteTransition = rememberInfiniteTransition()
+    val cursorAlpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 1000
+                1f at 0
+                1f at 499
+                0f at 500
+                0f at 999
+            },
+            repeatMode = RepeatMode.Restart
+        )
+    )
     
     // Sync with external value changes
     LaunchedEffect(value) {
@@ -100,6 +125,7 @@ fun GhostTextField(
             onValueChange(it.text)
         },
         modifier = modifier.onFocusChanged { focusState ->
+            isFocused = focusState.isFocused
             if (focusState.isFocused) {
                 com.amnos.browser.core.session.AmnosLog.d("GhostTextField", "Focused! Suppressing Gboard and showing Ghost Keyboard.")
                 keyboardController?.hide()
@@ -110,6 +136,7 @@ fun GhostTextField(
                 )
             }
         },
+        onTextLayout = { textLayoutResult = it },
         readOnly = true, // SUPPRESS SYSTEM KEYBOARD
         singleLine = singleLine,
         textStyle = LocalTextStyle.current.copy(color = textColor),
@@ -126,6 +153,28 @@ fun GhostTextField(
                     Text(text = placeholder, color = TextGray)
                 }
                 innerTextField()
+                
+                // Custom Cursor Implementation
+                if (isFocused) {
+                    textLayoutResult?.let { layout ->
+                        val cursorOffset = textFieldValue.selection.max
+                        if (cursorOffset <= layout.layoutInput.text.length) {
+                            val cursorRect = layout.getCursorRect(cursorOffset)
+                            val density = LocalDensity.current
+                            val xOffset = with(density) { cursorRect.left.toDp() }
+                            val yOffset = with(density) { cursorRect.top.toDp() }
+                            val cursorHeight = with(density) { cursorRect.height.toDp() }
+                            
+                            Box(
+                                modifier = Modifier
+                                    .padding(start = xOffset, top = yOffset)
+                                    .size(2.dp, cursorHeight)
+                                    .alpha(cursorAlpha)
+                                    .background(cursorColor)
+                            )
+                        }
+                    }
+                }
             }
         }
     )
