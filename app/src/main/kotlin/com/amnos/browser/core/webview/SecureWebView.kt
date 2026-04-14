@@ -218,12 +218,15 @@ class SecureWebView(context: Context) : WebView(context) {
                 BRIDGE_NAME,
                 setOf("*")
             ) { _: WebView, message: WebMessageCompat, sourceOrigin: Uri, _: Boolean, _: JavaScriptReplyProxy ->
-                // SECURE ORIGIN VALIDATION: Only accept messages from the currently loaded page
+                // SECURE ORIGIN & PROTOCOL VALIDATION: Only accept messages from the currently loaded HTTPS page
                 val currentUri = url?.let { Uri.parse(it) }
-                if (currentUri != null && sourceOrigin.host == currentUri.host) {
+                val isHttps = sourceOrigin.scheme == "https"
+                val hostMatches = currentUri != null && sourceOrigin.host == currentUri.host
+                
+                if (isHttps && hostMatches) {
                     message.data?.let(onSecurityEvent)
                 } else {
-                    AmnosLog.w("SecureWebView", "REJECTED cross-origin bridge message from: $sourceOrigin")
+                    AmnosLog.w("SecureWebView", "REJECTED bridge message from: $sourceOrigin (HTTPS: $isHttps, Host Match: $hostMatches)")
                 }
             }
             AmnosLog.d("SecureWebView", "Security bridge (WebMessageListener) installed")

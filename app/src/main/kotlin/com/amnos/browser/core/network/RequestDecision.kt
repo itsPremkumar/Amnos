@@ -22,7 +22,8 @@ enum class BlockReason {
     WEBSOCKET,
     UNSUPPORTED_SCHEME,
     LOCAL_NETWORK,
-    UNSAFE_METHOD
+    UNSAFE_METHOD,
+    SECURITY_THREAT
 }
 
 data class RequestDecision(

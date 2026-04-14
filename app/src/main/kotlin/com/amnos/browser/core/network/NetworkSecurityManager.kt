@@ -79,6 +79,7 @@ class NetworkSecurityManager(
         BlockReason.UNSUPPORTED_SCHEME -> "unsupported_scheme"
         BlockReason.LOCAL_NETWORK -> "local_network"
         BlockReason.UNSAFE_METHOD -> "unsafe_method"
+        BlockReason.SECURITY_THREAT -> "security_threat"
     }
 
     fun siteKeyForUrl(url: String?): String? {

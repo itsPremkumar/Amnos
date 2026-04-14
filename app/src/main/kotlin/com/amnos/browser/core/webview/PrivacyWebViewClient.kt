@@ -1,5 +1,6 @@
 package com.amnos.browser.core.webview
 
+import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import androidx.core.net.toUri
 import android.webkit.SslErrorHandler
@@ -31,26 +32,37 @@ class PrivacyWebViewClient(
     private var currentHost: String? = null
 
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-        if (request?.isForMainFrame != true) {
-            return false
+        request ?: return false
+        val uri = request.url ?: return false
+        val scheme = uri.scheme?.lowercase() ?: return false
+        
+        // 1. INTENT JAIL: Force all navigation to stay within the secure browser.
+        // We only allow http and https. Any other scheme (intent://, tel:, mailto:, market://) is BLOCKED.
+        if (scheme != "http" && scheme != "https") {
+            AmnosLog.w("PrivacyWebViewClient", "INTENT JAIL: Blocked escape attempt to scheme: $scheme")
+            securityController.logInternal("SecurityJail", "Blocked external app launch: $scheme", "WARN")
+            return true // Block the navigation
         }
 
-        val url = request.url.toString()
-        val sanitizedUrl = networkSecurityManager.sanitizeNavigationUrl(url)
-        if (sanitizedUrl == null) {
-            showBlockedPage(view, BlockReason.UNSUPPORTED_SCHEME)
-            return true
+        // 2. MAIN FRAME SANITIZATION
+        if (request.isForMainFrame) {
+            val url = uri.toString()
+            val sanitizedUrl = networkSecurityManager.sanitizeNavigationUrl(url)
+            if (sanitizedUrl == null) {
+                showBlockedPage(view, BlockReason.UNSUPPORTED_SCHEME)
+                return true
+            }
+
+            if (sanitizedUrl.startsWith("about:blank", ignoreCase = true)) {
+                return false
+            }
+
+            if (sanitizedUrl != url) {
+                return onNavigationRequested(sanitizedUrl)
+            }
         }
 
-        if (sanitizedUrl.startsWith("about:blank", ignoreCase = true)) {
-            return false
-        }
-
-        if (sanitizedUrl == url) {
-            return onNavigationRequested(url)
-        }
-
-        return onNavigationRequested(sanitizedUrl)
+        return onNavigationRequested(uri.toString())
     }
 
     override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
@@ -142,6 +154,25 @@ class PrivacyWebViewClient(
             currentHost = it.toUri().host
             onNavigationCommitted(it)
         }
+    }
+
+
+    @SuppressLint("RequiresFeature")
+    override fun onSafeBrowsingHit(
+        view: WebView?,
+        request: WebResourceRequest?,
+        threatType: Int,
+        callback: android.webkit.SafeBrowsingResponse?
+    ) {
+        // AMNOS PHISHING GUARD: Intercept Google Safe Browsing and handle it locally
+        // to prevent URL reporting back to Google's interstitial engine.
+        AmnosLog.e("PrivacyWebViewClient", "SAFE BROWSING HIT: Threat type $threatType for ${request?.url}")
+        
+        // Show our own blocked page instead of Google's red warning page
+        showBlockedPage(view, BlockReason.SECURITY_THREAT)
+        
+        // Tell the engine to "Back to Safety"
+        callback?.backToSafety(true)
     }
 
     override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) {

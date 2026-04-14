@@ -22,9 +22,13 @@ object NavigationResolver {
         val trimmedInput = input.trim()
         if (trimmedInput.isEmpty()) return null
 
-        val isUrlCandidate = trimmedInput.startsWith("http://", ignoreCase = true) ||
+        val isUrlCandidate = (trimmedInput.startsWith("http://", ignoreCase = true) ||
             trimmedInput.startsWith("https://", ignoreCase = true) ||
-            (trimmedInput.contains(".") && !trimmedInput.contains(" ") && trimmedInput.length > 3)
+            (trimmedInput.contains(".") && !trimmedInput.contains(" ") && trimmedInput.length > 3)) &&
+            !trimmedInput.startsWith("javascript:", ignoreCase = true) &&
+            !trimmedInput.startsWith("file:", ignoreCase = true) &&
+            !trimmedInput.startsWith("data:", ignoreCase = true) &&
+            !trimmedInput.startsWith("content:", ignoreCase = true)
 
         val transformedUrl: String
         val targetType: NavigationTargetType
