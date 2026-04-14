@@ -114,7 +114,11 @@ fun GhostTextField(
         singleLine = singleLine,
         textStyle = LocalTextStyle.current.copy(color = textColor),
         cursorBrush = SolidColor(cursorColor),
-        keyboardOptions = KeyboardOptions(imeAction = imeAction),
+        keyboardOptions = KeyboardOptions(
+            imeAction = imeAction,
+            keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+            autoCorrect = false
+        ),
         keyboardActions = KeyboardActions(onSearch = { onSearch() }),
         decorationBox = { innerTextField ->
             Box(modifier = Modifier.fillMaxWidth()) {

@@ -35,13 +35,13 @@ class SecureWebView(context: Context) : WebView(context) {
     }
 
     override fun onCreateInputConnection(outAttrs: EditorInfo?): InputConnection? {
-        AmnosLog.d("SecureWebView", "onCreateInputConnection requested. EditorInfo: actionLabel=${outAttrs?.actionLabel}, actionId=${outAttrs?.actionId}")
+        // AmnosLog.d("SecureWebView", "onCreateInputConnection requested.")
         // AMNOS HARDENED INPUT: Rejection of system IME to prevent keystroke leakage
         return null
     }
 
     override fun onCheckIsTextEditor(): Boolean {
-        AmnosLog.d("SecureWebView", "onCheckIsTextEditor called. Returning FALSE.")
+        // AmnosLog.d("SecureWebView", "onCheckIsTextEditor called. Returning FALSE.")
         // AMNOS HARDENED INPUT: Tell the system this is not a text editor
         return false
     }

@@ -77,11 +77,7 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("Hardening Session...", style = MaterialTheme.typography.bodyMedium)
-                            }
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
                     } else {
                         BrowserScreen(viewModel)
@@ -158,7 +154,9 @@ class MainActivity : ComponentActivity() {
                 ?.isVisible(WindowInsetsCompat.Type.ime()) == true
             
             if (isImeVisible) {
-                AmnosLog.w("AmnosKeyboardKiller", "SYSTEM IME DETECTED! Force-hiding Gboard/System keyboard.")
+                // controller.hide(WindowInsetsCompat.Type.ime())
+                // Noisy logging suppressed to prevent logcat flooding
+                // AmnosLog.d("AmnosKeyboardKiller", "System IME suppressed.")
                 controller.hide(WindowInsetsCompat.Type.ime())
             }
         }
