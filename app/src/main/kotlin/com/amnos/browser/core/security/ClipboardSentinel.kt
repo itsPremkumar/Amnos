@@ -16,18 +16,23 @@ object ClipboardSentinel {
         try {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             
-            // On Android 13+ (API 33), we can hint to the system that this is sensitive
-            // to suppress the visual preview (the "Copied" text preview).
-            val clipData = ClipData.newPlainText("", "")
             if (android.os.Build.VERSION.SDK_INT >= 33) {
-                val extras = android.os.PersistableBundle().apply {
-                    putBoolean("android.content.extra.IS_SENSITIVE", true)
+                // AMNOS SILENT WIPE: API 33+ supports clearPrimaryClip()
+                // This informs the system to forget the data without treated it as a new "Copy" event,
+                // which suppresses the intrusive "Copied" and "Send to device" overlays.
+                clipboard.clearPrimaryClip()
+            } else {
+                // FALLBACK: Set an empty sensitive clip
+                val clipData = ClipData.newPlainText("", "")
+                // Standard Android IS_SENSITIVE extra (API 33+) but we apply it as a best-effort hint
+                if (android.os.Build.VERSION.SDK_INT >= 31) {
+                    val extras = android.os.PersistableBundle().apply {
+                        putBoolean("android.content.extra.IS_SENSITIVE", true)
+                    }
+                    clipData.description.extras = extras
                 }
-                clipData.description.extras = extras
+                clipboard.setPrimaryClip(clipData)
             }
-
-            // On Android 10+ (API 29), we can only access the clipboard if we have focus.
-            clipboard.setPrimaryClip(clipData)
             AmnosLog.d("ClipboardSentinel", "Forensic clipboard scrub successful.")
         } catch (e: Exception) {
             // Silently skip if denied due to focus; this is expected on modern Android when backgrounded.
