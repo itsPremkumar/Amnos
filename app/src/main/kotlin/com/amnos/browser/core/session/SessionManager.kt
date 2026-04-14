@@ -129,6 +129,7 @@ class SessionManager(private val context: Context) {
             deviceProfile = profile,
             networkSecurityManager = networkSecurityManager,
             securityController = securityController,
+            policyProvider = { privacyPolicy },
             onTrackerBlocked = onTrackerBlocked,
             onStateChanged = { url ->
                 touchSession()

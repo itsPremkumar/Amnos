@@ -20,6 +20,7 @@ class PrivacyWebViewClient(
     private val deviceProfile: DeviceProfile,
     private val networkSecurityManager: NetworkSecurityManager,
     private val securityController: SecurityController,
+    private val policyProvider: () -> com.amnos.browser.core.security.PrivacyPolicy,
     private val onTrackerBlocked: () -> Unit,
     private val onStateChanged: (String) -> Unit,
     private val onNavigationRequested: (String) -> Boolean,
@@ -91,7 +92,10 @@ class PrivacyWebViewClient(
                     disposition = RequestDisposition.ALLOWED,
                     thirdParty = decision.thirdParty
                 )
-                // AMNOS HARDENING: Full URL logging removed from Logcat
+                
+                if (!policyProvider().blockForensicLogging) {
+                    AmnosLog.d("PrivacyWebViewClient", "Interception SUCCESS: ${decision.sanitizedUrl}")
+                }
                 return proxiedResponse
             }
         } catch (e: Exception) {

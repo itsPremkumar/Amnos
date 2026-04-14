@@ -45,7 +45,7 @@ android {
         } else {
             // Default fallbacks if .env is missing (all true for security)
             buildConfigField "boolean", "SECURITY_BLOCK_SCREENSHOTS", "true"
-            buildConfigField "boolean", "SECURITY_RELAX_FOR_DEBUG", "false"
+            buildConfigField "boolean", "SECURITY_ENFORCE_STRICT_POLICIES", "true"
             buildConfigField "boolean", "SECURITY_BLOCK_TRACKERS", "true"
             buildConfigField "boolean", "SECURITY_HTTPS_ONLY", "true"
             buildConfigField "boolean", "SECURITY_BLOCK_THIRD_PARTY_REQUESTS", "true"
@@ -62,6 +62,7 @@ android {
             buildConfigField "boolean", "SECURITY_BLOCK_IPV6", "true"
             buildConfigField "boolean", "SECURITY_ENFORCE_LOOPBACK_PROXY", "true"
             buildConfigField "boolean", "SECURITY_STRICT_FIRST_PARTY_ISOLATION", "true"
+            buildConfigField "boolean", "SECURITY_BLOCK_FORENSIC_LOGGING", "true"
             buildConfigField "String", "SECURITY_FINGERPRINT_LEVEL", "\"STRICT\""
         }
 

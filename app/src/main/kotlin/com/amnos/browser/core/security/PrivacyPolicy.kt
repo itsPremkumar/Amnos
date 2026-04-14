@@ -19,7 +19,7 @@ enum class FingerprintProtectionLevel {
 
 data class PrivacyPolicy(
     // MASTER DEBUG TOGGLE
-    val forceRelaxSecurityForDebug: Boolean = com.amnos.browser.BuildConfig.SECURITY_RELAX_FOR_DEBUG,
+    val forceRelaxSecurityForDebug: Boolean = !com.amnos.browser.BuildConfig.SECURITY_ENFORCE_STRICT_POLICIES,
     
     // UI SECURITY
     val blockScreenshots: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_SCREENSHOTS,
@@ -40,6 +40,7 @@ data class PrivacyPolicy(
     
     // DEBUGGING
     val enableRemoteDebugging: Boolean = false,
+    val blockForensicLogging: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_FORENSIC_LOGGING,
     
     // WEB ENGINE SECURITY
     val blockServiceWorkers: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_SERVICE_WORKERS,

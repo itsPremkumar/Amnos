@@ -163,7 +163,14 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
-        // AMNOS HARNEDING: Logging of touch events removed to prevent coordinate fingerprinting
+        // AMNOS HARDENING: Conditional logging of touch events for developer debugging
+        if (::sessionManager.isInitialized && !sessionManager.privacyPolicy.blockForensicLogging) {
+            val isImeVisible = androidx.core.view.ViewCompat.getRootWindowInsets(window.decorView)
+                ?.isVisible(WindowInsetsCompat.Type.ime()) == true
+            if (isImeVisible) {
+                AmnosLog.d("MainActivity", "DEBUG TOUCH while IME visible: ${ev?.x}, ${ev?.y}")
+            }
+        }
         return super.dispatchTouchEvent(ev)
     }
 }
