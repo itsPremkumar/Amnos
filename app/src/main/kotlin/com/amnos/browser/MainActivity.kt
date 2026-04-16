@@ -24,6 +24,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import com.amnos.browser.core.security.PrivacyPolicy
 import com.amnos.browser.core.session.AmnosLog
+import android.view.accessibility.AccessibilityManager
+import android.accessibilityservice.AccessibilityServiceInfo
 import com.amnos.browser.core.session.RuntimeSecurityConfig
 import com.amnos.browser.core.session.SessionManager
 import com.amnos.browser.ui.screens.browser.BrowserScreen
@@ -103,6 +105,7 @@ class MainActivity : ComponentActivity() {
                 viewModel = BrowserViewModel(sessionManager)
 
                 isInitialized = true
+                investigateAccessibilityServices()
                 consumePendingLaunchRequest()
                 AmnosLog.d("MainActivity", "Amnos Bootstrap Complete")
             } catch (e: Exception) {
@@ -233,8 +236,24 @@ class MainActivity : ComponentActivity() {
         viewModel.navigate(request)
     }
 
+    private fun investigateAccessibilityServices() {
+        val am = getSystemService(android.view.accessibility.AccessibilityManager::class.java)
+        val active = am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+        if (active.isNotEmpty()) {
+            val names = active.joinToString { it.resolveInfo.serviceInfo.name }
+            sessionManager.securityController.logInternal("SystemHealth", "SANDBOX WARNING: Active Accessibility Services detected: $names. These services can scrape screen content.", "WARN")
+        }
+    }
+
     private fun extractNavigationRequest(intent: Intent?): String? {
         intent ?: return null
+        
+        // V2 SANDBOX GATING: If in PARANOID mode, block ALL inbound intents by default
+        if (::sessionManager.isInitialized && sessionManager.privacyPolicy.sandboxMode == com.amnos.browser.core.security.AmnosSandboxMode.PARANOID) {
+            AmnosLog.w("MainActivity", "INBOUND INTENT BLOCKED: Paranoid Sandbox Mode is ACTIVE.")
+            return null
+        }
+
         return when (intent.action) {
             Intent.ACTION_VIEW -> {
                 val rawString = intent.dataString?.takeIf { it.isNotBlank() } ?: return null

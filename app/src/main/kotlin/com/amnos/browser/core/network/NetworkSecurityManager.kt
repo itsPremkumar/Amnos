@@ -63,7 +63,21 @@ class NetworkSecurityManager(
     }
 
     fun evaluateRequest(request: WebResourceRequest, topLevelHost: String?): RequestDecision {
+        val urlStr = request.url.toString()
         val policy = policyProvider()
+        
+        // V2 PARANOID MODE FIREWALL
+        if (policy.sandboxMode == com.amnos.browser.core.security.AmnosSandboxMode.PARANOID) {
+            if (!DomainPolicyManager.isAllowed(urlStr)) {
+                AmnosLog.w("NetworkSecurity", "FIREWALL BLOCKED unknown domain in PARANOID mode: $urlStr")
+                return RequestDecision(
+                    sanitizedUrl = urlStr,
+                    kind = RequestKind.OTHER,
+                    blockReason = BlockReason.SECURITY_THREAT
+                )
+            }
+        }
+
         val decision = ruleEngine.evaluateRequest(request, topLevelHost, policy)
         
         if (policy.forceRelaxSecurityForDebug && decision.isBlocked) {

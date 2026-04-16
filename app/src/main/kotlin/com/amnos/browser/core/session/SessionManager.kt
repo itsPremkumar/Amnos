@@ -292,9 +292,10 @@ class SessionManager(
     }
 
     fun killAll(terminateProcess: Boolean = false, wipeClipboard: Boolean = true) {
-        val reason = if (terminateProcess) WipeReason.KILL_SWITCH else WipeReason.BACKGROUND_WIPE
+        val shouldTerminate = terminateProcess || privacyPolicy.sandboxMode == com.amnos.browser.core.security.AmnosSandboxMode.PARANOID
+        val reason = if (shouldTerminate) WipeReason.KILL_SWITCH else WipeReason.BACKGROUND_WIPE
         mainHandler.removeCallbacks(timeoutRunnable)
-        superWipeEngine.execute(reason, terminateProcess, wipeClipboard)
+        superWipeEngine.execute(reason, shouldTerminate, wipeClipboard)
     }
 
     private fun buildInjectionScript(profile: DeviceProfile): String {

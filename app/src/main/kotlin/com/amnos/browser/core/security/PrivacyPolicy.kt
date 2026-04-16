@@ -16,8 +16,14 @@ enum class FingerprintProtectionLevel {
     STRICT,
     DISABLED
 }
+enum class AmnosSandboxMode {
+    PARANOID,
+    BALANCED,
+    OPEN
+}
 
 data class PrivacyPolicy(
+    val sandboxMode: AmnosSandboxMode = AmnosSandboxMode.PARANOID,
     // MASTER DEBUG TOGGLE
     val forceRelaxSecurityForDebug: Boolean = !com.amnos.browser.BuildConfig.SECURITY_ENFORCE_STRICT_POLICIES,
     

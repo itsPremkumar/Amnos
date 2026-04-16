@@ -37,10 +37,11 @@ class PrivacyWebViewClient(
         val scheme = uri.scheme?.lowercase() ?: return false
         
         // 1. INTENT JAIL: Force all navigation to stay within the secure browser.
-        // We only allow http and https. Any other scheme (intent://, tel:, mailto:, market://) is BLOCKED.
+        val policy = policyProvider()
         if (scheme != "http" && scheme != "https") {
-            AmnosLog.w("PrivacyWebViewClient", "INTENT JAIL: Blocked escape attempt to scheme: $scheme")
-            securityController.logInternal("SecurityJail", "Blocked external app launch: $scheme", "WARN")
+            val level = if (policy.sandboxMode == com.amnos.browser.core.security.AmnosSandboxMode.PARANOID) "CRITICAL" else "WARN"
+            AmnosLog.w("PrivacyWebViewClient", "INTENT JAIL: Blocked escape attempt to scheme: $scheme ($level)")
+            securityController.logInternal("SecurityJail", "Blocked external app launch: $scheme", level)
             return true // Block the navigation
         }
 

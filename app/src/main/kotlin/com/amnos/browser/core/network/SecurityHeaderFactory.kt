@@ -117,7 +117,14 @@ object SecurityHeaderFactory {
         val connectSources = mutableListOf("'self'", "https:")
         if (!policy.blockWebSockets) connectSources.add("wss:")
         val connectSourceStr = connectSources.joinToString(" ")
-        val workerSource = if (isSearchEngine(host)) "'self' blob:" else "'none'"
+        
+        val workerSource = if (policy.sandboxMode == com.amnos.browser.core.security.AmnosSandboxMode.PARANOID) {
+            "'none'"
+        } else if (isSearchEngine(host)) {
+            "'self' blob:"
+        } else {
+            "'none'"
+        }
 
         return listOf(
             "default-src https: data: blob:",
