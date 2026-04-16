@@ -163,6 +163,14 @@ class SecureWebView(context: Context) : WebView(context) {
         clearCache(true)
         clearFormData()
         clearSslPreferences()
+
+        // SECURITY HARDENING: Wipe all cookies on tab teardown.
+        // Since we allow first-party session cookies for media playback,
+        // we must ensure they don't survive beyond this tab's lifecycle.
+        val cookieManager = CookieManager.getInstance()
+        cookieManager.removeAllCookies(null)
+        cookieManager.flush()
+
         removeAllViews()
     }
 
