@@ -265,11 +265,16 @@ class SessionManager private constructor(
         }
     }
 
-    fun loadUrl(tab: TabInstance, rawUrl: String): Boolean {
-        securityController.logInternal("SessionManager", "loadUrl raw: $rawUrl", "DEBUG")
-        val sanitizedUrl = networkSecurityManager.sanitizeNavigationUrl(rawUrl) ?: run {
-            securityController.logInternal("SessionManager", "Sanitization REJECTED URL: $rawUrl", "WARN")
-            return false
+    fun loadUrl(tab: TabInstance, rawUrl: String, forceBypassSandbox: Boolean = false): Boolean {
+        securityController.logInternal("SessionManager", "loadUrl raw: $rawUrl (bypass=$forceBypassSandbox)", "DEBUG")
+        
+        val sanitizedUrl = if (forceBypassSandbox) {
+            rawUrl
+        } else {
+            networkSecurityManager.sanitizeNavigationUrl(rawUrl) ?: run {
+                securityController.logInternal("SessionManager", "Sanitization REJECTED URL: $rawUrl", "WARN")
+                return false
+            }
         }
         securityController.logInternal("SessionManager", "loadUrl sanitized: $sanitizedUrl", "DEBUG")
         

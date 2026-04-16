@@ -7,7 +7,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 
 enum class GhostKeyboardLayout {
-    ALPHA, SYMBOLS
+    ALPHA, SYMBOLS, EMOJI
 }
 
 enum class GhostShiftState {
@@ -23,6 +23,10 @@ class KeyboardViewModel : ViewModel() {
 
     private val _isVisible = mutableStateOf(false)
     val isVisible: State<Boolean> = _isVisible
+
+    fun setLayout(layout: GhostKeyboardLayout) {
+        _layoutState.value = layout
+    }
 
     private val _keyboardHeight = mutableStateOf(0.dp)
     val keyboardHeight: State<Dp> = _keyboardHeight
@@ -73,6 +77,9 @@ class KeyboardViewModel : ViewModel() {
         }
     }
 
+    private var lastInputTime = 0L
+    private var lastKeyWasSpace = false
+
     fun handleInput(char: String) {
         val processedChar = if (_shiftState.value != GhostShiftState.OFF) {
             char.uppercase()
@@ -85,10 +92,26 @@ class KeyboardViewModel : ViewModel() {
         if (_shiftState.value == GhostShiftState.ONCE) {
             _shiftState.value = GhostShiftState.OFF
         }
+        lastKeyWasSpace = char == " "
+    }
+
+    fun handleSpace() {
+        val now = System.currentTimeMillis()
+        if (lastKeyWasSpace && (now - lastInputTime) < 500) {
+            // Double tap space: delete space and add period + space
+            handleBackspace()
+            handleInput(". ")
+            _shiftState.value = GhostShiftState.ONCE
+        } else {
+            handleInput(" ")
+        }
+        lastInputTime = now
+        lastKeyWasSpace = true
     }
 
     fun handleBackspace() {
         backspaceCallback?.invoke()
+        lastKeyWasSpace = false
     }
 
     fun handleSearch() {

@@ -28,11 +28,18 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var loadingProgress = mutableIntStateOf(0)
 
     var blockedTrackersCount = mutableIntStateOf(0)
+    var sandboxMode = mutableStateOf(sessionManager.privacyPolicy.sandboxMode)
+    var showSecurityDashboard = mutableStateOf(false)
+    var blockedNavigationUrl = mutableStateOf<String?>(null)
+    
+    // RESTORED PROPERTIES
     var privacyPolicy = mutableStateOf(sessionManager.privacyPolicy)
     var javaScriptMode = mutableStateOf(sessionManager.privacyPolicy.javascriptMode)
-    var isWebGLEnabled = mutableStateOf(sessionManager.privacyPolicy.webGlMode == WebGlMode.SPOOF)
+    var isWebGLEnabled = mutableStateOf(sessionManager.privacyPolicy.webGlMode == com.amnos.browser.core.security.WebGlMode.SPOOF)
     var fingerprintProtectionLevel = mutableStateOf(sessionManager.privacyPolicy.fingerprintProtectionLevel)
-    var showSecurityDashboard = mutableStateOf(false)
+    
+    var showAccessibilityWarning = mutableStateOf(false)
+    
     var sessionLabel = mutableStateOf(sessionManager.sessionId.take(8))
     val requestLog = sessionManager.securityController.requestLog
     val activeConnections = sessionManager.securityController.activeConnections
@@ -153,6 +160,34 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     fun toggleForceRelaxSecurity(enabled: Boolean) = securityHandler.toggleForceRelaxSecurity(enabled)
     fun setFingerprintProtectionLevel(level: FingerprintProtectionLevel) = securityHandler.setFingerprintProtectionLevel(level)
 
+    fun setSandboxMode(mode: com.amnos.browser.core.security.AmnosSandboxMode) {
+        AmnosLog.d("BrowserViewModel", "Setting Sandbox Mode: $mode")
+        sessionManager.updatePrivacyPolicy { it.copy(sandboxMode = mode) }
+        sandboxMode.value = mode
+        refreshPolicyState()
+    }
+
+    fun handleBlockedNavigation(url: String) {
+        if (sandboxMode.value == com.amnos.browser.core.security.AmnosSandboxMode.BALANCED) {
+            blockedNavigationUrl.value = url
+        } else {
+            // Paranoid mode silently blocks, no dialog needed.
+            AmnosLog.w("BrowserViewModel", "SILENT BLOCK (Paranoid): $url")
+        }
+    }
+
+    fun confirmBlockedNavigation() {
+        blockedNavigationUrl.value?.let { url ->
+            val tab = currentTab.value ?: return
+            sessionManager.loadUrl(tab, url, forceBypassSandbox = true)
+        }
+        blockedNavigationUrl.value = null
+    }
+
+    fun cancelBlockedNavigation() {
+        blockedNavigationUrl.value = null
+    }
+
     // Navigation Delegates
     fun navigate(input: String) = navHandler.navigate(input)
     fun goBack() = navHandler.goBack()
@@ -215,11 +250,12 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     internal fun refreshPolicyState() {
         privacyPolicy.value = sessionManager.privacyPolicy
         javaScriptMode.value = sessionManager.privacyPolicy.javascriptMode
-        isWebGLEnabled.value = sessionManager.privacyPolicy.webGlMode == WebGlMode.SPOOF
+        isWebGLEnabled.value = sessionManager.privacyPolicy.webGlMode == com.amnos.browser.core.security.WebGlMode.SPOOF
         fingerprintProtectionLevel.value = sessionManager.privacyPolicy.fingerprintProtectionLevel
         blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount()
         enableRemoteDebugging.value = sessionManager.privacyPolicy.enableRemoteDebugging
         forceRelaxSecurityForDebug.value = sessionManager.privacyPolicy.forceRelaxSecurityForDebug
+        sandboxMode.value = sessionManager.privacyPolicy.sandboxMode
     }
 
     internal fun recreateCurrentTab() {

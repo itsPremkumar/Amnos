@@ -17,6 +17,16 @@ import androidx.compose.ui.Alignment
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.amnos.browser.ui.components.keyboard.GhostKeyboard
 import com.amnos.browser.ui.components.keyboard.KeyboardViewModel
+import androidx.compose.material3.*
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Warning
+import com.amnos.browser.ui.theme.KillRed
+import com.amnos.browser.ui.theme.SurfaceGray
+import com.amnos.browser.ui.theme.TextGray
+import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -34,6 +44,33 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
     }
 
     val keyboardHeight by keyboardViewModel.keyboardHeight
+
+    // Gated Navigation Safety Dialog
+    if (viewModel.blockedNavigationUrl.value != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelBlockedNavigation() },
+            title = { Text("Security Checkpoint", fontWeight = FontWeight.Bold) },
+            text = { 
+                Text("Amnos has intercepted an attempt to leave the secure sandbox for an external application. Do you trust this destination?\n\nURL: ${viewModel.blockedNavigationUrl.value}") 
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.confirmBlockedNavigation() },
+                    colors = ButtonDefaults.buttonColors(containerColor = KillRed)
+                ) {
+                    Text("Trust & Open")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.cancelBlockedNavigation() }) {
+                    Text("Stay in Sandbox")
+                }
+            },
+            containerColor = SurfaceGray,
+            titleContentColor = Color.White,
+            textContentColor = TextGray
+        )
+    }
 
     Box(modifier = Modifier
         .fillMaxSize()
@@ -56,6 +93,33 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
             
             // Push content up by keyboard height
             Spacer(modifier = Modifier.height(keyboardHeight))
+        }
+
+        // Accessibility Threat Banner
+        if (viewModel.showAccessibilityWarning.value) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp, start = 12.dp, end = 12.dp),
+                color = KillRed.copy(alpha = 0.9f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(androidx.compose.material.icons.Icons.Default.Warning, contentDescription = null, tint = Color.White)
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "THREAT DETECTED: Active Accessibility Scrapers. Screen privacy is compromised.",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         }
 
         // Overlay keyboard at the bottom

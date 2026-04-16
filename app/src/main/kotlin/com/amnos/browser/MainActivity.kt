@@ -259,6 +259,13 @@ class MainActivity : ComponentActivity() {
         if (active.isNotEmpty()) {
             val names = active.joinToString { it.resolveInfo.serviceInfo.name }
             sessionManager.securityController.logInternal("SystemHealth", "SANDBOX WARNING: Active Accessibility Services detected: $names. These services can scrape screen content.", "WARN")
+            if (::viewModel.isInitialized) {
+                viewModel.showAccessibilityWarning.value = true
+            }
+        } else {
+            if (::viewModel.isInitialized) {
+                viewModel.showAccessibilityWarning.value = false
+            }
         }
     }
 

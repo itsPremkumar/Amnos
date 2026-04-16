@@ -84,6 +84,13 @@ fun ActiveDefenseCard(viewModel: BrowserViewModel) {
 fun SecurityControlsGroup(viewModel: BrowserViewModel) {
     val policy = viewModel.privacyPolicy.value
     Column {
+        SandboxModeSelector(
+            selectedMode = viewModel.sandboxMode.value,
+            onModeSelected = viewModel::setSandboxMode
+        )
+
+        Spacer(Modifier.height(16.dp))
+
         JavaScriptModeSelector(
             selectedMode = viewModel.javaScriptMode.value,
             onModeSelected = viewModel::setJavaScriptMode
@@ -229,5 +236,35 @@ fun SecurityToggle(
                 checkedTrackColor = AccentBlue.copy(alpha = 0.3f)
             )
         )
+    }
+}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SandboxModeSelector(
+    selectedMode: com.amnos.browser.core.security.AmnosSandboxMode,
+    onModeSelected: (com.amnos.browser.core.security.AmnosSandboxMode) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+    ) {
+        Text("Sandbox Environment", color = AccentBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 1.sp)
+        Spacer(Modifier.height(4.dp))
+        Text("Paranoid is Zero-Trust. Balanced allows gated navigation.", color = Color.Gray, fontSize = 11.sp)
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            com.amnos.browser.core.security.AmnosSandboxMode.values().forEach { mode ->
+                FilterChip(
+                    selected = selectedMode == mode,
+                    onClick = { onModeSelected(mode) },
+                    label = { Text(mode.name) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = AccentBlue.copy(alpha = 0.2f),
+                        selectedLabelColor = Color.White
+                    )
+                )
+            }
+        }
     }
 }
