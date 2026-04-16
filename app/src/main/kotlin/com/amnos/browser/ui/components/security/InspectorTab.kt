@@ -18,11 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.*
 import com.amnos.browser.core.model.*
-import com.amnos.browser.core.session.SecurityController
 import com.amnos.browser.ui.screens.browser.BrowserViewModel
 import com.amnos.browser.ui.theme.AccentBlue
 import com.amnos.browser.ui.theme.KillRed
-import com.amnos.browser.ui.theme.TextGray
 
 @Composable
 fun InspectorTab(viewModel: BrowserViewModel) {
