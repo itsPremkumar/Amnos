@@ -340,6 +340,10 @@ class SessionManager(
                     val action = payload.optString("action")
                     onKeyboardRequested?.invoke(action == "show")
                 }
+                "clipboard_copy" -> {
+                    val text = payload.optString("text")
+                    com.amnos.browser.core.security.ClipboardVault.write(text)
+                }
                 "webrtc" -> {
                     securityController.recordWebRtcAttempt(
                         detail = payload.optString("detail", "webrtc"),

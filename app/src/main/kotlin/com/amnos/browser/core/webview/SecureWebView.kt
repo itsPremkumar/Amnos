@@ -189,19 +189,40 @@ class SecureWebView(context: Context) : WebView(context) {
 
         val focusSentinel = """
             (function() {
-                const notify = (action) => {
+                const notify = (type, detail) => {
                     if (window.amnosBridge) {
-                        window.amnosBridge.postMessage(JSON.stringify({ type: 'keyboard_event', action: action }));
+                        const payload = { type: type };
+                        if (type === 'keyboard_event') payload.action = detail;
+                        if (type === 'clipboard_copy') payload.text = detail;
+                        window.amnosBridge.postMessage(JSON.stringify(payload));
                     }
                 };
                 window.addEventListener('focusin', (e) => {
                     const el = e.target;
                     if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable) {
-                        notify('show');
+                        notify('keyboard_event', 'show');
                     }
                 });
                 window.addEventListener('focusout', (e) => {
-                    notify('hide');
+                    notify('keyboard_event', 'hide');
+                });
+
+                // AMNOS CLIPBOARD JAIL: Prevent OS clipboard writes. Store in bridge.
+                document.addEventListener('copy', (e) => {
+                    e.preventDefault();
+                    const text = window.getSelection().toString();
+                    if (text) notify('clipboard_copy', text);
+                });
+                document.addEventListener('cut', (e) => {
+                    e.preventDefault();
+                    const text = window.getSelection().toString();
+                    if (text) notify('clipboard_copy', text);
+                    document.execCommand('delete', false, null); // Execute delete since we prevented cut
+                });
+                // Paste is blocked contextually unless we manually push text back
+                document.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    // Amnos acts as a read-only sandbox for paste unless implemented internally
                 });
             })();
         """.trimIndent()
@@ -292,8 +313,8 @@ class SecureWebView(context: Context) : WebView(context) {
             serviceWorkerSettings.setAllowFileAccess(false)
         }
         if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BLOCK_NETWORK_LOADS)) {
-            // We allow network loads globally but control registration via injected JS and CSP
-            serviceWorkerSettings.setBlockNetworkLoads(false)
+            // AMNOS ZERO-EXFILTRATION: Completely castrate Service Workers from bypassing the sandbox
+            serviceWorkerSettings.setBlockNetworkLoads(true)
         }
     }
 

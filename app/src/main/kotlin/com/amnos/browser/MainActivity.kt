@@ -236,7 +236,25 @@ class MainActivity : ComponentActivity() {
     private fun extractNavigationRequest(intent: Intent?): String? {
         intent ?: return null
         return when (intent.action) {
-            Intent.ACTION_VIEW -> intent.dataString?.takeIf { it.isNotBlank() }
+            Intent.ACTION_VIEW -> {
+                val rawString = intent.dataString?.takeIf { it.isNotBlank() } ?: return null
+                try {
+                    // INBOUND INTENT JAIL: Strip tracking queries and fragments from external apps
+                    val uri = android.net.Uri.parse(rawString)
+                    if (uri.scheme?.lowercase() in listOf("http", "https")) {
+                        android.net.Uri.Builder()
+                            .scheme(uri.scheme)
+                            .authority(uri.authority)
+                            .path(uri.path)
+                            .build()
+                            .toString()
+                    } else {
+                        null // Drop non-http/https intents completely
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+            }
             Intent.ACTION_WEB_SEARCH -> intent.getStringExtra(SearchManager.QUERY)?.takeIf { it.isNotBlank() }
             else -> null
         }
