@@ -30,8 +30,7 @@ class SecureWebView(context: Context) : WebView(context) {
         private set
 
     override fun destroy() {
-        isDecommissioned = true
-        super.destroy()
+        surgicalTeardown()
     }
 
     override fun onCreateInputConnection(outAttrs: EditorInfo?): InputConnection? {
@@ -145,9 +144,14 @@ class SecureWebView(context: Context) : WebView(context) {
         }
     }
 
-    fun clearVolatileState() {
+    fun surgicalTeardown() {
+        if (isDecommissioned) return
+        isDecommissioned = true
+        
         removeDocumentStartScript()
         scriptHandler = null
+        fallbackInjectionScript = null
+
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             try {
                 WebViewCompat.removeWebMessageListener(this, BRIDGE_NAME)
@@ -157,21 +161,22 @@ class SecureWebView(context: Context) : WebView(context) {
 
         stopLoading()
         loadUrl("about:blank")
-        onPause()
-        pauseTimers()
         clearHistory()
         clearCache(true)
         clearFormData()
         clearSslPreferences()
 
-        // SECURITY HARDENING: Wipe all cookies on tab teardown.
-        // Since we allow first-party session cookies for media playback,
-        // we must ensure they don't survive beyond this tab's lifecycle.
+        android.webkit.WebStorage.getInstance().deleteAllData()
+
         val cookieManager = CookieManager.getInstance()
         cookieManager.removeAllCookies(null)
         cookieManager.flush()
 
+        onPause()
+        pauseTimers()
+
         removeAllViews()
+        super.destroy()
     }
 
     private fun installDocumentStartScript(policy: PrivacyPolicy, injectionScript: String) {

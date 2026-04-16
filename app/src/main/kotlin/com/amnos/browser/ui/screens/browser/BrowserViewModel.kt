@@ -109,7 +109,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         }
         sessionManager.registerWipeListener {
             AmnosLog.d("BrowserViewModel", "Session wipe triggered from external event")
-            resetUIState()
+            zeroAllUIState()
         }
         initializeSession()
     }
@@ -182,16 +182,33 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         }
     }
 
+    fun hardKillSwitch() {
+        viewModelScope.launch {
+            isBurning.value = true
+            sessionManager.killAll(terminateProcess = true)
+            // Process will be killed asynchronously by the SuperWipeEngine
+        }
+    }
+
     private fun handleSessionTimeout() {
         sessionManager.killAll(terminateProcess = false)
         initializeSession()
     }
 
-    private fun resetUIState() {
+    private fun zeroAllUIState() {
         currentTab.value = null
-        blockedTrackersCount.intValue = 0
-        uiState.value = BrowserUIState.HOME
         urlInput.value = ""
+        uiState.value = BrowserUIState.HOME
+        canGoBack.value = false
+        canGoForward.value = false
+        isBurning.value = false
+        loadingProgress.intValue = 0
+        blockedTrackersCount.intValue = 0
+        sessionLabel.value = ""
+        isLocked.value = false
+        userPin = FingerprintManager.newUnlockPin()
+        pinInput.value = ""
+        webKeyboardRequested.value = false
         pendingAddressBarValue = null
     }
 

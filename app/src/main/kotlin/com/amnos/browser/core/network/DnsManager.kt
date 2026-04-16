@@ -12,14 +12,18 @@ import java.net.Proxy
 import java.util.concurrent.TimeUnit
 
 object DnsManager {
-    private val bootstrapClient = OkHttpClient.Builder()
+    @Volatile
+    private var bootstrapClient = OkHttpClient.Builder()
         .proxy(Proxy.NO_PROXY)
         .cookieJar(CookieJar.NO_COOKIES)
         .build()
 
-    private val dnsOverHttps: Dns by lazy {
+    @Volatile
+    private var dnsOverHttps: Dns = createDnsOverHttps(bootstrapClient)
+
+    private fun createDnsOverHttps(client: OkHttpClient): Dns {
         AmnosLog.i("DnsManager", "Initializing DnsOverHttps (Primary: Cloudflare)")
-        DnsOverHttps.Builder()
+        return DnsOverHttps.Builder()
             .client(bootstrapClient)
             .url("https://cloudflare-dns.com/dns-query".toHttpUrl())
             .bootstrapDnsHosts(
@@ -92,6 +96,32 @@ object DnsManager {
                         dualStackClient = it
                     }
                 }
+        }
+    }
+
+    fun destroyAndRebuild() {
+        synchronized(this) {
+            AmnosLog.w("DnsManager", "Network Rotation: Rebuilding HTTP clients and DNS state")
+            
+            // Drain and close existing clients
+            ipv4OnlyClient?.dispatcher?.cancelAll()
+            ipv4OnlyClient?.connectionPool?.evictAll()
+            ipv4OnlyClient = null
+            
+            dualStackClient?.dispatcher?.cancelAll()
+            dualStackClient?.connectionPool?.evictAll()
+            dualStackClient = null
+            
+            bootstrapClient.dispatcher.cancelAll()
+            bootstrapClient.connectionPool.evictAll()
+            
+            // Rebuild root DNS client 
+            bootstrapClient = OkHttpClient.Builder()
+                .proxy(Proxy.NO_PROXY)
+                .cookieJar(CookieJar.NO_COOKIES)
+                .build()
+            
+            dnsOverHttps = createDnsOverHttps(bootstrapClient)
         }
     }
 }

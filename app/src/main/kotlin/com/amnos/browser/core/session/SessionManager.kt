@@ -52,6 +52,22 @@ class SessionManager(
         }
     )
 
+    private val superWipeEngine by lazy {
+        com.amnos.browser.core.wipe.SuperWipeEngine(
+            tabs = tabs,
+            storageService = storageService,
+            securityController = securityController,
+            loopbackProxyServer = loopbackProxyServer,
+            onNewSessionNeeded = {
+                activeSessionId = FingerprintManager.newSessionId()
+                configureProxy()
+            },
+            onWipeCompleted = {
+                onSessionWiped?.invoke()
+            }
+        )
+    }
+
     var privacyPolicy: PrivacyPolicy = PrivacyPolicy().let { initial ->
         if (BuildConfig.DEBUG) initial else initial.copy(enableRemoteDebugging = false, forceRelaxSecurityForDebug = false)
     }
@@ -263,41 +279,17 @@ class SessionManager(
     }
 
     fun removeTab(tab: TabInstance) {
-        tab.webView.clearVolatileState()
-        tab.webView.destroy()
+        tab.webView.surgicalTeardown()
         tabs.remove(tab)
-        storageService.purgeGlobalStorage(securityController::logInternal)
+        // Storage is kept intact on single tab close to preserve session state
+        // Only SuperWipe fully drops cookies and physical storage.
         touchSession()
     }
 
     fun killAll(terminateProcess: Boolean = false, wipeClipboard: Boolean = true) {
-        AmnosLog.d("SessionManager", "AMNOS GHOST WIPE ACTIVATED (terminateProcess=$terminateProcess, wipeClipboard=$wipeClipboard)")
+        val reason = if (terminateProcess) com.amnos.browser.core.wipe.WipeReason.KILL_SWITCH else com.amnos.browser.core.wipe.WipeReason.BACKGROUND_WIPE
         mainHandler.removeCallbacks(timeoutRunnable)
-
-        if (wipeClipboard) {
-            storageService.wipeClipboard()
-        }
-        storageService.clearVolatileDownloads()
-        securityController.clearLog()
-
-        tabs.toList().forEach { tab ->
-            try {
-                tab.webView.clearVolatileState()
-                tab.webView.destroy()
-            } catch (e: Exception) {
-                AmnosLog.e("SessionManager", "Error destroying webView during wipe", e)
-            }
-        }
-        tabs.clear()
-        storageService.purgeGlobalStorage(securityController::logInternal)
-        activeSessionId = FingerprintManager.newSessionId()
-        onSessionWiped?.invoke()
-        configureProxy()
-
-        if (terminateProcess) {
-            AmnosLog.w("SessionManager", "SELF-TERMINATING PROCESS AS REQUESTED")
-            android.os.Process.killProcess(android.os.Process.myPid())
-        }
+        superWipeEngine.execute(reason, terminateProcess, wipeClipboard)
     }
 
     private fun buildInjectionScript(profile: DeviceProfile): String {

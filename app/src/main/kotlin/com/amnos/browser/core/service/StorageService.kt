@@ -44,9 +44,9 @@ class StorageService(
     /**
      * Purges all persistent WebView data, cookies, and storage.
      */
-    fun purgeGlobalStorage(logCallback: ((String, String) -> Unit)? = null) {
+    fun superPurge(onWebViewsDestroyed: () -> Unit, logCallback: ((String, String) -> Unit)? = null) {
         if (Looper.myLooper() != Looper.getMainLooper()) {
-            mainHandler.post { purgeGlobalStorage(logCallback) }
+            mainHandler.post { superPurge(onWebViewsDestroyed, logCallback) }
             return
         }
 
@@ -59,9 +59,14 @@ class StorageService(
                 AmnosLog.i("StorageService", "WIPE: Cookies purged successfully")
                 logCallback?.invoke("[Storage:Cookies]", "Cookies purged")
             }
+            cookieManager.flush()
+            
+            // Continue purge after cookies...
+            continuePurge(onWebViewsDestroyed, logCallback)
         }
-        cookieManager.flush()
+    }
 
+    private fun continuePurge(onWebViewsDestroyed: () -> Unit, logCallback: ((String, String) -> Unit)?) {
         logCallback?.invoke("[Storage:Web]", "WebStorage data purging initiated")
         AmnosLog.d("StorageService", "WIPE: Clearing WebStorage data")
         WebStorage.getInstance().deleteAllData()
@@ -80,23 +85,34 @@ class StorageService(
             // Logically fine if unavailable
         }
 
+        // Callback indicates webViews are fully destroyed synchronously in Engine
+        onWebViewsDestroyed()
+
         // PHYSICAL NUKE: Ensure all disk traces are hard-deleted
         nukePhysicalWebViewData(logCallback)
     }
 
     /**
-     * Physically deletes Amnos WebView session directories from the file system.
+     * Legacy global storage purge
      */
+    fun purgeGlobalStorage(logCallback: ((String, String) -> Unit)? = null) {
+        superPurge({}, logCallback)
+    }
+
     private fun nukePhysicalWebViewData(logCallback: ((String, String) -> Unit)? = null) {
         try {
             val dataDir = context.dataDir
-            val webViewDirPrefix = "app_webview_"
+            val webViewDirPrefix = "app_webview"
+            
             val targetDirs = dataDir.listFiles()
                 ?.filter { file ->
                     file.isDirectory && (
-                        file.name == webViewDirPrefix + webViewDataSuffix ||
-                            file.name.startsWith("${webViewDirPrefix}amnos_")
-                        )
+                        file.name == webViewDirPrefix ||
+                        file.name == "${webViewDirPrefix}_$webViewDataSuffix" ||
+                        file.name.startsWith("${webViewDirPrefix}_amnos_") ||
+                        file.name == "cache" ||
+                        file.name == "code_cache"
+                    )
                 }
                 .orEmpty()
 

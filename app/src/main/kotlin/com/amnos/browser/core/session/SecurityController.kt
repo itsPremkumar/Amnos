@@ -162,7 +162,7 @@ class SecurityController {
      */
     fun trackerBlockCount(): Int = _trackerBlockCount.intValue
 
-    fun clearLog() {
+    fun obliterate() {
         synchronized(lock) {
             _requestLog.clear()
             _activeConnections.clear()
@@ -171,6 +171,11 @@ class SecurityController {
             webSocketAttemptCount.intValue = 0
             _blockedCount.intValue = 0
             _trackerBlockCount.intValue = 0
+            proxyStatus.value = "Inactive"
+            dohStatus.value = "Partial"
+            webRtcStatus.value = "Blocked"
+            webSocketStatus.value = "Blocked"
+            warningMessage.value = "Strong privacy protections enabled. Network anonymity is not guaranteed."
         }
     }
 }
