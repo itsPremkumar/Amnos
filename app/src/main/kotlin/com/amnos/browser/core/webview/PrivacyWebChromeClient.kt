@@ -22,18 +22,25 @@ class PrivacyWebChromeClient(
         com.amnos.browser.core.security.PermissionSentinel.handlePermissionRequest(request)
     }
 
+    override fun onPermissionRequestCanceled(request: PermissionRequest?) {
+        request?.deny()
+        AmnosLog.d("PermissionSentinel", "Permission request cancelled by page before grant.")
+    }
+
     override fun onGeolocationPermissionsShowPrompt(origin: String?, callback: GeolocationPermissions.Callback?) {
         callback?.invoke(origin, false, false)
     }
 
     override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
         consoleMessage?.let {
-            val level = when (it.messageLevel()) {
-                ConsoleMessage.MessageLevel.ERROR -> "ERROR"
-                ConsoleMessage.MessageLevel.WARNING -> "WARNING"
-                else -> "LOG"
+            val message = "${it.message()} (at ${it.sourceId()}:${it.lineNumber()})"
+            when (it.messageLevel()) {
+                ConsoleMessage.MessageLevel.ERROR -> AmnosLog.e("WebConsole", message)
+                ConsoleMessage.MessageLevel.WARNING -> AmnosLog.w("WebConsole", message)
+                ConsoleMessage.MessageLevel.LOG -> AmnosLog.i("WebConsole", message)
+                ConsoleMessage.MessageLevel.TIP -> AmnosLog.v("WebConsole", "TIP: $message")
+                else -> AmnosLog.d("WebConsole", message)
             }
-            AmnosLog.d("WebConsole", "[$level] ${it.message()} (at ${it.sourceId()}:${it.lineNumber()})")
         }
         return true
     }

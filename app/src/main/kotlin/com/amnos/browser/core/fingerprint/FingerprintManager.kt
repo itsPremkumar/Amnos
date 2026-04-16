@@ -1,6 +1,8 @@
 package com.amnos.browser.core.fingerprint
 
 import com.amnos.browser.core.security.FingerprintProtectionLevel
+import com.amnos.browser.core.session.AmnosLog
+import java.security.SecureRandom
 import java.util.UUID
 import kotlin.math.abs
 import kotlin.random.Random
@@ -35,10 +37,13 @@ data class ScreenSpecs(
 )
 
 object FingerprintManager {
+    private val secureRandom = SecureRandom()
 
     fun newSessionId(): String = UUID.randomUUID().toString()
 
     fun newTabId(): String = UUID.randomUUID().toString()
+
+    fun newUnlockPin(): String = secureRandom.nextInt(10_000).toString().padStart(4, '0')
 
     fun generateCoherentProfile(
         sessionId: String,
@@ -63,14 +68,17 @@ object FingerprintManager {
             FingerprintProtectionLevel.STRICT, FingerprintProtectionLevel.DISABLED -> template.userAgents.first()
         }
 
+        AmnosLog.i("FingerprintManager", "Identity Generated (Tab: ${tabId.take(8)}) -> UA: ${userAgent.take(30)}... | GPU: ${template.gpuRenderer}")
+        AmnosLog.v("FingerprintManager", "Profile Details: ${template.screen.width}x${template.screen.height}, TZ: ${locale.timeZone}")
+
         return DeviceProfile(
             sessionId = sessionId,
             tabId = tabId,
             userAgent = userAgent,
             platform = template.platform,
             languages = locale.languages,
-            hardwareConcurrency = 8,
-            deviceMemory = 8,
+            hardwareConcurrency = if (level == FingerprintProtectionLevel.STRICT) 8 else template.hardwareConcurrency,
+            deviceMemory = if (level == FingerprintProtectionLevel.STRICT) 8 else template.deviceMemory,
             timeZone = locale.timeZone,
             timezoneOffsetMinutes = locale.timezoneOffsetMinutes,
             screen = template.screen,

@@ -12,9 +12,7 @@ class NavigationHandler(
 ) {
     fun navigate(input: String) {
         val resolvedNavigation = NavigationResolver.resolve(input) ?: return
-        sessionManager.securityController.logInternal("[Nav:Navigate]", resolvedNavigation.input, "DEBUG")
-        sessionManager.securityController.logInternal("[Nav:Transform]", resolvedNavigation.transformedUrl, "DEBUG")
-        sessionManager.securityController.logInternal("[Nav:Sanitize]", resolvedNavigation.sanitizedUrl, "DEBUG")
+        AmnosLog.d("NavigationHandler", "Navigating to: ${resolvedNavigation.sanitizedUrl}")
 
         viewModel.uiState.value = BrowserUIState.BROWSING
         viewModel.urlInput.value = resolvedNavigation.displayText
@@ -54,10 +52,12 @@ class NavigationHandler(
     fun reload() {
         val tab = viewModel.currentTab.value ?: return
         if (viewModel.privacyPolicy.value.resetIdentityOnRefresh && !tab.currentUrl.isNullOrBlank()) {
+            AmnosLog.i("NavigationHandler", "Reload triggered with 'Identity Reset' enabled. Recreating tab.")
             viewModel.recreateCurrentTab()
             return
         }
 
+        AmnosLog.d("NavigationHandler", "Reloading current page: ${tab.currentUrl}")
         tab.webView.reload()
         sessionManager.touchSession()
     }
@@ -75,6 +75,7 @@ class NavigationHandler(
         }
 
         val activeTab = if (sessionManager.shouldRecreateForTopLevelNavigation(current, url)) {
+            AmnosLog.i("NavigationHandler", "FIRST PARTY ISOLATION: Recreating tab for cross-site navigation to ${url}")
             sessionManager.recreateTab(
                 tab = current,
                 onStateChanged = viewModel.stateChangedCallback,

@@ -2,6 +2,56 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
 def enableReleaseMinify = project.findProperty("amnos.release.minify")?.toString()?.toBoolean() ?: false
+def securityDefaults = [
+    SECURITY_BLOCK_SCREENSHOTS            : "true",
+    SECURITY_ENFORCE_STRICT_POLICIES      : "true",
+    SECURITY_BLOCK_TRACKERS               : "true",
+    SECURITY_HTTPS_ONLY                   : "true",
+    SECURITY_BLOCK_THIRD_PARTY_REQUESTS   : "true",
+    SECURITY_BLOCK_THIRD_PARTY_SCRIPTS    : "true",
+    SECURITY_BLOCK_INLINE_SCRIPTS         : "true",
+    SECURITY_STRIP_REFERRERS              : "true",
+    SECURITY_REMOVE_TRACKING_PARAMS       : "true",
+    SECURITY_BLOCK_WEBSOCKETS             : "true",
+    SECURITY_BLOCK_WEBRTC                 : "true",
+    SECURITY_BLOCK_DNS_PREFETCH           : "true",
+    SECURITY_BLOCK_PRECONNECT             : "true",
+    SECURITY_BLOCK_SERVICE_WORKERS        : "true",
+    SECURITY_BLOCK_EVAL                   : "true",
+    SECURITY_BLOCK_IPV6                   : "true",
+    SECURITY_ENFORCE_LOOPBACK_PROXY       : "true",
+    SECURITY_STRICT_FIRST_PARTY_ISOLATION : "true",
+    SECURITY_BLOCK_FORENSIC_LOGGING       : "true",
+    SECURITY_FINGERPRINT_LEVEL            : "STRICT"
+]
+
+def parseEnvLines(File envFile) {
+    def values = [:]
+    envFile.eachLine { rawLine ->
+        def line = rawLine.trim()
+        if (!line || line.startsWith("#")) {
+            return
+        }
+        def separator = line.indexOf("=")
+        if (separator <= 0) {
+            return
+        }
+        def key = line.substring(0, separator).trim()
+        def value = line.substring(separator + 1).trim()
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.substring(1, value.length() - 1)
+        }
+        values[key] = value
+    }
+    return values
+}
+
+def normalizeBooleanValue(String key, String value) {
+    def normalized = (value ?: "").trim().toLowerCase(Locale.US)
+    if (normalized in ["true", "1", "yes", "on"]) return "true"
+    if (normalized in ["false", "0", "no", "off"]) return "false"
+    throw new GradleException("Invalid boolean for ${key}: '${value}'")
+}
 
 android {
     namespace 'com.amnos.browser'
@@ -25,45 +75,16 @@ android {
         versionCode 1
         versionName "1.0.0"
 
-        // Load .env properties
         def envFile = rootProject.file(".env")
-        if (envFile.exists()) {
-            envFile.eachLine { line ->
-                def parts = line.split("=", 2)
-                if (parts.size() == 2 && !line.startsWith("#")) {
-                    def key = parts[0].trim()
-                    def value = parts[1].trim()
-                    
-                    // Handle fingerprint level as String
-                    if (key == "SECURITY_FINGERPRINT_LEVEL") {
-                        buildConfigField "String", key, "\"${value}\""
-                    } else {
-                        buildConfigField "boolean", key, value
-                    }
-                }
+        def envValues = envFile.exists() ? parseEnvLines(envFile) : [:]
+        securityDefaults.each { key, defaultValue ->
+            def configuredValue = envValues.containsKey(key) ? envValues[key] : defaultValue
+            if (key == "SECURITY_FINGERPRINT_LEVEL") {
+                def escaped = configuredValue.replace("\\", "\\\\").replace("\"", "\\\"")
+                buildConfigField "String", key, "\"${escaped}\""
+            } else {
+                buildConfigField "boolean", key, normalizeBooleanValue(key, configuredValue)
             }
-        } else {
-            // Default fallbacks if .env is missing (all true for security)
-            buildConfigField "boolean", "SECURITY_BLOCK_SCREENSHOTS", "true"
-            buildConfigField "boolean", "SECURITY_ENFORCE_STRICT_POLICIES", "true"
-            buildConfigField "boolean", "SECURITY_BLOCK_TRACKERS", "true"
-            buildConfigField "boolean", "SECURITY_HTTPS_ONLY", "true"
-            buildConfigField "boolean", "SECURITY_BLOCK_THIRD_PARTY_REQUESTS", "true"
-            buildConfigField "boolean", "SECURITY_BLOCK_THIRD_PARTY_SCRIPTS", "true"
-            buildConfigField "boolean", "SECURITY_BLOCK_INLINE_SCRIPTS", "true"
-            buildConfigField "boolean", "SECURITY_STRIP_REFERRERS", "true"
-            buildConfigField "boolean", "SECURITY_REMOVE_TRACKING_PARAMS", "true"
-            buildConfigField "boolean", "SECURITY_BLOCK_WEBSOCKETS", "true"
-            buildConfigField "boolean", "SECURITY_BLOCK_WEBRTC", "true"
-            buildConfigField "boolean", "SECURITY_BLOCK_DNS_PREFETCH", "true"
-            buildConfigField "boolean", "SECURITY_BLOCK_PRECONNECT", "true"
-            buildConfigField "boolean", "SECURITY_BLOCK_SERVICE_WORKERS", "true"
-            buildConfigField "boolean", "SECURITY_BLOCK_EVAL", "true"
-            buildConfigField "boolean", "SECURITY_BLOCK_IPV6", "true"
-            buildConfigField "boolean", "SECURITY_ENFORCE_LOOPBACK_PROXY", "true"
-            buildConfigField "boolean", "SECURITY_STRICT_FIRST_PARTY_ISOLATION", "true"
-            buildConfigField "boolean", "SECURITY_BLOCK_FORENSIC_LOGGING", "true"
-            buildConfigField "String", "SECURITY_FINGERPRINT_LEVEL", "\"STRICT\""
         }
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"

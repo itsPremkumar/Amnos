@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.amnos.browser.BuildConfig
+import com.amnos.browser.core.fingerprint.FingerprintManager
 import com.amnos.browser.core.security.FingerprintProtectionLevel
 import com.amnos.browser.core.security.JavaScriptMode
 import com.amnos.browser.core.security.WebGlMode
@@ -44,7 +45,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     val privacyWarning = sessionManager.securityController.warningMessage
     val internalLogs = sessionManager.securityController.internalLogs
     var isLocked = mutableStateOf(false)
-    var userPin = "1111"
+    var userPin = FingerprintManager.newUnlockPin()
     var pinInput = mutableStateOf("")
     var enableRemoteDebugging = mutableStateOf(sessionManager.privacyPolicy.enableRemoteDebugging)
     var forceRelaxSecurityForDebug = mutableStateOf(sessionManager.privacyPolicy.forceRelaxSecurityForDebug)

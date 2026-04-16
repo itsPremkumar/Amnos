@@ -8,6 +8,7 @@ import com.amnos.browser.core.security.PrivacyPolicy
 import com.amnos.browser.core.session.AmnosLog
 import com.amnos.browser.ui.screens.browser.layouts.AmnosLayouts
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.HttpUrl
 import java.io.ByteArrayInputStream
 import java.util.Locale
 
@@ -26,15 +27,32 @@ class NetworkSecurityManager(
         val normalized = when {
             trimmed.startsWith("https://", ignoreCase = true) -> trimmed
             trimmed.startsWith("http://", ignoreCase = true) -> "https://${trimmed.removePrefix("http://")}"
+            trimmed.matches(Regex("^[a-zA-Z][a-zA-Z0-9+.-]*:.*")) -> null
             trimmed.contains("://") -> null
             else -> "https://$trimmed"
         }
 
-        return normalized?.let { if (policyProvider().removeTrackingParameters) UrlSanitizer.sanitize(it) else it }
+        if (normalized == null) {
+            AmnosLog.w("NetworkSecurity", "URL blocked: Invalid scheme or format in '$rawUrl'")
+            return null
+        }
+
+        val policy = policyProvider()
+        val finalUrl = if (policy.removeTrackingParameters) {
+            val sanitized = UrlSanitizer.sanitize(normalized)
+            if (sanitized != normalized) {
+                AmnosLog.d("NetworkSecurity", "URL sanitized: Tracking parameters removed from '$normalized'")
+            }
+            sanitized
+        } else {
+            normalized
+        }
+        return finalUrl
     }
 
     fun buildNavigationHeaders(url: String, profile: DeviceProfile, topLevelHost: String? = null): Map<String, String> {
         val httpUrl = url.toHttpUrlOrNull() ?: return emptyMap()
+        AmnosLog.d("NetworkSecurity", "Injecting security headers for: ${httpUrl.host}")
         return SecurityHeaderFactory.buildRequestHeaders(
             originalHeaders = emptyMap(),
             url = httpUrl,
@@ -83,11 +101,10 @@ class NetworkSecurityManager(
     }
 
     fun siteKeyForUrl(url: String?): String? {
-        val host = url?.toHttpUrlOrNull()?.host ?: return null
-        val normalizedHost = host.lowercase(Locale.US).trim().removeSuffix(".")
+        val httpUrl = url?.toHttpUrlOrNull() ?: return null
+        val normalizedHost = httpUrl.host.lowercase(Locale.US).trim().removeSuffix(".")
         if (normalizedHost.isBlank()) return null
-        val labels = normalizedHost.split(".").filter { it.isNotBlank() }
-        return if (labels.size >= 2) labels.takeLast(2).joinToString(".") else normalizedHost
+        return httpUrl.topPrivateDomain()?.lowercase(Locale.US) ?: normalizedHost
     }
 
     fun isCrossSiteNavigation(currentUrl: String?, nextUrl: String): Boolean {
@@ -101,4 +118,6 @@ class NetworkSecurityManager(
         if (policyProvider().httpsOnlyEnabled && port == 80) return false
         return !ruleEngine.isLocalNetworkHost(host)
     }
+
+    fun isLocalNetworkHost(host: String): Boolean = ruleEngine.isLocalNetworkHost(host)
 }

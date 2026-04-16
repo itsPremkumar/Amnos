@@ -1,84 +1,37 @@
 package com.amnos.browser.core.service
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.webkit.CookieManager
-import android.webkit.URLUtil
 import android.webkit.WebStorage
 import android.webkit.WebViewDatabase
-import com.amnos.browser.core.network.DnsManager
 import com.amnos.browser.core.session.AmnosLog
-import okhttp3.Request
 import java.io.File
-import java.io.FileOutputStream
-import java.util.UUID
 
-class StorageService(private val context: Context) {
-    private val downloadClient by lazy { DnsManager.secureClient(blockIpv6 = true) }
-
-    private val volatileDownloadDir: File by lazy {
-        File(context.cacheDir, "volatile_downloads").apply {
-            if (!exists()) mkdirs()
-        }
-    }
+class StorageService(
+    private val context: Context,
+    private val webViewDataSuffix: String
+) {
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     /**
-     * Returns the path for ephemeral downloads.
+     * Returns a diagnostic-only identifier. Disk-backed downloads are disabled in Pure RAM mode.
      */
-    fun getVolatileDownloadPath(): String {
-        return volatileDownloadDir.absolutePath
-    }
+    fun getVolatileDownloadPath(): String = "memory://downloads-disabled"
 
-    fun downloadEphemeralFile(url: String, userAgent: String) {
-        Thread {
-            try {
-                val request = Request.Builder()
-                    .url(url)
-                    .header("User-Agent", userAgent)
-                    .header("DNT", "1")
-                    .header("Sec-GPC", "1")
-                    .build()
-
-                downloadClient.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        AmnosLog.w("StorageService", "Ephemeral download failed: HTTP ${response.code}")
-                        return@use
-                    }
-
-                    val guessedName = URLUtil.guessFileName(
-                        url,
-                        response.header("Content-Disposition"),
-                        response.body?.contentType()?.toString()
-                    )
-                    val safeName = guessedName.replace(Regex("[^A-Za-z0-9._-]"), "_")
-                    val outFile = File(volatileDownloadDir, "${UUID.randomUUID()}_$safeName")
-
-                    response.body?.byteStream()?.use { input ->
-                        FileOutputStream(outFile).use { output ->
-                            input.copyTo(output)
-                        }
-                    }
-
-                    AmnosLog.i("StorageService", "Ephemeral download saved to ${outFile.absolutePath}")
-                }
-            } catch (error: Exception) {
-                AmnosLog.e("StorageService", "Failed to store ephemeral download", error)
-            }
-        }.start()
+    fun downloadEphemeralFile(@Suppress("UNUSED_PARAMETER") url: String, @Suppress("UNUSED_PARAMETER") userAgent: String) {
+        AmnosLog.w(
+            "StorageService",
+            "Download blocked in Pure RAM mode. Persistent file output is disabled for this session."
+        )
     }
 
     /**
-     * Wipes the ephemeral download directory.
+     * No-op because Amnos no longer writes downloads to disk.
      */
     fun clearVolatileDownloads() {
-        Thread {
-            try {
-                AmnosLog.d("StorageService", "Wiping ephemeral downloads in background...")
-                deleteRecursive(volatileDownloadDir)
-                volatileDownloadDir.mkdirs() // Recreate for next session
-            } catch (e: Exception) {
-                AmnosLog.e("StorageService", "Background wipe failed", e)
-            }
-        }.start()
+        AmnosLog.v("StorageService", "Volatile download wipe skipped: disk-backed downloads are disabled.")
     }
 
     /**
@@ -92,21 +45,36 @@ class StorageService(private val context: Context) {
      * Purges all persistent WebView data, cookies, and storage.
      */
     fun purgeGlobalStorage(logCallback: ((String, String) -> Unit)? = null) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { purgeGlobalStorage(logCallback) }
+            return
+        }
+
+        AmnosLog.d("StorageService", "INITIATING GLOBAL FORENSIC PURGE...")
+
         val cookieManager = CookieManager.getInstance()
         cookieManager.setAcceptCookie(false)
         cookieManager.removeAllCookies { removed ->
             if (removed) {
+                AmnosLog.i("StorageService", "WIPE: Cookies purged successfully")
                 logCallback?.invoke("[Storage:Cookies]", "Cookies purged")
             }
         }
         cookieManager.flush()
 
+        logCallback?.invoke("[Storage:Web]", "WebStorage data purging initiated")
+        AmnosLog.d("StorageService", "WIPE: Clearing WebStorage data")
         WebStorage.getInstance().deleteAllData()
+
+        logCallback?.invoke("[Storage:DB]", "WebViewDatabase auth/forms purging initiated")
+        AmnosLog.d("StorageService", "WIPE: Clearing WebViewDatabase auth and forms")
         val webViewDB = WebViewDatabase.getInstance(context)
         webViewDB.clearHttpAuthUsernamePassword()
         @Suppress("DEPRECATION")
         webViewDB.clearFormData()
+
         try {
+            AmnosLog.d("StorageService", "WIPE: Clearing ClientCertPreferences")
             android.webkit.WebView.clearClientCertPreferences(null)
         } catch (ignored: Throwable) {
             // Logically fine if unavailable
@@ -117,19 +85,31 @@ class StorageService(private val context: Context) {
     }
 
     /**
-     * Physically deletes the WebView session directory from the file system.
+     * Physically deletes Amnos WebView session directories from the file system.
      */
     private fun nukePhysicalWebViewData(logCallback: ((String, String) -> Unit)? = null) {
         try {
             val dataDir = context.dataDir
             val webViewDirPrefix = "app_webview_"
-            val suffix = "amnos_session"
-            val targetDir = File(dataDir, webViewDirPrefix + suffix)
-            
-            if (targetDir.exists()) {
-                AmnosLog.d("StorageService", "PHYSICAL NUKE: Deleting session directory: ${targetDir.absolutePath}")
+            val targetDirs = dataDir.listFiles()
+                ?.filter { file ->
+                    file.isDirectory && (
+                        file.name == webViewDirPrefix + webViewDataSuffix ||
+                            file.name.startsWith("${webViewDirPrefix}amnos_")
+                        )
+                }
+                .orEmpty()
+
+            if (targetDirs.isEmpty()) {
+                AmnosLog.v("StorageService", "PHYSICAL NUKE: No isolated WebView directories found.")
+                return
+            }
+
+            targetDirs.forEach { targetDir ->
+                val path = targetDir.absolutePath
+                AmnosLog.i("StorageService", "PHYSICAL NUKE: Deleting session directory: $path")
                 deleteRecursive(targetDir)
-                logCallback?.invoke("[Storage:Physical]", "Session directory nuked")
+                logCallback?.invoke("[Storage:Physical]", "Session directory nuked: $path")
             }
         } catch (e: Exception) {
             AmnosLog.e("StorageService", "Physical nuke failed", e)

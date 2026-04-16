@@ -91,6 +91,8 @@ class SecureWebView(context: Context) : WebView(context) {
             safeBrowsingEnabled = true
         }
 
+        AmnosLog.i("SecureWebView", "Hardening applied: JS=${settings.javaScriptEnabled}, DOM=${settings.domStorageEnabled}, UA=${profile.userAgent.take(20)}...")
+
         overScrollMode = View.OVER_SCROLL_NEVER
         isHapticFeedbackEnabled = false
         setOnLongClickListener { true }
@@ -113,11 +115,13 @@ class SecureWebView(context: Context) : WebView(context) {
     }
 
     fun injectInput(text: String) {
+        AmnosLog.v("SecureWebView", "Keyboard Input: Injecting ${text.length} character(s)")
         val escaped = text.replace("'", "\\'")
         evaluateJavascript("document.execCommand('insertText', false, '$escaped')", null)
     }
 
     fun injectBackspace() {
+        AmnosLog.v("SecureWebView", "Keyboard Input: Injecting backspace")
         evaluateJavascript("document.execCommand('delete', false, null)", null)
     }
 
@@ -192,6 +196,7 @@ class SecureWebView(context: Context) : WebView(context) {
         val fullScript = injectionScript + "\n" + focusSentinel
 
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            AmnosLog.d("SecureWebView", "Registering DOCUMENT_START_SCRIPT (Size: ${fullScript.length} bytes)")
             scriptHandler = WebViewCompat.addDocumentStartJavaScript(
                 this,
                 fullScript,
@@ -221,12 +226,23 @@ class SecureWebView(context: Context) : WebView(context) {
                 // SECURE ORIGIN & PROTOCOL VALIDATION: Only accept messages from the currently loaded HTTPS page
                 val currentUri = url?.let { Uri.parse(it) }
                 val isHttps = sourceOrigin.scheme == "https"
+                val currentIsHttps = currentUri?.scheme == "https"
                 val hostMatches = currentUri != null && sourceOrigin.host == currentUri.host
-                
-                if (isHttps && hostMatches) {
+                val sourcePort = if (sourceOrigin.port == -1) 443 else sourceOrigin.port
+                val currentPort = when {
+                    currentUri == null -> -1
+                    currentUri.port == -1 -> 443
+                    else -> currentUri.port
+                }
+                val portMatches = currentPort == sourcePort
+
+                if (isHttps && currentIsHttps && hostMatches && portMatches) {
                     message.data?.let(onSecurityEvent)
                 } else {
-                    AmnosLog.w("SecureWebView", "REJECTED bridge message from: $sourceOrigin (HTTPS: $isHttps, Host Match: $hostMatches)")
+                    AmnosLog.w(
+                        "SecureWebView",
+                        "REJECTED bridge message from: $sourceOrigin (sourceHttps=$isHttps, currentHttps=$currentIsHttps, hostMatch=$hostMatches, portMatch=$portMatches)"
+                    )
                 }
             }
             AmnosLog.d("SecureWebView", "Security bridge (WebMessageListener) installed")

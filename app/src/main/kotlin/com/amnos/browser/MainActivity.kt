@@ -1,74 +1,72 @@
 package com.amnos.browser
 
+import android.app.SearchManager
+import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
+import com.amnos.browser.core.security.PrivacyPolicy
 import com.amnos.browser.core.session.AmnosLog
+import com.amnos.browser.core.session.RuntimeSecurityConfig
 import com.amnos.browser.core.session.SessionManager
 import com.amnos.browser.ui.screens.browser.BrowserScreen
 import com.amnos.browser.ui.screens.browser.BrowserViewModel
 import com.amnos.browser.ui.theme.PrivacyBrowserTheme
-import androidx.lifecycle.lifecycleScope
-import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.view.WindowInsetsCompat
-import android.view.View
-import android.view.inputmethod.InputMethodManager
-import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.compose.runtime.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        private const val BACKGROUND_WIPE_GRACE_MS = 10_000L
+    }
 
     private lateinit var sessionManager: SessionManager
     private lateinit var viewModel: BrowserViewModel
     private var isInitialized by mutableStateOf(false)
+    private var previousUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
+    private var keyboardGuardRootView: View? = null
+    private var keyboardGuardListener: android.view.ViewTreeObserver.OnGlobalLayoutListener? = null
+    private var pendingLaunchRequest: String? = null
+    private val lifecycleHandler = Handler(Looper.getMainLooper())
+    private val delayedGhostWipe = Runnable {
+        if (::sessionManager.isInitialized && !isChangingConfigurations) {
+            AmnosLog.d("MainActivity", "Ghost wipe grace period elapsed.")
+            sessionManager.killAll(terminateProcess = false, wipeClipboard = true)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // GLOBAL RESILIENCE ENGINE - Capture crashes to prevent force-close
-        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            AmnosLog.e("AmnosResilience", "FATAL RECOVERY: Exception in ${thread.name}", throwable)
-            
-            // Log forensic details for user review
-            com.amnos.browser.core.security.ClipboardSentinel.wipe(this) 
-            
-            // If we're on the main thread, we try to show a recovery indicator
-            if (thread == android.os.Looper.getMainLooper().thread) {
-                AmnosLog.w("AmnosResilience", "Attempting UI rescue...")
-                isInitialized = false // Force the loading screen to reappear
-                // We don't call the default handler's uncaughtException(thread, throwable) 
-                // because that will kill the process on most Android versions.
-                // Restarting the main looper is risky but keeps the app 'alive'.
-                kotlin.concurrent.thread {
-                    android.os.Looper.prepare()
-                    AmnosLog.d("AmnosResilience", "Main Looper resurrected. Session stable.")
-                    android.os.Looper.loop()
-                }
-            } else {
-                // For background threads, we just swallow the error after logging
-                AmnosLog.w("AmnosResilience", "Background thread crash suppressed. Stability maintained.")
-            }
-        }
+        installCrashHandler()
 
         try {
-            android.webkit.WebView.setDataDirectorySuffix("amnos_session")
+            android.webkit.WebView.setDataDirectorySuffix(RuntimeSecurityConfig.webViewProfileSuffix)
             AmnosLog.d("MainActivity", "WebView data directory suffix set successfully")
         } catch (e: Exception) {
             AmnosLog.w("MainActivity", "WebView suffix already set or failed: ${e.message}")
         }
 
         super.onCreate(savedInstanceState)
+        pendingLaunchRequest = extractNavigationRequest(intent)
         AmnosLog.d("MainActivity", "onCreate: Initializing Amnos UI")
 
-        // 1. Set the initial loading content immediately
         setContent {
             PrivacyBrowserTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -86,28 +84,26 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // 2. Perform heavy initialization in a coroutine
         lifecycleScope.launch {
             try {
-                // Initialize SessionManager (some parts are IO-bound)
                 withContext(Dispatchers.IO) {
                     AmnosLog.d("MainActivity", "Creating SessionManager (Background)")
-                    sessionManager = SessionManager(this@MainActivity)
+                    sessionManager = SessionManager(this@MainActivity, RuntimeSecurityConfig.webViewProfileSuffix)
                 }
 
-                // Security checks and UI-bound setup
                 if (com.amnos.browser.core.security.RootDetector.isRooted(this@MainActivity)) {
                     sessionManager.securityController.logInternal("SystemHealth", "SECURITY WARNING: Root access detected.", "ERROR")
                     sessionManager.setFingerprintProtectionLevel(com.amnos.browser.core.security.FingerprintProtectionLevel.STRICT)
                 }
 
                 updateSecurityFlags(sessionManager.privacyPolicy)
+                android.webkit.WebView.setWebContentsDebuggingEnabled(sessionManager.privacyPolicy.enableRemoteDebugging)
 
-                // ViewModel and WebView must be created on the Main thread
                 AmnosLog.d("MainActivity", "Creating BrowserViewModel (Main)")
                 viewModel = BrowserViewModel(sessionManager)
-                
+
                 isInitialized = true
+                consumePendingLaunchRequest()
                 AmnosLog.d("MainActivity", "Amnos Bootstrap Complete")
             } catch (e: Exception) {
                 AmnosLog.e("MainActivity", "Initialization failed during bootstrap", e)
@@ -115,23 +111,33 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingIntent(intent)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        AmnosLog.d("MainActivity", "onStart: UI visible")
+    }
+
     override fun onStop() {
         super.onStop()
+        AmnosLog.d("MainActivity", "onStop: UI hidden")
         if (::sessionManager.isInitialized && !isChangingConfigurations) {
-            AmnosLog.d("MainActivity", "AMNOS GHOST WIPE: Application backgrounded (Pure RAM mode enabled).")
-            sessionManager.killAll(terminateProcess = false, wipeClipboard = true)
+            scheduleGhostWipe("Application backgrounded (Pure RAM mode enabled).")
         }
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (::sessionManager.isInitialized && level >= TRIM_MEMORY_UI_HIDDEN && !isChangingConfigurations) {
-            AmnosLog.d("MainActivity", "Memory pressure wipe triggered.")
-            sessionManager.killAll(terminateProcess = false, wipeClipboard = true)
+            scheduleGhostWipe("Memory pressure UI-hidden event received.")
         }
     }
 
-    private fun updateSecurityFlags(policy: com.amnos.browser.core.security.PrivacyPolicy) {
+    private fun updateSecurityFlags(policy: PrivacyPolicy) {
         if (policy.blockScreenshots) {
             window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
             AmnosLog.d("MainActivity", "Screenshot protection ENABLED (via policy)")
@@ -143,27 +149,58 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        AmnosLog.d("MainActivity", "onResume: Session active")
+        cancelPendingGhostWipe()
         setupGlobalKeyboardKiller()
     }
 
+    override fun onPause() {
+        super.onPause()
+        AmnosLog.d("MainActivity", "onPause: Session backgrounded")
+        teardownGlobalKeyboardKiller()
+    }
+
+    override fun onDestroy() {
+        cancelPendingGhostWipe()
+        teardownGlobalKeyboardKiller()
+        if (Thread.getDefaultUncaughtExceptionHandler() === crashHandler) {
+            Thread.setDefaultUncaughtExceptionHandler(previousUncaughtExceptionHandler)
+        }
+        super.onDestroy()
+    }
+
     private fun setupGlobalKeyboardKiller() {
+        if (keyboardGuardListener != null) {
+            return
+        }
+
         val rootView = window.decorView.rootView
-        rootView.viewTreeObserver.addOnGlobalLayoutListener {
+        val listener = android.view.ViewTreeObserver.OnGlobalLayoutListener {
             val controller = WindowInsetsControllerCompat(window, rootView)
             val isImeVisible = androidx.core.view.ViewCompat.getRootWindowInsets(rootView)
                 ?.isVisible(WindowInsetsCompat.Type.ime()) == true
-            
+
             if (isImeVisible) {
-                // controller.hide(WindowInsetsCompat.Type.ime())
-                // Noisy logging suppressed to prevent logcat flooding
-                // AmnosLog.d("AmnosKeyboardKiller", "System IME suppressed.")
                 controller.hide(WindowInsetsCompat.Type.ime())
             }
         }
+
+        keyboardGuardRootView = rootView
+        keyboardGuardListener = listener
+        rootView.viewTreeObserver.addOnGlobalLayoutListener(listener)
+    }
+
+    private fun teardownGlobalKeyboardKiller() {
+        val rootView = keyboardGuardRootView
+        val listener = keyboardGuardListener
+        if (rootView != null && listener != null && rootView.viewTreeObserver.isAlive) {
+            rootView.viewTreeObserver.removeOnGlobalLayoutListener(listener)
+        }
+        keyboardGuardRootView = null
+        keyboardGuardListener = null
     }
 
     override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
-        // AMNOS HARDENING: Conditional logging of touch events for developer debugging
         if (::sessionManager.isInitialized && !sessionManager.privacyPolicy.blockForensicLogging) {
             val isImeVisible = androidx.core.view.ViewCompat.getRootWindowInsets(window.decorView)
                 ?.isVisible(WindowInsetsCompat.Type.ime()) == true
@@ -172,5 +209,62 @@ class MainActivity : ComponentActivity() {
             }
         }
         return super.dispatchTouchEvent(ev)
+    }
+
+    private fun installCrashHandler() {
+        previousUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler(crashHandler)
+    }
+
+    private fun handleIncomingIntent(intent: Intent?) {
+        val request = extractNavigationRequest(intent) ?: return
+        pendingLaunchRequest = request
+        AmnosLog.d("MainActivity", "Received external navigation request")
+        consumePendingLaunchRequest()
+    }
+
+    private fun consumePendingLaunchRequest() {
+        val request = pendingLaunchRequest ?: return
+        if (!isInitialized || !::viewModel.isInitialized) {
+            return
+        }
+
+        pendingLaunchRequest = null
+        viewModel.navigate(request)
+    }
+
+    private fun extractNavigationRequest(intent: Intent?): String? {
+        intent ?: return null
+        return when (intent.action) {
+            Intent.ACTION_VIEW -> intent.dataString?.takeIf { it.isNotBlank() }
+            Intent.ACTION_WEB_SEARCH -> intent.getStringExtra(SearchManager.QUERY)?.takeIf { it.isNotBlank() }
+            else -> null
+        }
+    }
+
+    private fun scheduleGhostWipe(reason: String) {
+        cancelPendingGhostWipe()
+        AmnosLog.d("MainActivity", "Ghost wipe scheduled in ${BACKGROUND_WIPE_GRACE_MS}ms. Reason: $reason")
+        lifecycleHandler.postDelayed(delayedGhostWipe, BACKGROUND_WIPE_GRACE_MS)
+    }
+
+    private fun cancelPendingGhostWipe() {
+        lifecycleHandler.removeCallbacks(delayedGhostWipe)
+    }
+
+    private val crashHandler = Thread.UncaughtExceptionHandler { thread, throwable ->
+        runCatching {
+            if (::sessionManager.isInitialized) {
+                sessionManager.killAll(terminateProcess = false, wipeClipboard = true)
+            } else {
+                com.amnos.browser.core.security.ClipboardSentinel.wipe(this)
+            }
+        }
+        AmnosLog.e("Amnos", "Fatal crash in ${thread.name}. Delegating to system handler.", throwable)
+        previousUncaughtExceptionHandler?.uncaughtException(thread, throwable) ?: run {
+            finishAffinity()
+            android.os.Process.killProcess(android.os.Process.myPid())
+            kotlin.system.exitProcess(10)
+        }
     }
 }

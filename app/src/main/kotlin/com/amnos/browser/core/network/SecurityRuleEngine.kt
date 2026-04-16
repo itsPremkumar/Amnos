@@ -16,29 +16,41 @@ class SecurityRuleEngine(
         val parsed = sanitizedUrl.toHttpUrlOrNull()
 
         if (isWebSocketUrl(rawUrl) && policy.blockWebSockets) {
+            val host = parsed?.host ?: rawUrl
+            AmnosLog.w("SecurityEngine", "BLOCKED: WebSocket refused to $host (Policy: blockWebSockets=true)")
             return RequestDecision(rawUrl, RequestKind.WEBSOCKET, BlockReason.WEBSOCKET)
         }
 
         if (request.url.scheme?.equals("http", ignoreCase = true) == true && policy.httpsOnlyEnabled) {
-            return RequestDecision(sanitizedUrl, classifyRequest(request, parsed), BlockReason.HTTPS_ONLY)
+            val kind = classifyRequest(request, parsed)
+            AmnosLog.w("SecurityEngine", "BLOCKED: Downgrade attempt (HTTP) to ${parsed?.host ?: rawUrl}. [HTTPS-Only active]")
+            return RequestDecision(sanitizedUrl, kind, BlockReason.HTTPS_ONLY)
         }
 
         if (parsed == null || parsed.scheme != "https") {
-            return RequestDecision(sanitizedUrl, classifyRequest(request, parsed), BlockReason.UNSUPPORTED_SCHEME)
+            val kind = classifyRequest(request, parsed)
+            if (rawUrl != "about:blank") {
+                AmnosLog.w("SecurityEngine", "BLOCKED: Insecure or unsupported scheme in '$rawUrl' (Required: https)")
+            }
+            return RequestDecision(sanitizedUrl, kind, BlockReason.UNSUPPORTED_SCHEME)
         }
 
         if (isLocalNetworkHost(parsed.host)) {
-            return RequestDecision(sanitizedUrl, classifyRequest(request, parsed), BlockReason.LOCAL_NETWORK)
+            val kind = classifyRequest(request, parsed)
+            AmnosLog.w("SecurityEngine", "BLOCKED: Local network access to ${parsed.host} prohibited for security.")
+            return RequestDecision(sanitizedUrl, kind, BlockReason.LOCAL_NETWORK)
         }
 
         val thirdParty = isThirdPartyHost(parsed.host, topLevelHost)
         val kind = classifyRequest(request, parsed)
 
         if (policy.blockThirdPartyRequests && thirdParty && !request.isForMainFrame) {
+            AmnosLog.d("SecurityEngine", "BLOCKED: Third-party resource from ${parsed.host} (Policy: blockThirdPartyRequests=true)")
             return RequestDecision(sanitizedUrl, kind, BlockReason.THIRD_PARTY, thirdParty = true)
         }
 
         if (policy.blockThirdPartyScripts && thirdParty && kind == RequestKind.SCRIPT) {
+            AmnosLog.d("SecurityEngine", "BLOCKED: Third-party script from ${parsed.host} (Policy: blockThirdPartyScripts=true)")
             return RequestDecision(sanitizedUrl, kind, BlockReason.THIRD_PARTY_SCRIPT, thirdParty = true)
         }
 
@@ -47,6 +59,7 @@ class SecurityRuleEngine(
                 (parsed.host.contains("googlevideo.com") || parsed.host.contains("ytimg.com") || parsed.host.contains("youtube.com"))
             
             if (!isFunctional && adBlocker.shouldBlock(sanitizedUrl)) {
+                AmnosLog.w("SecurityEngine", "BLOCKED: Ad/Tracker detected at ${parsed.host}")
                 return RequestDecision(sanitizedUrl, kind, BlockReason.TRACKER, thirdParty = thirdParty)
             }
         }
@@ -89,11 +102,11 @@ class SecurityRuleEngine(
 
     fun isThirdPartyHost(host: String, topLevelHost: String?): Boolean {
         if (topLevelHost.isNullOrBlank()) return false
-        val normalizedHost = host.lowercase(Locale.US)
-        val normalizedTopLevel = topLevelHost.lowercase(Locale.US)
-        return normalizedHost != normalizedTopLevel &&
-            !normalizedHost.endsWith(".$normalizedTopLevel") &&
-            !normalizedTopLevel.endsWith(".$normalizedHost")
+        val normalizedHost = host.lowercase(Locale.US).trim().removeSuffix(".")
+        val normalizedTopLevel = topLevelHost.lowercase(Locale.US).trim().removeSuffix(".")
+        val hostSite = registrableDomain(normalizedHost)
+        val topLevelSite = registrableDomain(normalizedTopLevel)
+        return hostSite != topLevelSite
     }
 
     fun isLocalNetworkHost(host: String): Boolean {
@@ -107,4 +120,10 @@ class SecurityRuleEngine(
     }
 
     fun isWebSocketUrl(url: String): Boolean = url.startsWith("ws://", ignoreCase = true) || url.startsWith("wss://", ignoreCase = true)
+
+    private fun registrableDomain(host: String): String {
+        if (host.isBlank()) return host
+        val candidate = "https://$host".toHttpUrlOrNull()
+        return candidate?.topPrivateDomain()?.lowercase(Locale.US) ?: host
+    }
 }

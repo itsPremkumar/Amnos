@@ -1,6 +1,4 @@
 <resources>
     <string name="app_name">Amnos</string>
     <string name="app_short_description">गोपनीयता-केंद्रित, कठोर एंड्रॉइड ब्राउज़र.</string>
-    <string name="app_full_description">Amnos एक गोपनीयता-प्रथम कठोर एंड्रॉइड ब्राउज़र है जो बिना किसी स्थायी स्थिति और आक्रामक सुरक्षा के WebView पर बनाया गया है।</string>
-    <string name="app_keywords">गोपनीयता, सुरक्षा, कठोर, ब्राउज़र, एंड्रॉइड, एंटी-फिंगरप्रिंटिंग</string>
 </resources>

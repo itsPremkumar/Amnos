@@ -3,6 +3,7 @@ package com.amnos.browser.core.session
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import com.amnos.browser.BuildConfig
 import com.amnos.browser.core.network.RequestKind
 import com.amnos.browser.core.security.FingerprintProtectionLevel
 import com.amnos.browser.core.model.*
@@ -31,25 +32,29 @@ class SecurityController {
     val warningMessage = mutableStateOf("Strong privacy protections enabled. Network anonymity is not guaranteed.")
 
     val internalLogs = mutableStateListOf<InternalLogEntry>()
+    @Volatile
+    private var mirrorToSystemLog = !BuildConfig.SECURITY_BLOCK_FORENSIC_LOGGING
 
     fun logInternal(tag: String, message: String, level: String = "INFO") {
         synchronized(lock) {
             internalLogs.add(0, InternalLogEntry(tag = tag, message = message, level = level))
-            while (internalLogs.size > 100) {
+            while (internalLogs.size > 10000) {
                 internalLogs.removeAt(internalLogs.size - 1)
             }
         }
-        
-        android.util.Log.println(
-            when (level) {
-                "DEBUG" -> android.util.Log.DEBUG
-                "WARN" -> android.util.Log.WARN
-                "ERROR" -> android.util.Log.ERROR
-                else -> android.util.Log.INFO
-            },
-            tag,
-            message
-        )
+
+        if (mirrorToSystemLog) {
+            android.util.Log.println(
+                when (level) {
+                    "DEBUG" -> android.util.Log.DEBUG
+                    "WARN" -> android.util.Log.WARN
+                    "ERROR" -> android.util.Log.ERROR
+                    else -> android.util.Log.INFO
+                },
+                tag,
+                message
+            )
+        }
     }
 
     fun logRequest(
@@ -61,7 +66,7 @@ class SecurityController {
         reason: String? = null
     ) {
         synchronized(lock) {
-            while (_requestLog.size >= 100) {
+            while (_requestLog.size >= 10000) {
                 _requestLog.removeAt(0)
             }
             _requestLog.add(
@@ -92,6 +97,10 @@ class SecurityController {
 
     fun setFingerprintLevel(level: FingerprintProtectionLevel) {
         fingerprintLevel.value = level
+    }
+
+    fun setForensicLoggingBlocked(blocked: Boolean) {
+        mirrorToSystemLog = !blocked
     }
 
     fun recordWebRtcAttempt(detail: String, blocked: Boolean) {

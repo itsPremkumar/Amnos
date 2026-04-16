@@ -18,7 +18,8 @@ class LoopbackProxyServer(
     private val onTunnelOpened: (id: String, host: String, port: Int) -> Unit,
     private val onTunnelClosed: (id: String) -> Unit
 ) {
-    private val workerPool: ExecutorService = Executors.newCachedThreadPool()
+    private val lifecycleLock = Any()
+    private var workerPool: ExecutorService? = null
     private val sockets = CopyOnWriteArrayList<Socket>()
     @Volatile
     private var serverSocket: ServerSocket? = null
@@ -30,31 +31,43 @@ class LoopbackProxyServer(
         get() = serverSocket?.localPort?.takeIf { it > 0 }
 
     fun start(): Int {
-        if (isRunning) {
-            return port ?: 0
-        }
+        synchronized(lifecycleLock) {
+            if (isRunning) {
+                return port ?: 0
+            }
 
-        val socket = ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"))
-        serverSocket = socket
-        workerPool.execute {
-            acceptLoop(socket)
+            val socket = ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"))
+            val executor = Executors.newCachedThreadPool()
+            workerPool = executor
+            serverSocket = socket
+            AmnosLog.i("LoopbackProxyServer", "Server started on 127.0.0.1:${socket.localPort}")
+            executor.execute {
+                acceptLoop(socket)
+            }
+            return socket.localPort
         }
-        return socket.localPort
     }
 
     fun stop() {
-        try {
-            serverSocket?.close()
-        } catch (ignored: Exception) {
-        }
-        sockets.forEach {
+        val executor = synchronized(lifecycleLock) {
+            AmnosLog.i("LoopbackProxyServer", "Stopping proxy server...")
             try {
-                it.close()
+                serverSocket?.close()
             } catch (ignored: Exception) {
             }
+            sockets.forEach {
+                try {
+                    it.close()
+                } catch (ignored: Exception) {
+                }
+            }
+            sockets.clear()
+            serverSocket = null
+            val current = workerPool
+            workerPool = null
+            current
         }
-        sockets.clear()
-        serverSocket = null
+        executor?.shutdownNow()
     }
 
     private fun acceptLoop(socket: ServerSocket) {
@@ -62,13 +75,14 @@ class LoopbackProxyServer(
             try {
                 val client = socket.accept()
                 sockets.add(client)
-                workerPool.execute {
+                AmnosLog.v("LoopbackProxyServer", "New client connection from ${client.inetAddress}:${client.port}")
+                workerPool?.execute {
                     handleClient(client)
                 }
             } catch (_: SocketException) {
                 break
             } catch (error: Exception) {
-                AmnosLog.e("LoopbackProxy", "Proxy accept failed", error)
+                AmnosLog.e("LoopbackProxyServer", "Proxy accept failed", error)
             }
         }
     }
@@ -78,17 +92,16 @@ class LoopbackProxyServer(
         try {
             val input = BufferedInputStream(client.getInputStream())
             val output = BufferedOutputStream(client.getOutputStream())
-            val requestLine = readLine(input) ?: return
+            val requestLine = readLine(input) ?: run {
+                AmnosLog.v("LoopbackProxyServer", "Empty request from client")
+                return
+            }
             if (requestLine.isBlank()) return
+            AmnosLog.v("LoopbackProxyServer", "Proxy request: $requestLine")
 
-            val headers = mutableMapOf<String, String>()
             while (true) {
                 val line = readLine(input) ?: break
                 if (line.isBlank()) break
-                val separator = line.indexOf(':')
-                if (separator > 0) {
-                    headers[line.substring(0, separator).trim()] = line.substring(separator + 1).trim()
-                }
             }
 
             val parts = requestLine.split(" ")
@@ -113,7 +126,7 @@ class LoopbackProxyServer(
             )
         } catch (_: SocketException) {
         } catch (error: Exception) {
-            AmnosLog.e("LoopbackProxy", "Proxy client failed", error)
+            AmnosLog.e("LoopbackProxyServer", "Proxy client failed", error)
         } finally {
             sockets.remove(client)
             try {
@@ -133,10 +146,12 @@ class LoopbackProxyServer(
         val id = UUID.randomUUID().toString()
 
         if (!networkSecurityManager.isTunnelAllowed(host, port)) {
-            writeSimpleResponse(output, 403, "Forbidden", "Tunnel blocked by Amnos")
+            AmnosLog.w("LoopbackProxyServer", "TUNNEL REJECTED by Security Policy: $host:$port")
+            writeSimpleResponse(output, 403, "Forbidden", "Tunnel blocked by Amnos security policy")
             return
         }
 
+        AmnosLog.d("LoopbackProxyServer", "Establishing CONNECT tunnel to $host:$port")
         val remote = Socket()
         try {
             val addresses = DnsManager.lookup(host, blockIpv6 = true)
@@ -149,6 +164,7 @@ class LoopbackProxyServer(
                 }
             }
             if (!connected) {
+                AmnosLog.e("LoopbackProxyServer", "CONNECT FAILED: Could not connect to $host:$port")
                 writeSimpleResponse(output, 502, "Bad Gateway", "Unable to resolve or connect to upstream host")
                 return
             }
@@ -156,19 +172,21 @@ class LoopbackProxyServer(
             output.write("HTTP/1.1 200 Connection Established\r\nProxy-Agent: Amnos\r\n\r\n".toByteArray())
             output.flush()
 
+            AmnosLog.i("LoopbackProxyServer", "TUNNEL ESTABLISHED: $host:$port (ID: ${id.take(8)})")
             onTunnelOpened(id, host, port)
 
-            val upstream = workerPool.submit {
+            val executor = workerPool ?: throw IllegalStateException("Proxy worker pool is not available")
+            val upstream = executor.submit {
                 pipe(client.getInputStream(), remote.getOutputStream())
             }
-            val downstream = workerPool.submit {
+            val downstream = executor.submit {
                 pipe(remote.getInputStream(), client.getOutputStream())
             }
 
             upstream.get()
             downstream.get()
         } catch (error: Exception) {
-            AmnosLog.e("LoopbackProxy", "CONNECT tunnel failed for $host:$port", error)
+            AmnosLog.e("LoopbackProxyServer", "CONNECT tunnel failed for $host:$port", error)
         } finally {
             onTunnelClosed(id)
             try {

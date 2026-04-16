@@ -47,8 +47,18 @@
             });
         } catch (ignored) {}
     };
+    const lastReported = new Map();
     const safePost = function(payload) {
         try {
+            if (payload.type === "spoof") {
+                const key = payload.detail;
+                const now = nativeDateNow();
+                if (lastReported.has(key) && (now - lastReported.get(key) < 2000)) {
+                    return;
+                }
+                lastReported.set(key, now);
+            }
+
             if (window.amnosBridge && typeof window.amnosBridge.postMessage === "function") {
                 window.amnosBridge.postMessage(JSON.stringify(payload));
             }
@@ -63,7 +73,16 @@
         if (labels.length < 2) {
             return normalized;
         }
-        return labels.slice(-2).join(".");
+        const multipartSuffixes = [
+            "co.uk", "org.uk", "gov.uk", "ac.uk",
+            "co.in", "com.au", "net.au", "org.au",
+            "co.jp", "com.br", "com.mx", "co.nz"
+        ];
+        const suffix = labels.slice(-2).join(".");
+        if (labels.length >= 3 && multipartSuffixes.indexOf(suffix) >= 0) {
+            return labels.slice(-3).join(".");
+        }
+        return suffix;
     };
     const sameSite = function(left, right) {
         return siteKey(left) === siteKey(right);
@@ -82,7 +101,10 @@
     const screenProto = Object.getPrototypeOf(screen);
 
     if (fingerprintEnabled) {
-        defineGetter(navigatorProto, "userAgent", function() { return config.userAgent; });
+        defineGetter(navigatorProto, "userAgent", function() { 
+            safePost({ type: "spoof", detail: "navigator.userAgent" });
+            return config.userAgent; 
+        });
         defineGetter(navigatorProto, "appVersion", function() { 
             return config.userAgent.replace(/^Mozilla\//, ""); 
         });
@@ -178,8 +200,14 @@
     }
 
     if (fingerprintEnabled) {
-        defineGetter(screenProto, "width", function() { return config.screen.width; });
-        defineGetter(screenProto, "height", function() { return config.screen.height; });
+        defineGetter(screenProto, "width", function() { 
+            safePost({ type: "spoof", detail: "screen.width" });
+            return config.screen.width; 
+        });
+        defineGetter(screenProto, "height", function() { 
+            safePost({ type: "spoof", detail: "screen.height" });
+            return config.screen.height; 
+        });
         defineGetter(screenProto, "availWidth", function() { return config.screen.availWidth; });
         defineGetter(screenProto, "availHeight", function() { return config.screen.availHeight; });
         defineGetter(screenProto, "colorDepth", function() { return config.screen.colorDepth; });
@@ -354,8 +382,13 @@
                     "microphone",
                     "geolocation",
                     "clipboard-read",
-                    "clipboard-read",
                     "clipboard-write",
+                    "display-capture",
+                    "midi",
+                    "notifications",
+                    "nfc",
+                    "persistent-storage",
+                    "speaker-selection",
                     "accelerometer",
                     "gyroscope",
                     "magnetometer"
@@ -443,6 +476,7 @@
 
         if (navigator.getBattery) {
             navigator.getBattery = function() {
+                safePost({ type: "spoof", detail: "navigator.getBattery" });
                 return Promise.resolve({
                     charging: true,
                     chargingTime: 0,
@@ -678,8 +712,14 @@
         if (window.WebGLRenderingContext) {
             const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
             WebGLRenderingContext.prototype.getParameter = function(parameter) {
-                if (parameter === 0x9245) return config.gpuVendor;
-                if (parameter === 0x9246) return config.gpuRenderer;
+                if (parameter === 0x9245) {
+                    safePost({ type: "spoof", detail: "WebGL GPU Vendor" });
+                    return config.gpuVendor;
+                }
+                if (parameter === 0x9246) {
+                    safePost({ type: "spoof", detail: "WebGL GPU Renderer" });
+                    return config.gpuRenderer;
+                }
                 return originalGetParameter.apply(this, arguments);
             };
         }
@@ -697,6 +737,7 @@
         const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
         const originalMeasureText = CanvasRenderingContext2D.prototype.measureText;
         CanvasRenderingContext2D.prototype.getImageData = function() {
+            safePost({ type: "spoof", detail: "Canvas.getImageData (Noise Injection)" });
             const imageData = originalGetImageData.apply(this, arguments);
             for (let index = 0; index < imageData.data.length; index += 4) {
                 imageData.data[index] = imageData.data[index] ^ (config.noiseSeed % 7);

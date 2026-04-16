@@ -3,7 +3,6 @@ package com.amnos.browser.core.session
 import android.annotation.SuppressLint
 import android.content.Context
 import androidx.core.net.toUri
-import androidx.core.content.edit
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
@@ -28,7 +27,10 @@ import com.amnos.browser.core.service.StorageService
 import com.amnos.browser.core.model.*
 import org.json.JSONObject
 
-class SessionManager(private val context: Context) {
+class SessionManager(
+    private val context: Context,
+    private val webViewDataSuffix: String
+) {
     private val adBlocker = AdBlocker(context)
     private val tabs = mutableListOf<TabInstance>()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -38,7 +40,7 @@ class SessionManager(private val context: Context) {
     private var activeSessionId: String = FingerprintManager.newSessionId()
 
     val securityController = SecurityController()
-    val storageService = StorageService(context)
+    val storageService = StorageService(context, webViewDataSuffix)
     private val networkSecurityManager = NetworkSecurityManager(adBlocker) { privacyPolicy }
     private val loopbackProxyServer = LoopbackProxyServer(
         networkSecurityManager = networkSecurityManager,
@@ -50,11 +52,9 @@ class SessionManager(private val context: Context) {
         }
     )
 
-    var privacyPolicy: PrivacyPolicy = PrivacyPolicy(
-        enableRemoteDebugging = BuildConfig.DEBUG &&
-            context.getSharedPreferences("amnos_debug_prefs", Context.MODE_PRIVATE)
-                .getBoolean("enable_remote_debugging", false)
-    )
+    var privacyPolicy: PrivacyPolicy = PrivacyPolicy().let { initial ->
+        if (BuildConfig.DEBUG) initial else initial.copy(enableRemoteDebugging = false, forceRelaxSecurityForDebug = false)
+    }
         private set
 
     private val baseObfuscatorScript: String by lazy {
@@ -65,6 +65,7 @@ class SessionManager(private val context: Context) {
         AmnosLog.attach { securityController }
         AmnosLog.d("SessionManager", "Initializing SessionManager")
         securityController.setFingerprintLevel(privacyPolicy.fingerprintProtectionLevel)
+        syncForensicLogging()
         try {
             storageService.purgeGlobalStorage(securityController::logInternal)
             storageService.clearVolatileDownloads()
@@ -147,7 +148,8 @@ class SessionManager(private val context: Context) {
             sessionId = activeSessionId,
             tabId = tabId,
             profile = profile,
-            webView = webView
+            webView = webView,
+            onKeyboardRequested = onKeyboardRequested
         )
         tabs.add(tab)
         touchSession()
@@ -183,25 +185,19 @@ class SessionManager(private val context: Context) {
     }
 
     fun updatePrivacyPolicy(update: (PrivacyPolicy) -> PrivacyPolicy) {
-        val oldDebugging = privacyPolicy.enableRemoteDebugging
         privacyPolicy = update(privacyPolicy).let { updated ->
             if (BuildConfig.DEBUG) updated else updated.copy(enableRemoteDebugging = false, forceRelaxSecurityForDebug = false)
         }
-        
-        if (BuildConfig.DEBUG && privacyPolicy.enableRemoteDebugging != oldDebugging) {
-            context.getSharedPreferences("amnos_debug_prefs", Context.MODE_PRIVATE).edit {
-                putBoolean("enable_remote_debugging", privacyPolicy.enableRemoteDebugging)
-            }
-        }
 
         securityController.setFingerprintLevel(privacyPolicy.fingerprintProtectionLevel)
+        syncForensicLogging()
         configureProxy()
         tabs.forEach { tab ->
             tab.webView.updateRuntimePolicy(
                 tab.profile,
                 privacyPolicy,
                 buildInjectionScript(tab.profile),
-                ::handleSecurityEvent
+                { rawMessage -> handleSecurityEvent(rawMessage, tab.onKeyboardRequested) }
             )
         }
         touchSession()
@@ -312,15 +308,19 @@ class SessionManager(private val context: Context) {
     private fun configureProxy() {
         if (privacyPolicy.forceRelaxSecurityForDebug) {
             AmnosLog.w("SessionManager", "TOTAL PROXY BYPASS - Diagnostics mode active")
+            loopbackProxyServer.stop()
             clearProxyOverride()
             return
         }
 
         if (!privacyPolicy.enforceLoopbackProxy || !WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+            loopbackProxyServer.stop()
+            clearProxyOverride()
             securityController.updateProxyStatus(active = false, dohGlobal = false, port = null)
             return
         }
 
+        loopbackProxyServer.stop()
         val port = loopbackProxyServer.start()
         val proxyConfig = ProxyConfig.Builder()
             .removeImplicitRules()
@@ -365,6 +365,11 @@ class SessionManager(private val context: Context) {
                         "close", "blocked" -> securityController.removeConnection(socketId)
                     }
                 }
+                "spoof" -> {
+                    val property = payload.optString("property", "unknown")
+                    val detail = payload.optString("detail", "value modified")
+                    securityController.logInternal("FingerprintShield", "SHIELDED: Browser property [$property] accessed. ($detail)", "DEBUG")
+                }
             }
         } catch (error: Exception) {
             AmnosLog.w("SessionManager", "Failed to parse security event: $rawMessage", error)
@@ -381,5 +386,11 @@ class SessionManager(private val context: Context) {
         ProxyController.getInstance().clearProxyOverride(ContextCompat.getMainExecutor(context)) {
             securityController.updateProxyStatus(active = false, dohGlobal = false, port = null)
         }
+    }
+
+    private fun syncForensicLogging() {
+        val allowSystemLogging = !privacyPolicy.blockForensicLogging
+        securityController.setForensicLoggingBlocked(privacyPolicy.blockForensicLogging)
+        AmnosLog.setSystemLoggingAllowed(allowSystemLogging)
     }
 }

@@ -13,24 +13,28 @@ class SecurityHandler(
     private val sessionManager: SessionManager
 ) {
     fun setJavaScriptMode(mode: JavaScriptMode) {
+        AmnosLog.i("SecurityHandler", "Policy Update: JavaScript mode set to $mode")
         sessionManager.setJavaScriptMode(mode)
         viewModel.refreshPolicyState()
         viewModel.reload()
     }
 
     fun toggleWebGL(enabled: Boolean) {
+        AmnosLog.i("SecurityHandler", "Policy Update: WebGL toggled to $enabled")
         sessionManager.setWebGlEnabled(enabled)
         viewModel.refreshPolicyState()
         viewModel.reload()
     }
 
     fun toggleHttpsOnly(enabled: Boolean) {
+        AmnosLog.i("SecurityHandler", "Policy Update: HTTPS-only toggled to $enabled")
         sessionManager.updatePrivacyPolicy { it.copy(httpsOnlyEnabled = enabled) }
         viewModel.refreshPolicyState()
         viewModel.reload()
     }
 
     fun toggleThirdPartyBlocking(enabled: Boolean) {
+        AmnosLog.i("SecurityHandler", "Policy Update: Third-party blocking toggled to $enabled")
         sessionManager.updatePrivacyPolicy {
             it.copy(
                 blockThirdPartyRequests = enabled,
@@ -107,6 +111,7 @@ class SecurityHandler(
     }
 
     fun setFingerprintProtectionLevel(level: FingerprintProtectionLevel) {
+        AmnosLog.i("SecurityHandler", "Policy Update: Fingerprint protection level set to $level")
         sessionManager.setFingerprintProtectionLevel(level)
         viewModel.refreshPolicyState()
         viewModel.recreateCurrentTab()

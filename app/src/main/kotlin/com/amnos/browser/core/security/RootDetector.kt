@@ -1,6 +1,7 @@
 package com.amnos.browser.core.security
 
 import android.content.Context
+import com.amnos.browser.core.session.AmnosLog
 import java.io.File
 
 object RootDetector {
@@ -20,16 +21,24 @@ object RootDetector {
     fun isRooted(context: Context): Boolean {
         // 1. Check for common su binaries
         for (path in rootPaths) {
-            if (File(path).exists()) return true
+            if (File(path).exists()) {
+                AmnosLog.w("RootDetector", "ROOT DETECTED: Found su binary at $path")
+                return true
+            }
         }
 
         // 2. Check for Test-Keys tag in build info
         val buildTags = android.os.Build.TAGS
-        if (buildTags != null && buildTags.contains("test-keys")) return true
+        if (buildTags != null && buildTags.contains("test-keys")) {
+            AmnosLog.w("RootDetector", "ROOT DETECTED: Build tags contain 'test-keys'")
+            return true
+        }
 
         // 3. Check executing su command
         return try {
-            Runtime.getRuntime().exec("which su").inputStream.bufferedReader().use { it.readLine() != null }
+            val found = Runtime.getRuntime().exec("which su").inputStream.bufferedReader().use { it.readLine() != null }
+            if (found) AmnosLog.w("RootDetector", "ROOT DETECTED: 'which su' command succeeded")
+            found
         } catch (e: Exception) {
             false
         }

@@ -1,10 +1,13 @@
 package com.amnos.browser.core.session
 
+import com.amnos.browser.BuildConfig
 import android.util.Log
 
 object AmnosLog {
     @Volatile
     private var controllerProvider: (() -> SecurityController?)? = null
+    @Volatile
+    private var systemLoggingAllowed: Boolean = !BuildConfig.SECURITY_BLOCK_FORENSIC_LOGGING
 
     fun attach(provider: () -> SecurityController?) {
         controllerProvider = provider
@@ -14,6 +17,8 @@ object AmnosLog {
         controllerProvider = null
     }
 
+    fun v(tag: String, message: String) = log(tag, message, "VERBOSE")
+
     fun d(tag: String, message: String) = log(tag, message, "DEBUG")
 
     fun i(tag: String, message: String) = log(tag, message, "INFO")
@@ -22,7 +27,12 @@ object AmnosLog {
 
     fun e(tag: String, message: String, throwable: Throwable? = null) = log(tag, message, "ERROR", throwable)
 
+    fun setSystemLoggingAllowed(allowed: Boolean) {
+        systemLoggingAllowed = allowed
+    }
+
     private fun log(tag: String, message: String, level: String, throwable: Throwable? = null) {
+        val threadInfo = "[${Thread.currentThread().name}]"
         val finalMessage = if (throwable != null) {
             "$message (${throwable.javaClass.simpleName}: ${throwable.message ?: "no message"})"
         } else {
@@ -30,18 +40,24 @@ object AmnosLog {
         }
 
         try {
-            controllerProvider?.invoke()?.logInternal(tag, finalMessage, level) ?: run {
-                printFallback(tag, finalMessage, level, throwable)
+            controllerProvider?.invoke()?.let { controller ->
+                controller.logInternal(tag, "$threadInfo $finalMessage", level)
+            } ?: run {
+                printFallback(tag, "$threadInfo $finalMessage", level, throwable)
             }
         } catch (e: Throwable) {
-            // Defensive catch to ensure logging never crashes the app
-            printFallback(tag, "$finalMessage (LOG_FAILURE: ${e.message})", level, throwable)
+            printFallback(tag, "$threadInfo $finalMessage (LOG_FAILURE: ${e.message})", level, throwable)
         }
     }
 
     private fun printFallback(tag: String, message: String, level: String, throwable: Throwable?) {
+        if (!systemLoggingAllowed) {
+            return
+        }
+
         try {
             val priority = when (level) {
+                "VERBOSE" -> Log.VERBOSE
                 "DEBUG" -> Log.DEBUG
                 "WARN" -> Log.WARN
                 "ERROR" -> Log.ERROR

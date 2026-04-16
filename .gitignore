@@ -1,50 +1,62 @@
-# Built artifacts
-bin/
-gen/
-out/
+# Android
 build/
 .gradle/
 app/build/
-
-# IDE files
-.idea/
-*.iml
-*.iws
-*.ipr
 local.properties
 .navigation/
 captures/
 .externalNativeBuild/
 .cxx/
 cmake-build-*/
+output.json
 
-# Gradle
-.gradle/
-gradlew.bat
+# Kotlin
+.kotlin/
+*.kotlin_module
 
-# System files
+# IDE - IntelliJ / Android Studio
+.idea/
+*.iml
+*.iws
+*.ipr
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/assetWizardSettings.xml
+.idea/navEditor.xml
+
+# IDE - VS Code
+.vscode/
+
+# System
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Kotlin
-.kotlin/
-
-# Android Studio
+# Signing files
+*.jks
 *.keystore
 !debug.keystore
-*.jks
-properties.xml
-prof.txt
 
-# Log files
+# Logs
 *.log
+catlogs/
 
-# Temp files
+# Sensitive & Configuration (CRITICAL for Amnos)
+.env
+secrets.properties
+local.properties
+google-services.json
+
+# Temporary & Cache
 /tmp/
 .temp/
 .cache/
+.gradle-user-home/
+.android-home/
 
-# Sensitive files
-# .env
-# secrets.properties
+# Proguard / Remote Debugging
+app/proguard-rules.pro
+*.map
+architecture_diagram.png

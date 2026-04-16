@@ -1,6 +1,7 @@
 package com.amnos.browser.ui.components.security
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.*
 import com.amnos.browser.core.model.*
 import com.amnos.browser.core.session.SecurityController
 import com.amnos.browser.ui.screens.browser.BrowserViewModel
@@ -24,11 +26,122 @@ import com.amnos.browser.ui.theme.TextGray
 
 @Composable
 fun InspectorTab(viewModel: BrowserViewModel) {
+    var activeTab by remember { mutableStateOf("Requests") }
+
     Column {
-        Text("Volatile Request Log", color = Color.White, fontWeight = FontWeight.Bold)
-        Text("Real-time visibility into all outgoing network traffic.", color = TextGray, fontSize = 12.sp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row {
+                TabButton("Requests", activeTab == "Requests") { activeTab = "Requests" }
+                Spacer(Modifier.width(16.dp))
+                TabButton("Console", activeTab == "Console") { activeTab = "Console" }
+            }
+        }
+        
         Spacer(Modifier.height(16.dp))
-        RequestInspectorList(viewModel.requestLog)
+
+        if (activeTab == "Requests") {
+            RequestInspectorList(viewModel.requestLog)
+        } else {
+            SecurityConsoleList(viewModel.internalLogs)
+        }
+    }
+}
+
+@Composable
+fun TabButton(label: String, selected: Boolean, onClick: () -> Unit) {
+    Column(modifier = Modifier.clickable(onClick = onClick)) {
+        Text(
+            text = label,
+            color = if (selected) Color.White else Color.Gray,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            fontSize = 14.sp
+        )
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .height(2.dp)
+                    .width(20.dp)
+                    .background(AccentBlue)
+            )
+        }
+    }
+}
+
+@Composable
+fun SecurityConsoleList(logs: List<InternalLogEntry>) {
+    Column(modifier = Modifier.height(250.dp)) {
+        Text(
+            "Security Forensics (Last 10,000 Events)",
+            color = Color.Gray,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        if (logs.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No security events recorded.", color = Color.DarkGray, fontSize = 12.sp)
+            }
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(logs) { entry ->
+                    ConsoleItem(entry)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ConsoleItem(entry: InternalLogEntry) {
+    val levelColor = when {
+        entry.tag == "FingerprintShield" -> Color(0xFFBB86FC) // Purple for Spoofing
+        entry.level == "ERROR" -> KillRed
+        entry.level == "WARN" -> Color(0xFFFFC857)
+        entry.level == "DEBUG" -> Color(0xFF888888)
+        else -> AccentBlue
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = if (entry.tag == "FingerprintShield") "SPOOF" else entry.level,
+                color = levelColor,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .width(45.dp)
+                    .background(levelColor.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = entry.tag,
+                color = if (entry.tag == "FingerprintShield") levelColor else Color.Gray,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date(entry.timestamp)),
+                color = Color.DarkGray,
+                fontSize = 8.sp
+            )
+        }
+        Text(
+            text = entry.message,
+            color = Color.White.copy(alpha = 0.9f),
+            fontSize = 11.sp,
+            modifier = Modifier.padding(top = 2.dp, start = 4.dp)
+        )
     }
 }
 
@@ -36,7 +149,7 @@ fun InspectorTab(viewModel: BrowserViewModel) {
 fun RequestInspectorList(logs: List<RequestEntry>) {
     Column(modifier = Modifier.height(250.dp)) {
         Text(
-            "Volatile Request Log (Last 100)",
+            "Volatile Request Log (Last 10,000)",
             color = Color.Gray,
             fontSize = 11.sp,
             modifier = Modifier.padding(bottom = 8.dp)

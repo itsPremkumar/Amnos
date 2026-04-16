@@ -37,6 +37,7 @@ class NetworkFetcher(
             AmnosLog.d("NetworkFetcher", "Proxied response [${response.code}] in ${duration}ms: $httpUrl")
 
             if (!response.isSuccessful) {
+                AmnosLog.w("NetworkFetcher", "Proxied fetch REJECTED: HTTP ${response.code} for $httpUrl")
                 response.close()
                 return null
             }
@@ -59,7 +60,7 @@ class NetworkFetcher(
                 ResilientInputStream(body.byteStream(), httpUrl.toString())
             )
         } catch (e: Exception) {
-            AmnosLog.e("NetworkFetcher", "Proxied fetch FAILED for $httpUrl", e)
+            AmnosLog.e("NetworkFetcher", "Proxied fetch CRITICAL FAILURE: ${e.javaClass.simpleName} (${e.message}) for $httpUrl")
             response?.close()
             null
         }

@@ -18,6 +18,7 @@ object DnsManager {
         .build()
 
     private val dnsOverHttps: Dns by lazy {
+        AmnosLog.i("DnsManager", "Initializing DnsOverHttps (Primary: Cloudflare)")
         DnsOverHttps.Builder()
             .client(bootstrapClient)
             .url("https://cloudflare-dns.com/dns-query".toHttpUrl())
@@ -32,16 +33,20 @@ object DnsManager {
 
     fun lookup(hostname: String, blockIpv6: Boolean): List<InetAddress> {
         return try {
-            AmnosLog.d("DnsManager", "Resolving hostname via DoH: $hostname")
+            AmnosLog.v("DnsManager", "Lookup DoH: $hostname")
             val resolved = dnsOverHttps.lookup(hostname)
-            AmnosLog.d("DnsManager", "Resolved $hostname to ${resolved.size} addresses")
+            val addressList = resolved.joinToString { it.hostAddress ?: "unknown" }
+            AmnosLog.v("DnsManager", "Resolved $hostname -> $addressList")
             
             if (!blockIpv6) {
                 resolved
             } else {
-                resolved.filterIsInstance<Inet4Address>().ifEmpty { 
-                    AmnosLog.d("DnsManager", "No IPv4 found for $hostname, falling back to all")
-                    resolved 
+                val ipv4 = resolved.filterIsInstance<Inet4Address>()
+                if (ipv4.isEmpty()) {
+                    AmnosLog.w("DnsManager", "No IPv4 available for $hostname (IPv6 filtered)")
+                    resolved
+                } else {
+                    ipv4
                 }
             }
         } catch (e: Exception) {
@@ -58,14 +63,17 @@ object DnsManager {
     }
 
     @Volatile
-    private var cachedClient: OkHttpClient? = null
+    private var ipv4OnlyClient: OkHttpClient? = null
+    @Volatile
+    private var dualStackClient: OkHttpClient? = null
 
     fun secureClient(blockIpv6: Boolean): OkHttpClient {
-        val current = cachedClient
+        val current = if (blockIpv6) ipv4OnlyClient else dualStackClient
         if (current != null) return current
 
         return synchronized(this) {
-            cachedClient ?: OkHttpClient.Builder()
+            val cached = if (blockIpv6) ipv4OnlyClient else dualStackClient
+            cached ?: OkHttpClient.Builder()
                 .proxy(Proxy.NO_PROXY)
                 .dns(dns(blockIpv6))
                 .cookieJar(CookieJar.NO_COOKIES)
@@ -77,7 +85,13 @@ object DnsManager {
                     maxRequests = 64
                     maxRequestsPerHost = 20
                 })
-                .build().also { cachedClient = it }
+                .build().also {
+                    if (blockIpv6) {
+                        ipv4OnlyClient = it
+                    } else {
+                        dualStackClient = it
+                    }
+                }
         }
     }
 }

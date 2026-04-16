@@ -106,15 +106,15 @@ class PrivacyWebViewClient(
                 )
                 
                 if (!policyProvider().blockForensicLogging) {
-                    AmnosLog.d("PrivacyWebViewClient", "Interception SUCCESS: ${decision.sanitizedUrl}")
+                    AmnosLog.v("PrivacyWebViewClient", "Interception SUCCESS (Proxied): ${request.method} ${decision.sanitizedUrl}")
                 }
                 return proxiedResponse
             }
         } catch (e: Exception) {
-            AmnosLog.e("PrivacyWebViewClient", "Interception CRITICAL FAILURE for ${decision.sanitizedUrl}", e)
+            AmnosLog.e("PrivacyWebViewClient", "Interception FAILURE: Network fetch error for ${decision.sanitizedUrl}", e)
         }
 
-        AmnosLog.d("PrivacyWebViewClient", "Interception FALLTHROUGH to system: ${decision.sanitizedUrl}")
+        AmnosLog.v("PrivacyWebViewClient", "Interception FALLTHROUGH to System Network: ${decision.sanitizedUrl}")
         securityController.logRequest(
             url = decision.sanitizedUrl,
             method = request.method,
@@ -140,7 +140,7 @@ class PrivacyWebViewClient(
         super.onPageFinished(view, url)
         if ((view as? SecureWebView)?.isDecommissioned == true) return
         
-        securityController.logInternal("PrivacyWebViewClient", "Page finished: $url", "DEBUG")
+        AmnosLog.d("PrivacyWebViewClient", "Page load finished: $url")
         url?.let {
             currentHost = it.toUri().host
             onStateChanged(it)
@@ -149,7 +149,7 @@ class PrivacyWebViewClient(
 
     override fun onPageCommitVisible(view: WebView?, url: String?) {
         super.onPageCommitVisible(view, url)
-        securityController.logInternal("PrivacyWebViewClient", "Page commit visible: $url", "DEBUG")
+        AmnosLog.d("PrivacyWebViewClient", "Page content committed: $url")
         url?.let {
             currentHost = it.toUri().host
             onNavigationCommitted(it)
