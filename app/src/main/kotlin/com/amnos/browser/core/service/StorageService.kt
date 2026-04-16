@@ -7,13 +7,22 @@ import android.webkit.CookieManager
 import android.webkit.WebStorage
 import android.webkit.WebViewDatabase
 import com.amnos.browser.core.session.AmnosLog
+import com.amnos.browser.core.security.KeyManager
 import java.io.File
+import android.content.SharedPreferences
 
 class StorageService(
     private val context: Context,
     private val webViewDataSuffix: String
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    /**
+     * Exposes cryptographically secure storage backed by the ephemeral SessionMasterKey
+     */
+    val securePrefs: SharedPreferences by lazy {
+        KeyManager.getEncryptedSharedPreferences(context, "amnos_secure_prefs_$webViewDataSuffix")
+    }
 
     /**
      * Returns a diagnostic-only identifier. Disk-backed downloads are disabled in Pure RAM mode.

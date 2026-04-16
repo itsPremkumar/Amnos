@@ -9,6 +9,7 @@ import com.amnos.browser.core.service.StorageService
 import com.amnos.browser.core.session.AmnosLog
 import com.amnos.browser.core.session.SecurityController
 import com.amnos.browser.core.session.TabInstance
+import com.amnos.browser.core.security.KeyManager
 
 enum class WipeReason {
     KILL_SWITCH,
@@ -29,6 +30,10 @@ class SuperWipeEngine(
 
     fun execute(reason: WipeReason, terminateProcess: Boolean = false, wipeClipboard: Boolean = true) {
         AmnosLog.d("SuperWipeEngine", "SUPER WIPE TRIGGERED | Reason: $reason | Terminate: $terminateProcess")
+
+        // Phase 0: Cryptographic Kill Switch
+        AmnosLog.d("SuperWipeEngine", "Phase 0: Cryptographic Kill Switch")
+        KeyManager.obliterateKey()
 
         // Phase 1: WebView Teardown
         AmnosLog.d("SuperWipeEngine", "Phase 1: WebView Teardown")

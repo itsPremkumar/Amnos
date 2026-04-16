@@ -24,6 +24,9 @@ import com.amnos.browser.core.webview.PrivacyWebChromeClient
 import com.amnos.browser.core.webview.PrivacyWebViewClient
 import com.amnos.browser.core.webview.SecureWebView
 import com.amnos.browser.core.service.StorageService
+import com.amnos.browser.core.security.KeyManager
+import com.amnos.browser.core.wipe.SuperWipeEngine
+import com.amnos.browser.core.wipe.WipeReason
 import com.amnos.browser.core.model.*
 import org.json.JSONObject
 
@@ -53,13 +56,14 @@ class SessionManager(
     )
 
     private val superWipeEngine by lazy {
-        com.amnos.browser.core.wipe.SuperWipeEngine(
+        SuperWipeEngine(
             tabs = tabs,
             storageService = storageService,
             securityController = securityController,
             loopbackProxyServer = loopbackProxyServer,
             onNewSessionNeeded = {
                 activeSessionId = FingerprintManager.newSessionId()
+                KeyManager.generateSessionKey(context)
                 configureProxy()
             },
             onWipeCompleted = {
@@ -83,6 +87,7 @@ class SessionManager(
         securityController.setFingerprintLevel(privacyPolicy.fingerprintProtectionLevel)
         syncForensicLogging()
         try {
+            KeyManager.generateSessionKey(context)
             storageService.purgeGlobalStorage(securityController::logInternal)
             storageService.clearVolatileDownloads()
             configureProxy()
@@ -287,7 +292,7 @@ class SessionManager(
     }
 
     fun killAll(terminateProcess: Boolean = false, wipeClipboard: Boolean = true) {
-        val reason = if (terminateProcess) com.amnos.browser.core.wipe.WipeReason.KILL_SWITCH else com.amnos.browser.core.wipe.WipeReason.BACKGROUND_WIPE
+        val reason = if (terminateProcess) WipeReason.KILL_SWITCH else WipeReason.BACKGROUND_WIPE
         mainHandler.removeCallbacks(timeoutRunnable)
         superWipeEngine.execute(reason, terminateProcess, wipeClipboard)
     }

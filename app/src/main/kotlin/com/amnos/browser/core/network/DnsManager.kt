@@ -24,7 +24,7 @@ object DnsManager {
     private fun createDnsOverHttps(client: OkHttpClient): Dns {
         AmnosLog.i("DnsManager", "Initializing DnsOverHttps (Primary: Cloudflare)")
         return DnsOverHttps.Builder()
-            .client(bootstrapClient)
+            .client(client)
             .url("https://cloudflare-dns.com/dns-query".toHttpUrl())
             .bootstrapDnsHosts(
                 listOf(
@@ -45,12 +45,9 @@ object DnsManager {
             if (!blockIpv6) {
                 resolved
             } else {
-                val ipv4 = resolved.filterIsInstance<Inet4Address>()
-                if (ipv4.isEmpty()) {
+                resolved.filterIsInstance<Inet4Address>().ifEmpty {
                     AmnosLog.w("DnsManager", "No IPv4 available for $hostname (IPv6 filtered)")
                     resolved
-                } else {
-                    ipv4
                 }
             }
         } catch (e: Exception) {
