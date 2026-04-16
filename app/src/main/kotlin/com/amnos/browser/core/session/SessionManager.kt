@@ -30,10 +30,26 @@ import com.amnos.browser.core.wipe.WipeReason
 import com.amnos.browser.core.model.*
 import org.json.JSONObject
 
-class SessionManager(
+class SessionManager private constructor(
     private val context: Context,
     private val webViewDataSuffix: String
 ) {
+    companion object {
+        @Volatile
+        private var INSTANCE: SessionManager? = null
+
+        fun getInstance(context: Context? = null, webViewDataSuffix: String? = null): SessionManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: run {
+                    val ctx = context?.applicationContext ?: throw IllegalStateException("SessionManager not initialized and no context provided")
+                    SessionManager(
+                        ctx,
+                        webViewDataSuffix ?: "Amnos_Secure_Profile"
+                    ).also { INSTANCE = it }
+                }
+            }
+        }
+    }
     private val adBlocker = AdBlocker(context)
     private val tabs = mutableListOf<TabInstance>()
     private val mainHandler = Handler(Looper.getMainLooper())

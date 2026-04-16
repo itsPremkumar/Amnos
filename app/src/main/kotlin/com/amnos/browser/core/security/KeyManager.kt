@@ -11,6 +11,17 @@ import java.security.KeyStore
 import javax.crypto.KeyGenerator
 
 object KeyManager {
+    
+    fun checkIntegrity(context: Context) {
+        val manager = com.amnos.browser.core.session.SessionManager.getInstance(context)
+        if (!manager.privacyPolicy.antiDebuggerEnabled) return
+
+        if (android.os.Debug.isDebuggerConnected() || android.os.Debug.waitingForDebugger()) {
+            AmnosLog.e("KeyManager", "ANTI-DEBUGGER TRIGGERED!")
+            // Perform silent immediate nuke
+            manager.killAll(terminateProcess = true)
+        }
+    }
 
     private const val SESSION_KEY_ALIAS = "Amnos_Session_Master_Key"
     private const val ANDROID_KEYSTORE = "AndroidKeyStore"

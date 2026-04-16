@@ -22,7 +22,12 @@ def securityDefaults = [
     SECURITY_ENFORCE_LOOPBACK_PROXY       : "true",
     SECURITY_STRICT_FIRST_PARTY_ISOLATION : "true",
     SECURITY_BLOCK_FORENSIC_LOGGING       : "true",
-    SECURITY_FINGERPRINT_LEVEL            : "STRICT"
+    SECURITY_FINGERPRINT_LEVEL            : "STRICT",
+    SECURITY_SANDBOX_MODE                 : "PARANOID",
+    SECURITY_ANTI_DEBUGGER                : "true",
+    SECURITY_ABSOLUTE_CLOAKING             : "true",
+    SECURITY_FORENSIC_RAM_SCRAMBLE        : "true",
+    SECURITY_SESSION_TIMEOUT_MS           : "120000"
 ]
 
 def parseEnvLines(File envFile) {
@@ -79,9 +84,11 @@ android {
         def envValues = envFile.exists() ? parseEnvLines(envFile) : [:]
         securityDefaults.each { key, defaultValue ->
             def configuredValue = envValues.containsKey(key) ? envValues[key] : defaultValue
-            if (key == "SECURITY_FINGERPRINT_LEVEL") {
+            if (key == "SECURITY_FINGERPRINT_LEVEL" || key == "SECURITY_SANDBOX_MODE") {
                 def escaped = configuredValue.replace("\\", "\\\\").replace("\"", "\\\"")
                 buildConfigField "String", key, "\"${escaped}\""
+            } else if (key == "SECURITY_SESSION_TIMEOUT_MS") {
+                buildConfigField "long", key, "${configuredValue}L"
             } else {
                 buildConfigField "boolean", key, normalizeBooleanValue(key, configuredValue)
             }

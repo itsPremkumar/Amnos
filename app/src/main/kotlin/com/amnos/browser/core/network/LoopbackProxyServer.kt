@@ -41,6 +41,10 @@ class LoopbackProxyServer(
             workerPool = executor
             serverSocket = socket
             AmnosLog.i("LoopbackProxyServer", "Server started on 127.0.0.1:${socket.localPort}")
+            
+            // SYSTEM-WIDE PROXY LOCK: Force all JVM traffic through this sandbox
+            AmnosProxySelector.apply(socket.localPort)
+
             executor.execute {
                 acceptLoop(socket)
             }

@@ -23,13 +23,23 @@ enum class AmnosSandboxMode {
 }
 
 data class PrivacyPolicy(
-    val sandboxMode: AmnosSandboxMode = AmnosSandboxMode.PARANOID,
+    val sandboxMode: AmnosSandboxMode = when (com.amnos.browser.BuildConfig.SECURITY_SANDBOX_MODE.uppercase()) {
+        "PARANOID" -> AmnosSandboxMode.PARANOID
+        "BALANCED" -> AmnosSandboxMode.BALANCED
+        "OPEN" -> AmnosSandboxMode.OPEN
+        else -> AmnosSandboxMode.PARANOID
+    },
     // MASTER DEBUG TOGGLE
     val forceRelaxSecurityForDebug: Boolean = !com.amnos.browser.BuildConfig.SECURITY_ENFORCE_STRICT_POLICIES,
     
     // UI SECURITY
     val blockScreenshots: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_SCREENSHOTS,
     
+    // V2 SECURITY FEATURES
+    val antiDebuggerEnabled: Boolean = com.amnos.browser.BuildConfig.SECURITY_ANTI_DEBUGGER,
+    val absoluteCloakingEnabled: Boolean = com.amnos.browser.BuildConfig.SECURITY_ABSOLUTE_CLOAKING,
+    val forensicScrambleEnabled: Boolean = com.amnos.browser.BuildConfig.SECURITY_FORENSIC_RAM_SCRAMBLE,
+
     // NETWORK SECURITY
     val httpsOnlyEnabled: Boolean = com.amnos.browser.BuildConfig.SECURITY_HTTPS_ONLY,
     val blockTrackers: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_TRACKERS,
@@ -64,7 +74,7 @@ data class PrivacyPolicy(
     },
     val javascriptMode: JavaScriptMode = JavaScriptMode.RESTRICTED,
     val resetIdentityOnRefresh: Boolean = true,
-    val sessionTimeoutMillis: Long = 2 * 60 * 1000L
+    val sessionTimeoutMillis: Long = com.amnos.browser.BuildConfig.SECURITY_SESSION_TIMEOUT_MS
 ) {
     val isJavaScriptEnabled: Boolean
         get() = javascriptMode != JavaScriptMode.DISABLED

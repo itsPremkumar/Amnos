@@ -23,6 +23,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import com.amnos.browser.core.security.PrivacyPolicy
+import com.amnos.browser.core.security.KeyManager
 import com.amnos.browser.core.session.AmnosLog
 import android.view.accessibility.AccessibilityManager
 import android.accessibilityservice.AccessibilityServiceInfo
@@ -59,6 +60,12 @@ class MainActivity : ComponentActivity() {
         installCrashHandler()
 
         try {
+            // Start Ghost Sentinel Service for Task Removal Detection (if enabled)
+            val sessionManagerForStartup = SessionManager.getInstance(this, RuntimeSecurityConfig.webViewProfileSuffix)
+            if (sessionManagerForStartup.privacyPolicy.absoluteCloakingEnabled) {
+                startService(Intent(this, com.amnos.browser.core.service.GhostService::class.java))
+            }
+
             android.webkit.WebView.setDataDirectorySuffix(RuntimeSecurityConfig.webViewProfileSuffix)
             AmnosLog.d("MainActivity", "WebView data directory suffix set successfully")
         } catch (e: Exception) {
@@ -88,9 +95,12 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             try {
+                // Phase 1 INTEGRITY CHECK
+                KeyManager.checkIntegrity(this@MainActivity)
+                
                 withContext(Dispatchers.IO) {
-                    AmnosLog.d("MainActivity", "Creating SessionManager (Background)")
-                    sessionManager = SessionManager(this@MainActivity, RuntimeSecurityConfig.webViewProfileSuffix)
+                    AmnosLog.d("MainActivity", "Initializing SessionManager (Singleton)")
+                    sessionManager = SessionManager.getInstance(this@MainActivity, RuntimeSecurityConfig.webViewProfileSuffix)
                 }
 
                 if (com.amnos.browser.core.security.RootDetector.isRooted(this@MainActivity)) {
@@ -103,6 +113,13 @@ class MainActivity : ComponentActivity() {
 
                 AmnosLog.d("MainActivity", "Creating BrowserViewModel (Main)")
                 viewModel = BrowserViewModel(sessionManager)
+
+                sessionManager.registerWipeListener {
+                    if (sessionManager.privacyPolicy.absoluteCloakingEnabled) {
+                        AmnosLog.d("MainActivity", "Session wipe triggered. Ghosting activity.")
+                        finishAffinity() // Clear all activities from the Task Manager
+                    }
+                }
 
                 isInitialized = true
                 investigateAccessibilityServices()
