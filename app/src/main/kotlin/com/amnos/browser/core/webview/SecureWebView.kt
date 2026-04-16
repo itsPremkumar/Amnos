@@ -69,10 +69,10 @@ class SecureWebView(context: Context) : WebView(context) {
             javaScriptCanOpenWindowsAutomatically = false
             
             // 100% PURE RAM MODE: Disable all persistent storage APIs
-            domStorageEnabled = if (policy.forceRelaxSecurityForDebug) true else false 
+            domStorageEnabled = true  // Volatile RAM-only, wiped by Ghost Wipe 
             databaseEnabled = if (policy.forceRelaxSecurityForDebug) true else false
             
-            cacheMode = if (policy.forceRelaxSecurityForDebug) WebSettings.LOAD_DEFAULT else WebSettings.LOAD_NO_CACHE
+            cacheMode = WebSettings.LOAD_DEFAULT  // Cache is physically nuked by StorageService on session wipe
 
             userAgentString = if (policy.forceRelaxSecurityForDebug) android.webkit.WebSettings.getDefaultUserAgent(context) else profile.userAgent
             setSupportMultipleWindows(false)
@@ -253,9 +253,11 @@ class SecureWebView(context: Context) : WebView(context) {
 
     private fun configureCookies() {
         val cookieManager = CookieManager.getInstance()
-        cookieManager.setAcceptCookie(false)
+        // Allow first-party session cookies (required for YouTube CDN, Google login flows).
+        // These are volatile: purgeGlobalStorage() wipes ALL cookies on every session kill.
+        cookieManager.setAcceptCookie(true)
+        // Block third-party cookies to prevent cross-site tracking.
         cookieManager.setAcceptThirdPartyCookies(this, false)
-        cookieManager.removeSessionCookies(null)
         cookieManager.flush()
     }
 

@@ -55,10 +55,20 @@ class SecurityRuleEngine(
         }
 
         if (policy.blockTrackers && !request.isForMainFrame) {
-            val isFunctional = (kind == RequestKind.MEDIA || kind == RequestKind.IMAGE || kind == RequestKind.FONT) && 
-                (parsed.host.contains("googlevideo.com") || parsed.host.contains("ytimg.com") || parsed.host.contains("youtube.com"))
+            // FIRST-PARTY BYPASS: Never block resources loaded from the same site the user is visiting.
+            // This prevents the AdBlocker from breaking YouTube, Google, etc.
+            val isFirstParty = !isThirdPartyHost(parsed.host, topLevelHost)
             
-            if (!isFunctional && adBlocker.shouldBlock(sanitizedUrl)) {
+            // FUNCTIONAL MEDIA BYPASS: Known video platform CDN domains are always allowed
+            // regardless of blocklist status, to prevent video playback failures.
+            val isVideoPlatformCdn = parsed.host.contains("googlevideo.com") || 
+                parsed.host.contains("ytimg.com") ||
+                parsed.host.contains("ggpht.com") ||
+                parsed.host.contains("gstatic.com") ||
+                parsed.host.contains("youtube.com") ||
+                parsed.host.contains("youtu.be")
+            
+            if (!isFirstParty && !isVideoPlatformCdn && adBlocker.shouldBlock(sanitizedUrl)) {
                 AmnosLog.w("SecurityEngine", "BLOCKED: Ad/Tracker detected at ${parsed.host}")
                 return RequestDecision(sanitizedUrl, kind, BlockReason.TRACKER, thirdParty = thirdParty)
             }
