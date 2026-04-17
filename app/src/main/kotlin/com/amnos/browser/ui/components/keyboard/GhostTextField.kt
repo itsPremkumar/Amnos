@@ -118,6 +118,11 @@ fun GhostTextField(
         }
     }
 
+    val onClearAll: () -> Unit = {
+        textFieldValue = TextFieldValue(text = "", selection = TextRange.Zero)
+        onValueChange("")
+    }
+
     BasicTextField(
         value = textFieldValue,
         onValueChange = { 
@@ -132,6 +137,7 @@ fun GhostTextField(
                 keyboardViewModel.show(
                     onInput = onInput,
                     onBackspace = onBackspace,
+                    onClearAll = onClearAll,
                     onSearch = onSearch
                 )
             }

@@ -61,8 +61,8 @@ fun GhostKeyboard(viewModel: KeyboardViewModel) {
             Column(
                 modifier = Modifier
                     .padding(8.dp)
-                    .padding(bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(bottom = if (com.amnos.browser.ui.utils.isLandscape()) 4.dp else 16.dp),
+                verticalArrangement = Arrangement.spacedBy(if (com.amnos.browser.ui.utils.isLandscape()) 4.dp else 8.dp)
             ) {
                 when (layoutState) {
                     GhostKeyboardLayout.ALPHA -> AlphaLayout(viewModel)
@@ -83,16 +83,19 @@ fun AlphaLayout(viewModel: KeyboardViewModel) {
     val row3 = listOf("z", "x", "c", "v", "b", "n", "m")
     val isShifted = shiftState != GhostShiftState.OFF
 
+    val isLandscape = com.amnos.browser.ui.utils.isLandscape()
+    val horizontalSpacing = if (isLandscape) 4.dp else 2.dp
+
     // Row 1
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalSpacing),
+        horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 4.dp else 4.dp)
     ) {
         row1.forEachIndexed { index, char ->
             val number = if (index < 9) (index + 1).toString() else "0"
             GhostKey(
                 text = if (isShifted) char.uppercase() else char,
-                secondaryText = number,
+                secondaryText = if (!isLandscape) number else null, // Hide numbers in landscape to save height
                 modifier = Modifier.weight(1f),
                 onLongPress = { viewModel.handleInput(number) }
             ) {
@@ -105,8 +108,8 @@ fun AlphaLayout(viewModel: KeyboardViewModel) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 18.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+            .padding(horizontal = if (isLandscape) 12.dp else 18.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 4.dp else 4.dp)
     ) {
         row2.forEach { char ->
             GhostKey(
@@ -120,8 +123,8 @@ fun AlphaLayout(viewModel: KeyboardViewModel) {
     
     // Row 3 (Shift + Keys + Backspace)
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalSpacing),
+        horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 4.dp else 4.dp)
     ) {
         // Shift Key
         val shiftIcon = when (shiftState) {
@@ -134,7 +137,7 @@ fun AlphaLayout(viewModel: KeyboardViewModel) {
         
         GhostKey(
             icon = shiftIcon,
-            modifier = Modifier.weight(1.5f),
+            modifier = Modifier.weight(1.2f),
             containerColor = shiftBg,
             contentColor = shiftColor
         ) {
@@ -153,8 +156,9 @@ fun AlphaLayout(viewModel: KeyboardViewModel) {
         // Backspace Key
         GhostKey(
             icon = Icons.Default.Backspace,
-            modifier = Modifier.weight(1.5f),
-            containerColor = GlassWhite
+            modifier = Modifier.weight(1.2f),
+            containerColor = GlassWhite,
+            onLongPress = { viewModel.handleClearAll() }
         ) {
             viewModel.handleBackspace()
         }
@@ -162,12 +166,12 @@ fun AlphaLayout(viewModel: KeyboardViewModel) {
     
     // Row 4 (Bottom Row)
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalSpacing),
+        horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 4.dp else 6.dp)
     ) {
         GhostKey(
             text = "?123",
-            modifier = Modifier.weight(1.5f),
+            modifier = Modifier.weight(1.2f),
             containerColor = GlassWhite.copy(alpha = 0.2f)
         ) {
             viewModel.toggleLayout()
@@ -183,7 +187,7 @@ fun AlphaLayout(viewModel: KeyboardViewModel) {
         
         GhostKey(
             text = "space",
-            modifier = Modifier.weight(3f),
+            modifier = Modifier.weight(3.5f),
             containerColor = GlassWhite
         ) {
             viewModel.handleSpace()
@@ -191,7 +195,7 @@ fun AlphaLayout(viewModel: KeyboardViewModel) {
         
         GhostKey(
             icon = Icons.Default.Search,
-            modifier = Modifier.weight(1.5f),
+            modifier = Modifier.weight(1.2f),
             containerColor = AccentBlue.copy(alpha = 0.4f),
             contentColor = Color.White
         ) {
@@ -295,10 +299,11 @@ fun GhostKey(
 ) {
     val haptic = LocalHapticFeedback.current
     var isPressed by remember { mutableStateOf(false) }
+    val isLandscape = com.amnos.browser.ui.utils.isLandscape()
     
     Box(
         modifier = modifier
-            .height(54.dp)
+            .height(if (isLandscape) 40.dp else 54.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(if (isPressed) containerColor.copy(alpha = 0.4f) else containerColor)
             .pointerInput(Unit) {

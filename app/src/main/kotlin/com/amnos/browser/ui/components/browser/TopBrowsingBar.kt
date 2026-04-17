@@ -35,15 +35,21 @@ fun TopBrowsingBar(
                 )
             }
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        val isLandscape = com.amnos.browser.ui.utils.isLandscape()
+        Column(
+            modifier = Modifier.padding(
+                horizontal = 12.dp, 
+                vertical = if (isLandscape) 4.dp else 8.dp
+            )
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TrackerBadge(viewModel)
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(8.dp))
                 AddressField(viewModel, keyboardViewModel, focusManager, modifier = Modifier.weight(1f))
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(8.dp))
                 BurnSessionButton(viewModel)
             }
         }

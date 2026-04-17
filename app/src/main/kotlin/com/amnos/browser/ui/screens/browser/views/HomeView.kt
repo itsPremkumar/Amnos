@@ -43,11 +43,20 @@ fun HomeView(viewModel: BrowserViewModel, keyboardViewModel: KeyboardViewModel) 
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isExpanded = windowSize == WindowSize.EXPANDED
+        val isLandscape = com.amnos.browser.ui.utils.isLandscape()
 
-        if (isExpanded) {
-            HomeViewExpanded(viewModel, keyboardViewModel, focusManager)
-        } else {
-            HomeViewCompact(viewModel, keyboardViewModel, focusManager)
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+            color = Color.Transparent
+        ) {
+            when {
+                isExpanded -> HomeViewExpanded(viewModel, keyboardViewModel, focusManager)
+                isLandscape -> HomeViewLandscapeCompact(viewModel, keyboardViewModel, focusManager)
+                else -> HomeViewCompact(viewModel, keyboardViewModel, focusManager)
+            }
         }
     }
 }
@@ -78,6 +87,54 @@ fun HomeViewCompact(
 }
 
 @Composable
+fun HomeViewLandscapeCompact(
+    viewModel: BrowserViewModel,
+    keyboardViewModel: KeyboardViewModel,
+    focusManager: androidx.compose.ui.focus.FocusManager
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(0.8f),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Smaller logo for landscape
+            Surface(
+                modifier = Modifier.size(80.dp),
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.03f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.Shield,
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp),
+                        tint = AccentBlue
+                    )
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Text("Amnos", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        }
+
+        Column(
+            modifier = Modifier.weight(1.2f),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            AddressSearchBar(viewModel, keyboardViewModel, focusManager)
+            Spacer(modifier = Modifier.height(16.dp))
+            SecurityStatusFooter()
+        }
+    }
+}
+
+@Composable
 fun HomeViewExpanded(
     viewModel: BrowserViewModel,
     keyboardViewModel: KeyboardViewModel,
@@ -86,7 +143,7 @@ fun HomeViewExpanded(
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .padding(48.dp),
+            .padding(64.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
@@ -97,15 +154,15 @@ fun HomeViewExpanded(
             AppLogoSection()
         }
 
-        Spacer(modifier = Modifier.width(64.dp))
+        Spacer(modifier = Modifier.width(96.dp))
 
         Column(
-            modifier = Modifier.weight(1.2f),
+            modifier = Modifier.widthIn(max = 500.dp).weight(1.2f),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             AddressSearchBar(viewModel, keyboardViewModel, focusManager)
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(48.dp))
             SecurityStatusFooter()
         }
     }

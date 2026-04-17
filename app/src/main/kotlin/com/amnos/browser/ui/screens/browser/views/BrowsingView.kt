@@ -33,6 +33,7 @@ fun BrowsingView(viewModel: BrowserViewModel, keyboardViewModel: KeyboardViewMod
             keyboardViewModel.show(
                 onInput = { viewModel.injectWebInput(it) },
                 onBackspace = { viewModel.injectWebBackspace() },
+                onClearAll = { /* Optional: Implement web-clear if needed */ },
                 onSearch = { viewModel.injectWebSearch() }
             )
         } else {

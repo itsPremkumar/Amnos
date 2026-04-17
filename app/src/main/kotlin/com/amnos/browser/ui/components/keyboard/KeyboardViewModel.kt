@@ -34,15 +34,18 @@ class KeyboardViewModel : ViewModel() {
     // The callback to communicate with the integrated TextField
     private var inputCallback: ((String) -> Unit)? = null
     private var backspaceCallback: (() -> Unit)? = null
+    private var clearAllCallback: (() -> Unit)? = null
     private var searchCallback: (() -> Unit)? = null
 
     fun show(
         onInput: (String) -> Unit,
         onBackspace: () -> Unit,
+        onClearAll: () -> Unit,
         onSearch: () -> Unit
     ) {
         inputCallback = onInput
         backspaceCallback = onBackspace
+        clearAllCallback = onClearAll
         searchCallback = onSearch
         _isVisible.value = true
     }
@@ -111,6 +114,11 @@ class KeyboardViewModel : ViewModel() {
 
     fun handleBackspace() {
         backspaceCallback?.invoke()
+        lastKeyWasSpace = false
+    }
+
+    fun handleClearAll() {
+        clearAllCallback?.invoke()
         lastKeyWasSpace = false
     }
 
