@@ -67,7 +67,7 @@ How your real hardware behaves and leaks unique entropy.
 
 | Key | Value/Level | Description |
 | :--- | :--- | :--- |
-| `HARDWARE_FINGERPRINT_LEVEL` | `STRICT` | Adds noise to Canvas, Audio, and GPU signatures. |
+| `HARDWARE_FINGERPRINT_LEVEL` | `TITAN` | `TITAN`: Maximum identity noise. `STRICT`: Basic randomization. |
 | `HARDWARE_WEBGL_MODE` | `DISABLED`| Disables GPU surfaces to prevent profiling. |
 | `HARDWARE_JAVASCRIPT_MODE` | `RESTRICTED` | Disables invasive JS APIs like `battery` or `bluetooth`. |
 

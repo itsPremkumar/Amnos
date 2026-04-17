@@ -33,6 +33,7 @@
     const nativeRequestAnimationFrame = window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : null;
     const nativePerformanceNow = window.performance && window.performance.now ? window.performance.now.bind(window.performance) : null;
     const strictFingerprinting = policy.fingerprintLevel === "STRICT";
+    const titanFingerprinting = policy.fingerprintLevel === "TITAN";
     const fingerprintEnabled = policy.fingerprintLevel !== "DISABLED";
 
     const denyPromise = function(message) {
@@ -748,27 +749,36 @@
         const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
         const originalMeasureText = CanvasRenderingContext2D.prototype.measureText;
         CanvasRenderingContext2D.prototype.getImageData = function() {
-            safePost({ type: "spoof", detail: "Canvas.getImageData (Noise Injection)" });
-            const imageData = originalGetImageData.apply(this, arguments);
-            for (let index = 0; index < imageData.data.length; index += 4) {
-                imageData.data[index] = imageData.data[index] ^ (config.noiseSeed % 7);
+            try {
+                safePost({ type: "spoof", detail: "Canvas.getImageData (Noise Injection)" });
+                const imageData = originalGetImageData.apply(this, arguments);
+                for (let index = 0; index < imageData.data.length; index += 4) {
+                    imageData.data[index] = imageData.data[index] ^ (config.noiseSeed % 7);
+                }
+                return imageData;
+            } catch (e) {
+                return originalGetImageData.apply(this, arguments);
             }
-            return imageData;
         };
         CanvasRenderingContext2D.prototype.measureText = function(text) {
-            const metrics = originalMeasureText.apply(this, arguments);
-            if (!strictFingerprinting) {
-                return metrics;
-            }
-            const roundedWidth = Math.round(metrics.width * 2) / 2;
-            return new Proxy(metrics, {
-                get: function(target, property) {
-                    if (property === "width") {
-                        return roundedWidth;
-                    }
-                    return target[property];
+            try {
+                const metrics = originalMeasureText.apply(this, arguments);
+                if (!strictFingerprinting && !titanFingerprinting) {
+                    return metrics;
                 }
-            });
+                const resolution = titanFingerprinting ? 0.25 : 0.5;
+                const roundedWidth = Math.round(metrics.width / resolution) * resolution;
+                return new Proxy(metrics, {
+                    get: function(target, property) {
+                        if (property === "width") {
+                            return roundedWidth;
+                        }
+                        return target[property];
+                    }
+                });
+            } catch (e) {
+                return originalMeasureText.apply(this, arguments);
+            }
         };
     }
 
@@ -832,19 +842,52 @@
         };
     }
 
-    if (window.AudioContext) {
-        const originalCreateAnalyser = AudioContext.prototype.createAnalyser;
-        AudioContext.prototype.createAnalyser = function() {
-            const analyser = originalCreateAnalyser.apply(this, arguments);
-            const originalGetFloatFrequencyData = analyser.getFloatFrequencyData;
-            analyser.getFloatFrequencyData = function(array) {
-                originalGetFloatFrequencyData.call(this, array);
-                if (array && array.length) {
-                    array[0] = array[0] + ((config.noiseSeed % 5) * 0.01);
+        if (window.AudioContext) {
+            const originalCreateAnalyser = AudioContext.prototype.createAnalyser;
+            AudioContext.prototype.createAnalyser = function() {
+                const analyser = originalCreateAnalyser.apply(this, arguments);
+                
+                // TITAN SHIELD: Real-time Audio Frequency Jitter
+                if (titanFingerprinting) {
+                    const originalGetFloatFrequencyData = analyser.getFloatFrequencyData;
+                    const originalGetByteFrequencyData = analyser.getByteFrequencyData;
+                    
+                    analyser.getFloatFrequencyData = function(array) {
+                        try {
+                            originalGetFloatFrequencyData.call(this, array);
+                            if (array && array.length) {
+                                for (let i = 0; i < array.length; i += 50) {
+                                    array[i] = array[i] + ((config.noiseSeed % 10) * 0.001);
+                                }
+                            }
+                        } catch (e) {
+                            originalGetFloatFrequencyData.call(this, array);
+                        }
+                    };
+                    
+                    analyser.getByteFrequencyData = function(array) {
+                        try {
+                            originalGetByteFrequencyData.call(this, array);
+                            if (array && array.length) {
+                                for (let i = 0; i < array.length; i += 50) {
+                                    array[i] = array[i] ^ (config.noiseSeed % 3);
+                                }
+                            }
+                        } catch (e) {
+                            originalGetByteFrequencyData.call(this, array);
+                        }
+                    };
+                } else {
+                    const originalGetFloatFrequencyData = analyser.getFloatFrequencyData;
+                    analyser.getFloatFrequencyData = function(array) {
+                        originalGetFloatFrequencyData.call(this, array);
+                        if (array && array.length) {
+                            array[0] = array[0] + ((config.noiseSeed % 5) * 0.01);
+                        }
+                    };
                 }
+                return analyser;
             };
-            return analyser;
-        };
 
         // Additional AudioContext fingerprinting vectors
         const OriginalAudioContext = window.AudioContext;
@@ -1033,8 +1076,42 @@
     defineGetter(document, "domain", function() { return originalDomain; });
 
     // History length can leak browsing behavior
-    if (strictFingerprinting) {
+    if (strictFingerprinting || titanFingerprinting) {
         defineGetter(window.history, "length", function() { return 2; });
+    }
+
+    // TITAN SHIELD: ClientRect Jittering (Safe Fallback)
+    if (titanFingerprinting && window.Element && Element.prototype.getClientRects) {
+        const originalGetClientRects = Element.prototype.getClientRects;
+        const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+        
+        Element.prototype.getClientRects = function() {
+            const rects = originalGetClientRects.apply(this, arguments);
+            try {
+                if (rects && rects.length > 0) {
+                    const jitter = ((config.noiseSeed % 10) - 5) * 0.0001;
+                    for (let i = 0; i < rects.length; i++) {
+                        const r = rects[i];
+                        rects[i] = new Proxy(r, {
+                            get: (t, p) => (p === 'width' || p === 'height' || p === 'left' || p === 'top') ? t[p] + jitter : t[p]
+                        });
+                    }
+                }
+            } catch (e) {}
+            return rects;
+        };
+        
+        Element.prototype.getBoundingClientRect = function() {
+            const rect = originalGetBoundingClientRect.apply(this, arguments);
+            try {
+                const jitter = ((config.noiseSeed % 10) - 5) * 0.0001;
+                return new Proxy(rect, {
+                    get: (t, p) => (p === 'width' || p === 'height' || p === 'left' || p === 'top') ? t[p] + jitter : t[p]
+                });
+            } catch (e) {
+                return rect;
+            }
+        };
     }
 
     // Notification API - can be used for fingerprinting

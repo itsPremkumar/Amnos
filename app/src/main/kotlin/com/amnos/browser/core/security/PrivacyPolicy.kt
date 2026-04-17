@@ -86,6 +86,7 @@ data class PrivacyPolicy(
     val hardwareFingerprintLevel: FingerprintProtectionLevel = when (com.amnos.browser.BuildConfig.HARDWARE_FINGERPRINT_LEVEL.uppercase()) {
         "BALANCED" -> FingerprintProtectionLevel.BALANCED
         "STRICT" -> FingerprintProtectionLevel.STRICT
+        "TITAN" -> FingerprintProtectionLevel.TITAN
         "DISABLED", "OFF", "FALSE" -> FingerprintProtectionLevel.DISABLED
         else -> FingerprintProtectionLevel.STRICT
     },
