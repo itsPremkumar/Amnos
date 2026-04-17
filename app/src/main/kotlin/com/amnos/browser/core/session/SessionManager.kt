@@ -30,6 +30,7 @@ import com.amnos.browser.core.security.KeyManager
 import com.amnos.browser.core.wipe.SuperWipeEngine
 import com.amnos.browser.core.wipe.WipeReason
 import com.amnos.browser.core.model.*
+import com.amnos.browser.core.network.NetworkTrafficConfigurator
 
 class SessionManager private constructor(
     private val context: Context,
@@ -53,7 +54,6 @@ class SessionManager private constructor(
         }
     }
     private val adBlocker = AdBlocker(context)
-    private val tabs = mutableListOf<TabInstance>()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val wipeDebounceMs = 5_000L
     private val timeoutRunnable = Runnable { timeoutListener?.invoke() }
@@ -65,6 +65,10 @@ class SessionManager private constructor(
     val securityController = SecurityController()
     val storageService = StorageService(context, webViewDataSuffix)
     private val networkSecurityManager = NetworkSecurityManager(adBlocker) { privacyPolicy }
+    
+    private val tabManager = TabManager(context, adBlocker, networkSecurityManager, securityController)
+    private val securityEventRouter = SecurityEventRouter(securityController)
+    
     private val loopbackProxyServer = LoopbackProxyServer(
         networkSecurityManager = networkSecurityManager,
         onTunnelOpened = { id, host, port ->
@@ -75,16 +79,18 @@ class SessionManager private constructor(
         }
     )
 
+    private val networkTrafficConfigurator = NetworkTrafficConfigurator(context, loopbackProxyServer, securityController)
+
     private val superWipeEngine by lazy {
         SuperWipeEngine(
-            tabs = tabs,
+            tabManager = tabManager,
             storageService = storageService,
             securityController = securityController,
             loopbackProxyServer = loopbackProxyServer,
             onNewSessionNeeded = {
                 activeSessionId = FingerprintManager.newSessionId()
                 KeyManager.generateSessionKey(context)
-                configureProxy()
+                networkTrafficConfigurator.configure(privacyPolicy)
             },
             onWipeCompleted = {
                 onSessionWipedListeners.forEach { it.invoke() }
@@ -103,17 +109,17 @@ class SessionManager private constructor(
 
         init {
         AmnosLog.attach { securityController }
-        AmnosLog.d("SessionManager", "Initializing SessionManager")
+        AmnosLog.d("SessionManager", "Initializing SessionManager (Modular)")
         securityController.setFingerprintLevel(privacyPolicy.hardwareFingerprintLevel)
         syncForensicLogging()
         try {
             KeyManager.generateSessionKey(context)
             storageService.purgeGlobalStorage(securityController::logInternal)
             storageService.clearVolatileDownloads()
-            configureProxy()
-            AmnosLog.d("SessionManager", "Proxy configured successfully")
+            networkTrafficConfigurator.configure(privacyPolicy)
+            AmnosLog.d("SessionManager", "Network infrastructure configured")
         } catch (e: Exception) {
-            AmnosLog.e("SessionManager", "Failed to configure proxy during init", e)
+            AmnosLog.e("SessionManager", "Init failed", e)
         }
     }
 
@@ -136,84 +142,46 @@ class SessionManager private constructor(
 
     fun createTab(
         onStateChanged: (url: String, canGoBack: Boolean, canGoForward: Boolean) -> Unit,
-        onProgressChanged: (progress: Int) -> Unit,
+        onProgressChanged: (Int) -> Unit,
         onTrackerBlocked: () -> Unit,
         onNavigationRequested: (String) -> Boolean,
         onNavigationCommitted: (String) -> Unit,
         onNavigationFailed: (String?) -> Unit,
-        onKeyboardRequested: (show: Boolean) -> Unit,
+        onKeyboardRequested: (Boolean) -> Unit,
         onSecurityEvent: ((String) -> Unit)? = null
     ): TabInstance {
-        AmnosLog.d("SessionManager", "Creating new tab instance")
-        val tabId = FingerprintManager.newTabId()
-        val profile = FingerprintManager.generateCoherentProfile(
-            activeSessionId,
-            tabId,
-            privacyPolicy
-        )
-
-        AmnosLog.d("SessionManager", "Instantiating SecureWebView")
-        val webView = SecureWebView(context)
-        val finalScript = buildInjectionScript(profile)
-        val securityEventHandler: (String) -> Unit = { rawMessage ->
-            handleSecurityEvent(rawMessage, onKeyboardRequested)
-            onSecurityEvent?.invoke(rawMessage)
-        }
-
-        AmnosLog.d("SessionManager", "Applying hardening to WebView")
-        webView.applyHardening(profile, privacyPolicy, finalScript, securityEventHandler)
-        webView.resumeTimers()
-
-        webView.setDownloadListener { url, _, _, _, _ ->
-            AmnosLog.d("SessionManager", "Ephemeral download triggered: $url")
-            storageService.downloadEphemeralFile(url, profile.userAgent)
-        }
-
-        val client = PrivacyWebViewClient(
-            adBlocker = adBlocker,
-            deviceProfile = profile,
-            networkSecurityManager = networkSecurityManager,
-            securityController = securityController,
-            policyProvider = { privacyPolicy },
+        return tabManager.createTab(
+            activeSessionId = activeSessionId,
+            privacyPolicy = privacyPolicy,
+            onStateChanged = onStateChanged,
+            onProgressChanged = onProgressChanged,
             onTrackerBlocked = onTrackerBlocked,
-            onStateChanged = { url ->
-                touchSession()
-                onStateChanged(url, webView.canGoBack(), webView.canGoForward())
-            },
             onNavigationRequested = onNavigationRequested,
             onNavigationCommitted = onNavigationCommitted,
-            onNavigationFailed = onNavigationFailed
-        )
-
-        webView.webViewClient = client
-        webView.webChromeClient = PrivacyWebChromeClient(onProgressChanged)
-
-        val tab = TabInstance(
-            sessionId = activeSessionId,
-            tabId = tabId,
-            profile = profile,
-            webView = webView,
+            onNavigationFailed = onNavigationFailed,
             onKeyboardRequested = onKeyboardRequested,
-            onSecurityEvent = securityEventHandler
+            onSecurityEvent = { raw ->
+                securityEventRouter.route(raw, onKeyboardRequested)
+                onSecurityEvent?.invoke(raw)
+            },
+            touchSession = ::touchSession,
+            buildInjectionScript = ::buildInjectionScript
         )
-        tabs.add(tab)
-        touchSession()
-        return tab
     }
 
     fun recreateTab(
         tab: TabInstance,
         onStateChanged: (url: String, canGoBack: Boolean, canGoForward: Boolean) -> Unit,
-        onProgressChanged: (progress: Int) -> Unit,
+        onProgressChanged: (Int) -> Unit,
         onTrackerBlocked: () -> Unit,
         onNavigationRequested: (String) -> Boolean,
         onNavigationCommitted: (String) -> Unit,
         onNavigationFailed: (String?) -> Unit,
-        onKeyboardRequested: (show: Boolean) -> Unit,
+        onKeyboardRequested: (Boolean) -> Unit,
         onSecurityEvent: ((String) -> Unit)? = null
     ): TabInstance {
         val previousUrl = tab.currentUrl
-        val previousIndex = tabs.indexOf(tab).coerceAtLeast(0)
+        val previousIndex = tabManager.indexOf(tab).coerceAtLeast(0)
         removeTab(tab)
         val replacement = createTab(
             onStateChanged = onStateChanged,
@@ -225,21 +193,21 @@ class SessionManager private constructor(
             onKeyboardRequested = onKeyboardRequested,
             onSecurityEvent = onSecurityEvent
         )
-        tabs.remove(replacement)
-        tabs.add(previousIndex.coerceAtMost(tabs.size), replacement)
+        tabManager.removeTab(replacement) {} // Temp remove to re-add at index
+        tabManager.addAt(previousIndex, replacement)
         previousUrl?.let { loadUrl(replacement, it) }
         return replacement
     }
 
     fun updatePrivacyPolicy(update: (PrivacyPolicy) -> PrivacyPolicy) {
         privacyPolicy = update(privacyPolicy).let { updated ->
-            if (BuildConfig.DEBUG_LOCKDOWN_MODE) updated.copy(enableRemoteDebugging = false, forceRelaxSecurityForDebug = false) else updated
+            if (BuildConfig.DEBUG_LOCKDOWN_MODE) updated.copy(debugBlockRemoteDebugging = true) else updated
         }
 
         securityController.setFingerprintLevel(privacyPolicy.hardwareFingerprintLevel)
         syncForensicLogging()
-        configureProxy()
-        tabs.forEach { tab ->
+        networkTrafficConfigurator.configure(privacyPolicy)
+        tabManager.getTabs().forEach { tab ->
             tab.webView.updateRuntimePolicy(
                 tab.profile,
                 privacyPolicy,
@@ -315,11 +283,7 @@ class SessionManager private constructor(
     }
 
     fun removeTab(tab: TabInstance) {
-        tab.webView.surgicalTeardown()
-        tabs.remove(tab)
-        // Storage is kept intact on single tab close to preserve session state
-        // Only SuperWipe fully drops cookies and physical storage.
-        touchSession()
+        tabManager.removeTab(tab, ::touchSession)
     }
 
     fun killAll(terminateProcess: Boolean = false, wipeClipboard: Boolean = true) {
@@ -354,96 +318,6 @@ class SessionManager private constructor(
 
     private fun buildInjectionScript(profile: DeviceProfile): String {
         return ScriptInjector(profile, privacyPolicy).wrapScript(baseObfuscatorScript)
-    }
-
-    @SuppressLint("RequiresFeature")
-    private fun configureProxy() {
-        if (privacyPolicy.forceRelaxSecurityForDebug) {
-            AmnosLog.w("SessionManager", "TOTAL PROXY BYPASS - Diagnostics mode active")
-            loopbackProxyServer.stop()
-            clearProxyOverride()
-            return
-        }
-
-        if (!privacyPolicy.networkEnforceLoopbackProxy || !WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
-            loopbackProxyServer.stop()
-            clearProxyOverride()
-            securityController.updateProxyStatus(active = false, dohGlobal = false, port = null)
-            return
-        }
-
-        loopbackProxyServer.stop()
-        val port = loopbackProxyServer.start()
-        val proxyConfig = ProxyConfig.Builder()
-            .removeImplicitRules()
-            .addProxyRule("http://127.0.0.1:$port", ProxyConfig.MATCH_ALL_SCHEMES)
-            .build()
-
-        ProxyController.getInstance().setProxyOverride(
-            proxyConfig,
-            ContextCompat.getMainExecutor(context)
-        ) {
-            securityController.updateProxyStatus(active = true, dohGlobal = true, port = port)
-        }
-    }
-
-    private fun handleSecurityEvent(rawMessage: String, onKeyboardRequested: ((Boolean) -> Unit)? = null) {
-        try {
-            val payload = JSONObject(rawMessage)
-            when (payload.optString("type")) {
-                "keyboard_event" -> {
-                    val action = payload.optString("action")
-                    onKeyboardRequested?.invoke(action == "show")
-                }
-                "clipboard_copy" -> {
-                    val text = payload.optString("text")
-                    if (text.isNotBlank()) {
-                        com.amnos.browser.core.security.ClipboardVault.write(text)
-                    }
-                }
-                "webrtc" -> {
-                    securityController.recordWebRtcAttempt(
-                        detail = payload.optString("detail", "webrtc"),
-                        blocked = payload.optBoolean("blocked", true)
-                    )
-                }
-                "websocket" -> {
-                    val detail = payload.optString("url", payload.optString("detail", "websocket"))
-                    val blocked = payload.optBoolean("blocked", true)
-                    securityController.recordWebSocketAttempt(detail, blocked)
-
-                    val socketId = payload.optString("id")
-                    when (payload.optString("state")) {
-                        "open" -> securityController.addConnection(
-                            id = socketId,
-                            host = payload.optString("host"),
-                            port = payload.optInt("port", 443),
-                            type = "WEBSOCKET"
-                        )
-                        "close", "blocked" -> securityController.removeConnection(socketId)
-                    }
-                }
-                "spoof" -> {
-                    val property = payload.optString("property", "unknown")
-                    val detail = payload.optString("detail", "value modified")
-                    securityController.logInternal("FingerprintShield", "SHIELDED: Browser property [$property] accessed. ($detail)", "DEBUG")
-                }
-            }
-        } catch (error: Exception) {
-            AmnosLog.w("SessionManager", "Failed to parse security event: $rawMessage", error)
-        }
-    }
-
-    @SuppressLint("RequiresFeature")
-    private fun clearProxyOverride() {
-        if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
-            securityController.updateProxyStatus(active = false, dohGlobal = false, port = null)
-            return
-        }
-
-        ProxyController.getInstance().clearProxyOverride(ContextCompat.getMainExecutor(context)) {
-            securityController.updateProxyStatus(active = false, dohGlobal = false, port = null)
-        }
     }
 
     private fun syncForensicLogging() {

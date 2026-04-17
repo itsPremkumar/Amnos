@@ -9,13 +9,14 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import com.amnos.browser.core.model.*
 import com.amnos.browser.core.adblock.AdBlocker
 import com.amnos.browser.core.fingerprint.DeviceProfile
 import com.amnos.browser.core.network.BlockReason
 import com.amnos.browser.core.network.NetworkSecurityManager
 import com.amnos.browser.core.session.AmnosLog
 import com.amnos.browser.core.session.SecurityController
+import com.amnos.browser.core.webview.guard.NavigationGuard
+import com.amnos.browser.core.webview.guard.ResourceGuard
 
 class PrivacyWebViewClient(
     private val adBlocker: AdBlocker,
@@ -32,104 +33,40 @@ class PrivacyWebViewClient(
 
     private var currentHost: String? = null
 
+    private val navigationGuard = NavigationGuard(
+        networkSecurityManager = networkSecurityManager,
+        securityController = securityController,
+        policyProvider = policyProvider,
+        onNavigationRequested = onNavigationRequested
+    )
+
+    private val resourceGuard = ResourceGuard(
+        networkSecurityManager = networkSecurityManager,
+        securityController = securityController,
+        deviceProfile = deviceProfile,
+        policyProvider = policyProvider,
+        onTrackerBlocked = {
+            if ((webView as? SecureWebView)?.isDecommissioned != true) {
+                onTrackerBlocked()
+            }
+        }
+    )
+
+    private var webView: WebView? = null
+
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-        request ?: return false
-        val uri = request.url ?: return false
-        val scheme = uri.scheme?.lowercase() ?: return false
-        
-        // 1. INTENT JAIL: Force all navigation to stay within the secure browser.
-        val policy = policyProvider()
-        if (scheme != "http" && scheme != "https") {
-            val level = if (policy.networkFirewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID) "CRITICAL" else "WARN"
-            AmnosLog.w("PrivacyWebViewClient", "INTENT JAIL: Blocked escape attempt to scheme: $scheme ($level)")
-            securityController.logInternal("SecurityJail", "Blocked external app launch: $scheme", level)
-            return true // Block the navigation
+        this.webView = view
+        val blockedByJail = navigationGuard.shouldOverride(view, request)
+        if (blockedByJail && request?.isForMainFrame == true) {
+             // Handle jail block visual if main frame
+             // (NavigationGuard already logged, we just return true to stop it)
         }
-
-        // 2. MAIN FRAME SANITIZATION
-        if (request.isForMainFrame) {
-            val url = uri.toString()
-            val sanitizedUrl = networkSecurityManager.sanitizeNavigationUrl(url)
-            if (sanitizedUrl == null) {
-                showBlockedPage(view, BlockReason.UNSUPPORTED_SCHEME)
-                return true
-            }
-
-            if (sanitizedUrl.startsWith("about:blank", ignoreCase = true)) {
-                return false
-            }
-
-            if (sanitizedUrl != url) {
-                return onNavigationRequested(sanitizedUrl)
-            }
-        }
-
-        return onNavigationRequested(uri.toString())
+        return blockedByJail
     }
 
     override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
-        request ?: return null
-        val url = request.url.toString()
-        if (url.startsWith("about:", ignoreCase = true) || url.startsWith("data:", ignoreCase = true) || url.startsWith("blob:", ignoreCase = true)) {
-            return null
-        }
-
-        val decision = networkSecurityManager.evaluateRequest(request, currentHost)
-
-        if (decision.isBlocked) {
-            securityController.logRequest(
-                url = decision.sanitizedUrl,
-                method = request.method,
-                type = securityController.mapKind(decision.kind),
-                disposition = RequestDisposition.BLOCKED,
-                thirdParty = decision.thirdParty,
-                reason = decision.blockReason?.let { networkSecurityManager.blockReasonLabel(it) }
-            )
-            if (decision.blockReason == BlockReason.TRACKER ||
-                decision.blockReason == BlockReason.THIRD_PARTY ||
-                decision.blockReason == BlockReason.THIRD_PARTY_SCRIPT
-            ) {
-                if ((view as? SecureWebView)?.isDecommissioned != true) {
-                    onTrackerBlocked()
-                }
-            }
-            return networkSecurityManager.createBlockedResponse(decision.blockReason!!, request.isForMainFrame)
-        }
-
-        try {
-            val proxiedResponse = networkSecurityManager.fetchResponse(request, decision, deviceProfile, currentHost)
-            if (proxiedResponse != null) {
-                securityController.logRequest(
-                    url = decision.sanitizedUrl,
-                    method = request.method,
-                    type = securityController.mapKind(decision.kind),
-                    disposition = RequestDisposition.ALLOWED,
-                    thirdParty = decision.thirdParty
-                )
-                
-                if (!policyProvider().debugBlockForensicLogging) {
-                    AmnosLog.v("PrivacyWebViewClient", "Interception SUCCESS (Proxied): ${request.method} ${decision.sanitizedUrl}")
-                }
-                return proxiedResponse
-            }
-        } catch (e: Exception) {
-            AmnosLog.e("PrivacyWebViewClient", "Interception FAILURE: Network fetch error for ${decision.sanitizedUrl}", e)
-        }
-
-        AmnosLog.v("PrivacyWebViewClient", "Interception FALLTHROUGH to System Network: ${decision.sanitizedUrl}")
-        securityController.logRequest(
-            url = decision.sanitizedUrl,
-            method = request.method,
-            type = securityController.mapKind(decision.kind),
-            disposition = RequestDisposition.PASSTHROUGH,
-            thirdParty = decision.thirdParty,
-            reason = if (request.method.equals("GET", ignoreCase = true) || request.method.equals("HEAD", ignoreCase = true)) {
-                "proxy_fallback"
-            } else {
-                networkSecurityManager.blockReasonLabel(BlockReason.UNSAFE_METHOD)
-            }
-        )
-        return null
+        this.webView = view
+        return resourceGuard.intercept(view, request, currentHost)
     }
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {

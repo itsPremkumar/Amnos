@@ -19,7 +19,7 @@ enum class WipeReason {
 }
 
 class SuperWipeEngine(
-    private val tabs: MutableList<TabInstance>,
+    private val tabManager: TabManager,
     private val storageService: StorageService,
     private val securityController: SecurityController,
     private val loopbackProxyServer: LoopbackProxyServer,
@@ -43,17 +43,10 @@ class SuperWipeEngine(
             KeyManager.obliterateKey()
 
             // Phase 1: WebView Teardown
-            AmnosLog.w("SuperWipeEngine", "Phase 1: CRITICAL WebView Teardown (Count: ${tabs.size})")
-            val tabsToDestroy = tabs.toList()
-            tabs.clear() // Prevent any external activity access during teardown
+            val activeTabs = tabManager.getTabs()
+            AmnosLog.w("SuperWipeEngine", "Phase 1: CRITICAL WebView Teardown (Count: ${activeTabs.size})")
             
-            tabsToDestroy.forEach { tab ->
-                try {
-                    tab.webView.surgicalTeardown()
-                } catch (e: Exception) {
-                    AmnosLog.e("SuperWipeEngine", "FAILED surgical teardown for tab ${tab.tabId}", e)
-                }
-            }
+            tabManager.clearAll() // Sync teardown and list clear
 
             // Phase 2 & 5: Storage Sanitization & Service Worker Purge
             AmnosLog.d("SuperWipeEngine", "Phase 2 & 5: Storage & SW Sanitization")
