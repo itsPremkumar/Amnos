@@ -44,13 +44,35 @@ class SecurityRuleEngine(
         val thirdParty = isThirdPartyHost(parsed.host, topLevelHost)
         val kind = classifyRequest(request, parsed)
 
+        // DIAGNOSTIC BREADCRUMB
+        AmnosLog.v("SecurityEngine", "Evaluating ${kind.name} request: ${parsed.host} [ThirdParty=$thirdParty, Context=$topLevelHost]")
+
+        // 5. FUNCTIONAL MEDIA BYPASS: Known video platform CDN domains are always allowed
+        // regardless of strict third-party or tracker policies, to prevent video playback failures.
+        val isVideoPlatformCdn = parsed.host.endsWith("googlevideo.com") ||
+            parsed.host.endsWith("ytimg.com") ||
+            parsed.host.endsWith("ggpht.com") ||
+            parsed.host.endsWith("gstatic.com") ||
+            parsed.host.endsWith("youtube.com") ||
+            parsed.host.endsWith("youtu.be") ||
+            parsed.host.endsWith("vimeo.com") ||
+            parsed.host.endsWith("vimeocdn.com") ||
+            parsed.host.endsWith("youtubei.googleapis.com") ||
+            parsed.host.endsWith("jnn-pa.googleapis.com") ||
+            parsed.host.equals("vod-progressive.akamaized.net", ignoreCase = true)
+
+        if (!request.isForMainFrame && isVideoPlatformCdn) {
+            AmnosLog.v("SecurityEngine", "ALLOW: Functional Media Bypass for ${parsed.host}")
+            return RequestDecision(sanitizedUrl, kind, thirdParty = thirdParty)
+        }
+
         if (policy.blockThirdPartyRequests && thirdParty && !request.isForMainFrame) {
-            AmnosLog.d("SecurityEngine", "BLOCKED: Third-party resource from ${parsed.host} (Policy: blockThirdPartyRequests=true)")
+            AmnosLog.d("SecurityEngine", "BLOCKED: Third-party Resource (${kind.name}) -> ${parsed.host}")
             return RequestDecision(sanitizedUrl, kind, BlockReason.THIRD_PARTY, thirdParty = true)
         }
 
         if (policy.blockThirdPartyScripts && thirdParty && kind == RequestKind.SCRIPT) {
-            AmnosLog.d("SecurityEngine", "BLOCKED: Third-party script from ${parsed.host} (Policy: blockThirdPartyScripts=true)")
+            AmnosLog.d("SecurityEngine", "BLOCKED: Third-party Script -> ${parsed.host}")
             return RequestDecision(sanitizedUrl, kind, BlockReason.THIRD_PARTY_SCRIPT, thirdParty = true)
         }
 
@@ -59,21 +81,13 @@ class SecurityRuleEngine(
             // This prevents the AdBlocker from breaking YouTube, Google, etc.
             val isFirstParty = !isThirdPartyHost(parsed.host, topLevelHost)
             
-            // FUNCTIONAL MEDIA BYPASS: Known video platform CDN domains are always allowed
-            // regardless of blocklist status, to prevent video playback failures.
-            val isVideoPlatformCdn = parsed.host.endsWith("googlevideo.com") ||
-                parsed.host.endsWith("ytimg.com") ||
-                parsed.host.endsWith("ggpht.com") ||
-                parsed.host.endsWith("gstatic.com") ||
-                parsed.host.endsWith("youtube.com") ||
-                parsed.host.endsWith("youtu.be") ||
-                parsed.host.endsWith("vimeo.com") ||
-                parsed.host.endsWith("vimeocdn.com") ||
-                parsed.host.equals("vod-progressive.akamaized.net", ignoreCase = true)
-            
             if (!isFirstParty && !isVideoPlatformCdn && adBlocker.shouldBlock(sanitizedUrl)) {
-                AmnosLog.w("SecurityEngine", "BLOCKED: Ad/Tracker detected at ${parsed.host}")
+                AmnosLog.w("SecurityEngine", "BLOCKED: Tracker/Ad Identity detected at ${parsed.host}")
                 return RequestDecision(sanitizedUrl, kind, BlockReason.TRACKER, thirdParty = thirdParty)
+            }
+            
+            if (isFirstParty) {
+                AmnosLog.v("SecurityEngine", "ALLOW: First-party bypass for ${parsed.host}")
             }
         }
 

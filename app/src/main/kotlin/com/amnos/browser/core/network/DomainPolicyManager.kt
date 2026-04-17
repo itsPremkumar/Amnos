@@ -18,6 +18,7 @@ object DomainPolicyManager {
             "ggpht.com",
             "gstatic.com",
             "youtubei.googleapis.com",
+            "jnn-pa.googleapis.com",
             "googlevideo.com",
             "vimeo.com",
             "player.vimeo.com",

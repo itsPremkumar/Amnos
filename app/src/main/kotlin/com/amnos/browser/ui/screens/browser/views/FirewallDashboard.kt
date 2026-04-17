@@ -10,7 +10,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -81,26 +86,72 @@ fun FirewallDashboard(viewModel: BrowserViewModel) {
 
         Spacer(Modifier.height(32.dp))
 
-        // ACTIVE BLOCKS / LOGS
-        Text("NETWORK ACTIVITY", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(32.dp))
         
-        val logs = viewModel.requestLog
-        if (logs.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No network activity captured.", color = TextGray, fontSize = 14.sp)
+        // TAB SWITCHER
+        var selectedTab by remember { mutableStateOf(0) }
+        TabRow(
+            selectedTabIndex = selectedTab,
+            containerColor = Color.Transparent,
+            contentColor = AccentBlue,
+            divider = {},
+            indicator = { tabPositions ->
+                TabRowDefaults.Indicator(
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                    color = AccentBlue
+                )
+            }
+        ) {
+            Tab(
+                selected = selectedTab == 0,
+                onClick = { selectedTab = 0 },
+                text = { Text("TRAFFIC", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+            )
+            Tab(
+                selected = selectedTab == 1,
+                onClick = { selectedTab = 1 },
+                text = { Text("CONSOLE", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        if (selectedTab == 0) {
+            // TRAFFIC LOGS
+            val logs = viewModel.requestLog
+            if (logs.isEmpty()) {
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("No network activity captured.", color = TextGray, fontSize = 14.sp)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(logs.reversed()) { log ->
+                        RequestLogItem(log, onBlock = { host -> 
+                            viewModel.addFirewallRule(host, false)
+                        }, onAllow = { host ->
+                            viewModel.addFirewallRule(host, true)
+                        })
+                    }
+                }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(logs.reversed()) { log ->
-                    RequestLogItem(log, onBlock = { host -> 
-                        viewModel.addFirewallRule(host, false)
-                    }, onAllow = { host ->
-                        viewModel.addFirewallRule(host, true)
-                    })
+            // SYSTEM CONSOLE LOGS
+            val internalLogs = viewModel.internalLogs
+            if (internalLogs.isEmpty()) {
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("Console is empty.", color = TextGray, fontSize = 14.sp)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f).background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(8.dp)).padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(internalLogs) { entry ->
+                        InternalLogItem(entry)
+                    }
                 }
             }
         }
@@ -128,6 +179,34 @@ fun FirewallDashboard(viewModel: BrowserViewModel) {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun InternalLogItem(entry: com.amnos.browser.core.model.InternalLogEntry) {
+    val color = when (entry.level) {
+        "ERROR" -> KillRed
+        "WARN" -> Color(0xffff9800)
+        "DEBUG" -> TextGray
+        else -> Color.White
+    }
+    
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row {
+            Text(
+                "[${entry.tag}]",
+                color = AccentBlue,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.width(80.dp)
+            )
+            Text(
+                entry.message,
+                color = color,
+                fontSize = 11.sp,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            )
         }
     }
 }
