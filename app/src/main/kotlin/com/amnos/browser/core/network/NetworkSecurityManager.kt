@@ -66,7 +66,17 @@ class NetworkSecurityManager(
         val urlStr = request.url.toString()
         val policy = policyProvider()
         
-        // V2 PARANOID MODE FIREWALL
+        // 1. EXPLICIT FIREWALL BLOCKS (Manual Rules)
+        if (DomainPolicyManager.isExplicitlyBlocked(urlStr)) {
+            AmnosLog.w("NetworkSecurity", "FIREWALL BLOCKED via manual rule: $urlStr")
+            return RequestDecision(
+                sanitizedUrl = urlStr,
+                kind = RequestKind.OTHER,
+                blockReason = BlockReason.FIREWALL_RULE
+            )
+        }
+
+        // 2. V2 PARANOID MODE FIREWALL (Whitelist only)
         if (policy.sandboxMode == com.amnos.browser.core.security.AmnosSandboxMode.PARANOID) {
             if (!DomainPolicyManager.isAllowed(urlStr)) {
                 AmnosLog.w("NetworkSecurity", "FIREWALL BLOCKED unknown domain in PARANOID mode: $urlStr")
@@ -112,6 +122,7 @@ class NetworkSecurityManager(
         BlockReason.LOCAL_NETWORK -> "local_network"
         BlockReason.UNSAFE_METHOD -> "unsafe_method"
         BlockReason.SECURITY_THREAT -> "security_threat"
+        BlockReason.FIREWALL_RULE -> "firewall_rule"
     }
 
     fun siteKeyForUrl(url: String?): String? {

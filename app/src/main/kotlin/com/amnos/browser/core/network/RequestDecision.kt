@@ -23,7 +23,8 @@ enum class BlockReason {
     UNSUPPORTED_SCHEME,
     LOCAL_NETWORK,
     UNSAFE_METHOD,
-    SECURITY_THREAT
+    SECURITY_THREAT,
+    FIREWALL_RULE
 }
 
 data class RequestDecision(

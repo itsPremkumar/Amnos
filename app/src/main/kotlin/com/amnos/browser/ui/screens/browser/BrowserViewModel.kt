@@ -2,6 +2,7 @@ package com.amnos.browser.ui.screens.browser
 
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
@@ -16,6 +17,7 @@ import com.amnos.browser.core.session.SessionManager
 import com.amnos.browser.core.session.TabInstance
 import com.amnos.browser.ui.screens.browser.logic.NavigationHandler
 import com.amnos.browser.ui.screens.browser.logic.SecurityHandler
+import com.amnos.browser.core.network.DomainPolicyManager
 import org.json.JSONObject
 
 class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel() {
@@ -33,6 +35,10 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var showSecurityDashboard = mutableStateOf(false)
     var blockedNavigationUrl = mutableStateOf<String?>(null)
     
+    // FIREWALL STATE
+    var firewallAllowedDomains = mutableStateListOf<String>()
+    var firewallBlockedDomains = mutableStateListOf<String>()
+
     // RESTORED PROPERTIES
     var privacyPolicy = mutableStateOf(sessionManager.privacyPolicy)
     var javaScriptMode = mutableStateOf(sessionManager.privacyPolicy.javascriptMode)
@@ -133,6 +139,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         }
         
         initializeSession()
+        syncFirewallState()
     }
 
     internal fun initializeSession(loadUrl: String? = null) {
@@ -189,11 +196,20 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     }
 
     fun openPrivacyChecklist() {
-        uiState.value = BrowserStateReducer.showPrivacyChecklist()
+        uiState.value = BrowserUIState.PRIVACY_CHECKLIST
     }
 
     fun closePrivacyChecklist() {
-        uiState.value = BrowserStateReducer.showHome()
+        uiState.value = BrowserUIState.HOME
+    }
+
+    fun openFirewall() {
+        syncFirewallState()
+        uiState.value = BrowserUIState.FIREWALL
+    }
+
+    fun closeFirewall() {
+        uiState.value = if (currentTab.value != null && currentTab.value?.currentUrl != null) BrowserUIState.BROWSING else BrowserUIState.HOME
     }
 
     fun setSandboxMode(mode: com.amnos.browser.core.security.AmnosSandboxMode) {
@@ -222,6 +238,28 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     fun cancelBlockedNavigation() {
         blockedNavigationUrl.value = null
+    }
+
+    // FIREWALL LOGIC
+    fun addFirewallRule(host: String, allow: Boolean) {
+        if (allow) DomainPolicyManager.addAllowedDomain(host)
+        else DomainPolicyManager.addBlockedDomain(host)
+        syncFirewallState()
+        AmnosLog.i("BrowserUI", "Firewall rule added: $host (allow=$allow)")
+    }
+
+    fun removeFirewallRule(host: String, isAllowRule: Boolean) {
+        if (isAllowRule) DomainPolicyManager.removeAllowedDomain(host)
+        else DomainPolicyManager.removeBlockedDomain(host)
+        syncFirewallState()
+        AmnosLog.v("BrowserUI", "Firewall rule removed: $host")
+    }
+
+    private fun syncFirewallState() {
+        firewallAllowedDomains.clear()
+        firewallAllowedDomains.addAll(DomainPolicyManager.getAllowedDomains())
+        firewallBlockedDomains.clear()
+        firewallBlockedDomains.addAll(DomainPolicyManager.getBlockedDomains())
     }
 
     // Navigation Delegates
@@ -315,6 +353,8 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         showSecurityDashboard.value = false
         blockedNavigationUrl.value = null
         showAccessibilityWarning.value = false
+        firewallAllowedDomains.clear()
+        firewallBlockedDomains.clear()
     }
 
     internal fun refreshPolicyState() {

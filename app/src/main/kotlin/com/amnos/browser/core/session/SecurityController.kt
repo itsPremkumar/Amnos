@@ -83,7 +83,7 @@ class SecurityController {
             if (disposition == RequestDisposition.BLOCKED) {
                 _blockedCount.intValue++
                 // Atomically update tracker count without iterating requestLog
-                if (reason == "tracker" || reason == "third_party" || reason == "third_party_script" || reason == "webrtc") {
+                if (reason == "tracker" || reason == "third_party" || reason == "third_party_script" || reason == "webrtc" || reason == "firewall_rule") {
                     _trackerBlockCount.intValue++
                 }
             }

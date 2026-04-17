@@ -55,7 +55,7 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
         ) {
             DashboardHeader(viewModel)
 
-            val tabs = listOf("SHIELDS", "INSPECTOR", "IDENTITY")
+            val tabs = listOf("SHIELDS", "FIREWALL", "INSPECTOR", "IDENTITY")
             var selectedTab by remember { mutableIntStateOf(0) }
 
             TabRow(
@@ -68,7 +68,7 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp) }
+                        text = { Text(title, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp) }
                     )
                 }
             }
@@ -77,8 +77,9 @@ fun SecurityDashboard(viewModel: BrowserViewModel) {
 
             when (selectedTab) {
                 0 -> ShieldsTab(viewModel, isExpanded)
-                1 -> InspectorTab(viewModel)
-                2 -> IdentityTab(viewModel)
+                1 -> com.amnos.browser.ui.components.security.FirewallTab(viewModel)
+                2 -> InspectorTab(viewModel)
+                3 -> IdentityTab(viewModel)
             }
         }
     }

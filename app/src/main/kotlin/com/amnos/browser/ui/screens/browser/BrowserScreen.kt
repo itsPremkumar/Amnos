@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import com.amnos.browser.ui.theme.KillRed
 import com.amnos.browser.ui.theme.SurfaceGray
@@ -92,6 +93,7 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                         BrowserUIState.PRIVACY_CHECKLIST -> PrivacyChecklistView(
                             onBack = viewModel::closePrivacyChecklist
                         )
+                        BrowserUIState.FIREWALL -> com.amnos.browser.ui.screens.browser.views.FirewallDashboard(viewModel)
                     }
                 }
             }
@@ -114,7 +116,7 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                     modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(androidx.compose.material.icons.Icons.Default.Warning, contentDescription = null, tint = Color.White)
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color.White)
                     Spacer(Modifier.width(12.dp))
                     Text(
                         "THREAT DETECTED: Active Accessibility Scrapers. Screen privacy is compromised.",
