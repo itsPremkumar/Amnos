@@ -56,7 +56,7 @@ Defines who the browser "Claims to Be" to websites.
 
 | Key | Value/Level | Description |
 | :--- | :--- | :--- |
-| `IDENTITY_UA_TEMPLATE` | `PIXEL_8` | Spoofs the User-Agent to match a specific device profile. |
+| `IDENTITY_UA_TEMPLATE` | `DYNAMIC` | `DYNAMIC`: Generative spoofing. `PIXEL_8`: Static profile. |
 | `IDENTITY_RESET_ON_REFRESH` | `true` | Changes sub-identifiers every time a page is reloaded. |
 | `IDENTITY_SESSION_TIMEOUT_MS` | `Number` | Automatically wipes everything after X milliseconds of inactivity. |
 

@@ -8,42 +8,11 @@ import java.util.UUID
 import kotlin.math.abs
 import kotlin.random.Random
 
-data class DeviceProfile(
-    val sessionId: String,
-    val tabId: String,
-    val userAgent: String,
-    val platform: String,
-    val languages: List<String>,
-    val hardwareConcurrency: Int,
-    val deviceMemory: Int,
-    val timeZone: String,
-    val timezoneOffsetMinutes: Int,
-    val screen: ScreenSpecs,
-    val gpuVendor: String,
-    val gpuRenderer: String,
-    val noiseSeed: Int
-) {
-    val acceptLanguageHeader: String
-        get() = languages.joinToString(separator = ",")
-}
-
-data class ScreenSpecs(
-    val width: Int,
-    val height: Int,
-    val availWidth: Int,
-    val availHeight: Int,
-    val colorDepth: Int,
-    val pixelDepth: Int,
-    val devicePixelRatio: Double
-)
-
 object FingerprintManager {
     private val secureRandom = SecureRandom()
 
     fun newSessionId(): String = UUID.randomUUID().toString()
-
     fun newTabId(): String = UUID.randomUUID().toString()
-
     fun newUnlockPin(): String = secureRandom.nextInt(10_000).toString().padStart(4, '0')
 
     fun generateCoherentProfile(
@@ -53,51 +22,62 @@ object FingerprintManager {
     ): DeviceProfile {
         val level = policy.hardwareFingerprintLevel
         val sessionRandom = seededRandom(sessionId)
-        val tabRandom = seededRandom(sessionId, tabId)
+        val tabSeed = abs(seededRandom(sessionId, tabId).nextInt())
 
         val template = when {
+            policy.identityUaTemplate.uppercase() == "DYNAMIC" -> {
+                FingerprintRegistry.generateDynamicTemplate(tabSeed)
+            }
             policy.identityUaTemplate.isNotEmpty() && policy.identityUaTemplate != "RANDOM" -> {
                 when (policy.identityUaTemplate.uppercase()) {
                     "PIXEL_8" -> FingerprintRegistry.androidTemplates[0]
-                    "S23" -> FingerprintRegistry.androidTemplates[1]
-                    "ONEPLUS" -> FingerprintRegistry.androidTemplates[2]
                     else -> FingerprintRegistry.androidTemplates.first()
                 }
             }
             level == FingerprintProtectionLevel.BALANCED -> FingerprintRegistry.androidTemplates[abs(sessionRandom.nextInt()) % FingerprintRegistry.androidTemplates.size]
-            level == FingerprintProtectionLevel.STRICT -> FingerprintRegistry.androidTemplates[abs(tabRandom.nextInt()) % 2]
             else -> FingerprintRegistry.androidTemplates.first()
         }
+
         val locale = when (level) {
-            FingerprintProtectionLevel.BALANCED -> FingerprintRegistry.balancedLocalePresets[abs(tabRandom.nextInt()) % FingerprintRegistry.balancedLocalePresets.size]
+            FingerprintProtectionLevel.BALANCED -> FingerprintRegistry.balancedLocalePresets[abs(tabSeed) % FingerprintRegistry.balancedLocalePresets.size]
             FingerprintProtectionLevel.STRICT -> FingerprintRegistry.strictLocalePreset
-            FingerprintProtectionLevel.DISABLED -> FingerprintRegistry.balancedLocalePresets.first()
-            else -> FingerprintRegistry.strictLocalePreset
-        }
-        val userAgent = when (level) {
-            FingerprintProtectionLevel.BALANCED -> template.userAgents[abs(tabRandom.nextInt()) % template.userAgents.size]
-            FingerprintProtectionLevel.STRICT, FingerprintProtectionLevel.DISABLED -> template.userAgents.first()
-            else -> template.userAgents.first()
+            else -> FingerprintRegistry.balancedLocalePresets.first()
         }
 
-        AmnosLog.i("FingerprintManager", "Identity Generated (Tab: ${tabId.take(8)}) -> UA: ${userAgent.take(30)}... | GPU: ${template.gpuRenderer}")
-        AmnosLog.v("FingerprintManager", "Profile Details: ${template.screen.width}x${template.screen.height}, TZ: ${locale.timeZone}")
+        val baseUa = template.userAgents.first()
+        val finalUserAgent = jitterUserAgent(baseUa, tabSeed)
+
+        AmnosLog.i("FingerprintManager", "IDENTITY DYNAMICS: [${policy.identityUaTemplate}] -> Profile synthesized for Tab ${tabId.take(4)}")
 
         return DeviceProfile(
             sessionId = sessionId,
             tabId = tabId,
-            userAgent = userAgent,
+            userAgent = finalUserAgent,
             platform = template.platform,
             languages = locale.languages,
-            hardwareConcurrency = if (level == FingerprintProtectionLevel.STRICT) 8 else template.hardwareConcurrency,
-            deviceMemory = if (level == FingerprintProtectionLevel.STRICT) 8 else template.deviceMemory,
+            hardwareConcurrency = template.hardwareConcurrency,
+            deviceMemory = template.deviceMemory,
             timeZone = locale.timeZone,
             timezoneOffsetMinutes = locale.timezoneOffsetMinutes,
             screen = template.screen,
             gpuVendor = template.gpuVendor,
             gpuRenderer = template.gpuRenderer,
-            noiseSeed = abs(tabRandom.nextInt()) + 1
+            noiseSeed = abs(tabSeed) + 1
         )
+    }
+
+    private fun jitterUserAgent(base: String, seed: Int): String {
+        val rand = Random(seed)
+        // Mozilla/5.0 (Linux; Android 14; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36
+        
+        return base.replace(Regex("Chrome/[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+")) {
+            val major = 120 + rand.nextInt(5)
+            val patch = 4000 + rand.nextInt(1000)
+            val build = 10 + rand.nextInt(90)
+            "Chrome/$major.0.$patch.$build"
+        }.replace(Regex("AppleWebKit/[0-9]+\\.[0-9]+")) {
+            "AppleWebKit/537.${30 + rand.nextInt(10)}"
+        }
     }
 
     private fun seededRandom(vararg parts: String): Random {
