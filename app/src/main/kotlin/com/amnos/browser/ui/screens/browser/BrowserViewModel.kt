@@ -9,134 +9,111 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.amnos.browser.BuildConfig
 import com.amnos.browser.core.fingerprint.FingerprintManager
-import com.amnos.browser.core.security.FingerprintProtectionLevel
-import com.amnos.browser.core.security.JavaScriptMode
-import com.amnos.browser.core.security.WebGlMode
+import com.amnos.browser.core.security.*
 import com.amnos.browser.core.session.AmnosLog
 import com.amnos.browser.core.session.SessionManager
 import com.amnos.browser.core.session.TabInstance
-import com.amnos.browser.ui.screens.browser.logic.NavigationHandler
-import com.amnos.browser.ui.screens.browser.logic.SecurityHandler
+import com.amnos.browser.ui.screens.browser.logic.*
 import com.amnos.browser.core.network.DomainPolicyManager
 import org.json.JSONObject
 
 class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel() {
+    // 1. PRIMITIVE STATE (Sources of Truth for Compose)
     var currentTab = mutableStateOf<TabInstance?>(null)
     var urlInput = mutableStateOf("")
     var uiState = mutableStateOf<BrowserUIState>(BrowserUIState.HOME)
-
     var canGoBack = mutableStateOf(false)
     var canGoForward = mutableStateOf(false)
     var isBurning = mutableStateOf(false)
     var loadingProgress = mutableIntStateOf(0)
-
     var blockedTrackersCount = mutableIntStateOf(0)
-    var firewallLevel = mutableStateOf(sessionManager.privacyPolicy.networkFirewallLevel)
-    var isSandboxEnabled = mutableStateOf(sessionManager.privacyPolicy.purgeSandboxEnabled)
     var showSecurityDashboard = mutableStateOf(false)
     var blockedNavigationUrl = mutableStateOf<String?>(null)
     
-    // FIREWALL STATE
-    var firewallAllowedDomains = mutableStateListOf<String>()
-    var firewallBlockedDomains = mutableStateListOf<String>()
-
-    // RESTORED PROPERTIES
+    // Policy-Linked State
     var privacyPolicy = mutableStateOf(sessionManager.privacyPolicy)
     var javaScriptMode = mutableStateOf(sessionManager.privacyPolicy.hardwareJavascriptMode)
-    var isWebGLEnabled = mutableStateOf(sessionManager.privacyPolicy.hardwareWebGlMode == com.amnos.browser.core.security.WebGlMode.SPOOF)
+    var isWebGLEnabled = mutableStateOf(sessionManager.privacyPolicy.hardwareWebGlMode == WebGlMode.SPOOF)
     var fingerprintProtectionLevel = mutableStateOf(sessionManager.privacyPolicy.hardwareFingerprintLevel)
-    
-    var showAccessibilityWarning = mutableStateOf(false)
-    
+    var firewallLevel = mutableStateOf(sessionManager.privacyPolicy.networkFirewallLevel)
+    var isSandboxEnabled = mutableStateOf(sessionManager.privacyPolicy.purgeSandboxEnabled)
+
+    // Security Dash State
+    val requestLog = sessionManager.securityController.privacyLog.requestLog
+    val activeConnections = sessionManager.securityController.monitor.activeConnections
+    val proxyStatus = sessionManager.securityController.monitor.proxyStatus
+    val dohStatus = sessionManager.securityController.monitor.dohStatus
+    val webRtcStatus = sessionManager.securityController.monitor.webRtcStatus
+    val webSocketStatus = sessionManager.securityController.monitor.webSocketStatus
+    val webRtcAttemptCount = sessionManager.securityController.monitor.webRtcAttemptCount
+    val webSocketAttemptCount = sessionManager.securityController.monitor.webSocketAttemptCount
+    val internalLogs = sessionManager.securityController.forensicLog.internalLogs
+    val privacyWarning = sessionManager.securityController.warningMessage
+
+    // Identity State
     var sessionLabel = mutableStateOf(sessionManager.sessionId.take(8))
-    // SEGMENTED SECURITY ACCESSORS
-    private val security = sessionManager.securityController
-    val requestLog = security.privacyLog.requestLog
-    val activeConnections = security.monitor.activeConnections
-    val proxyStatus = security.monitor.proxyStatus
-    val dohStatus = security.monitor.dohStatus
-    val webRtcStatus = security.monitor.webRtcStatus
-    val webSocketStatus = security.monitor.webSocketStatus
-    val webRtcAttemptCount = security.monitor.webRtcAttemptCount
-    val webSocketAttemptCount = security.monitor.webSocketAttemptCount
-    val privacyWarning = security.warningMessage
-    val internalLogs = security.forensicLog.internalLogs
     var isLocked = mutableStateOf(false)
     var userPin = FingerprintManager.newUnlockPin()
     var pinInput = mutableStateOf("")
+    
+    // Debug State
     var blockRemoteDebugging = mutableStateOf(sessionManager.privacyPolicy.debugBlockRemoteDebugging)
     var forceRelaxSecurityForDebug = mutableStateOf(sessionManager.privacyPolicy.forceRelaxSecurityForDebug)
     val debugControlsAvailable = !BuildConfig.DEBUG_LOCKDOWN_MODE
 
-    var isDecoyVisible = mutableStateOf(false)
+    // Firewall State
+    var firewallAllowedDomains = mutableStateListOf<String>()
+    var firewallBlockedDomains = mutableStateListOf<String>()
 
-    private val navHandler = NavigationHandler(this, sessionManager)
-    private val securityHandler = SecurityHandler(this, sessionManager)
+    // 2. IDENTIFIABLE CONTROLLERS
+    private val nav = NavigationController(
+        sessionManager = sessionManager,
+        uiState = uiState,
+        currentTab = currentTab,
+        urlInput = urlInput,
+        canBack = canGoBack,
+        canForward = canGoForward,
+        progress = loadingProgress,
+        onNavigationBlocked = { blockedNavigationUrl.value = it }
+    )
 
-    internal var pendingAddressBarValue: String? = null
+    private val policy = PolicyEnforcementController(
+        sessionManager = sessionManager,
+        policy = privacyPolicy,
+        jsMode = javaScriptMode,
+        webGl = isWebGLEnabled,
+        fpLevel = fingerprintProtectionLevel,
+        firewall = firewallLevel,
+        sandbox = isSandboxEnabled,
+        onPolicyUpdated = ::refreshPolicyState
+    )
 
+    private val purge = PurgeOrchestrationController(
+        scope = viewModelScope,
+        sessionManager = sessionManager,
+        isBurning = isBurning,
+        currentTab = currentTab,
+        uiState = uiState,
+        urlInput = urlInput,
+        initializeSession = ::initializeSession
+    )
+
+    // 3. CALLBACKS & BRIDGE LOGIC
     internal val stateChangedCallback: (String, Boolean, Boolean) -> Unit = { url, back, forward ->
-        AmnosLog.d("BrowserViewModel", "State changed: $url (back=$back, forward=$forward)")
         currentTab.value?.currentUrl = url
         canGoBack.value = back
         canGoForward.value = forward
-        if (loadingProgress.intValue >= 100) {
-            loadingProgress.intValue = 0
-        }
+        if (loadingProgress.intValue >= 100) loadingProgress.intValue = 0
     }
-
-    internal val progressChangedCallback: (Int) -> Unit = { progress ->
-        loadingProgress.intValue = progress
-    }
-
-    internal val trackerBlockedCallback: () -> Unit = {
-        if (currentTab.value != null) {
-            blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount()
-        }
-    }
-
-    internal val navigationCommittedCallback: (String) -> Unit = { committedUrl ->
-        sessionManager.securityController.logInternal("[Nav:Commit]", committedUrl, "DEBUG")
-        currentTab.value?.currentUrl = committedUrl
-        if (uiState.value == BrowserUIState.BROWSING) {
-            urlInput.value = committedUrl
-        }
-        pendingAddressBarValue = null
-    }
-
-    internal val navigationFailedCallback: (String?) -> Unit = { failedUrl ->
-        sessionManager.securityController.logInternal(
-            "[Nav:Failure]",
-            failedUrl ?: pendingAddressBarValue ?: "unknown",
-            "WARN"
-        )
-        pendingAddressBarValue = null
-    }
-
-    internal val keyboardRequestedCallback: (Boolean) -> Unit = { show ->
-        AmnosLog.d("BrowserViewModel", "WebView keyboard requested: $show")
-        webKeyboardRequested.value = show
-    }
-
-    var webKeyboardRequested = mutableStateOf(false)
 
     init {
-        AmnosLog.d("BrowserViewModel", "Initializing BrowserViewModel")
-        sessionManager.registerTimeoutListener {
-            AmnosLog.d("BrowserViewModel", "Session timeout triggered")
-            handleSessionTimeout()
-        }
-        sessionManager.registerWipeListener {
-            AmnosLog.d("BrowserViewModel", "Session wipe triggered from external event")
-            zeroAllUIState()
-        }
+        AmnosLog.d("BrowserViewModel", "Initializing Modular BrowserViewModel")
+        sessionManager.registerTimeoutListener { handleSessionTimeout() }
+        sessionManager.registerWipeListener { zeroAllUIState() }
         
-        // RISK ENGINE MONITORING
         viewModelScope.launch {
             while (true) {
-                com.amnos.browser.core.security.RiskEngine.monitor { 
-                    hardKillSwitch()
-                }
+                RiskEngine.monitor { hardKillSwitch() }
                 delay(2000)
             }
         }
@@ -146,123 +123,70 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     }
 
     internal fun initializeSession(loadUrl: String? = null) {
-        AmnosLog.d("BrowserViewModel", "Initializing session (loadUrl=$loadUrl)")
-        try {
-            val tab = sessionManager.createTab(
-                onStateChanged = stateChangedCallback,
-                onProgressChanged = progressChangedCallback,
-                onTrackerBlocked = trackerBlockedCallback,
-                onNavigationRequested = navHandler::handleMainFrameNavigation,
-                onNavigationCommitted = navigationCommittedCallback,
-                onNavigationFailed = navigationFailedCallback,
-                onKeyboardRequested = keyboardRequestedCallback,
-                onSecurityEvent = ::handleSecurityEvent
-            )
-            currentTab.value = tab
-            sessionLabel.value = sessionManager.sessionId.take(8)
-            refreshPolicyState()
-            loadUrl?.let {
-                AmnosLog.d("BrowserViewModel", "Initial URL load: $it")
-                uiState.value = BrowserUIState.BROWSING
-                sessionManager.loadUrl(tab, it)
-            }
-        } catch (e: Exception) {
-            AmnosLog.e("BrowserViewModel", "CRITICAL: Initialization of session failed", e)
-            throw e
-        }
+        val tab = sessionManager.createTab(
+            onStateChanged = stateChangedCallback,
+            onProgressChanged = { loadingProgress.intValue = it },
+            onTrackerBlocked = { blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount() },
+            onNavigationRequested = nav::handleMainFrameNavigation,
+            onNavigationCommitted = { url -> 
+                currentTab.value?.currentUrl = url
+                if (uiState.value == BrowserUIState.BROWSING) urlInput.value = url
+            },
+            onNavigationFailed = { nav.pendingAddressBarValue = null },
+            onKeyboardRequested = { webKeyboardRequested.value = it },
+            onSecurityEvent = ::handleSecurityEvent
+        )
+        currentTab.value = tab
+        sessionLabel.value = sessionManager.sessionId.take(8)
+        refreshPolicyState()
+        loadUrl?.let { nav.navigate(it) }
     }
 
-    // Security Delegates
-    fun setJavaScriptMode(mode: JavaScriptMode) = securityHandler.setJavaScriptMode(mode)
-    fun toggleWebGL(enabled: Boolean) = securityHandler.toggleWebGL(enabled)
-    fun toggleHttpsOnly(enabled: Boolean) = securityHandler.toggleHttpsOnly(enabled)
-    fun toggleThirdPartyBlocking(enabled: Boolean) = securityHandler.toggleThirdPartyBlocking(enabled)
-    fun toggleInlineScriptBlocking(enabled: Boolean) = securityHandler.toggleInlineScriptBlocking(enabled)
-    fun toggleResetIdentityOnRefresh(enabled: Boolean) = securityHandler.toggleResetIdentityOnRefresh(enabled)
-    fun toggleStrictFirstPartyIsolation(enabled: Boolean) = securityHandler.toggleStrictFirstPartyIsolation(enabled)
-    fun toggleWebSockets(enabled: Boolean) = securityHandler.toggleWebSockets(enabled)
-    fun toggleRemoteDebugging(enabled: Boolean) = securityHandler.toggleRemoteDebugging(enabled)
-    fun toggleForceRelaxSecurity(enabled: Boolean) = securityHandler.toggleForceRelaxSecurity(enabled)
-    fun setFingerprintProtectionLevel(level: FingerprintProtectionLevel) = securityHandler.setFingerprintProtectionLevel(level)
+    // 4. DELEGATED ACTIONS
+    fun navigate(input: String) = nav.navigate(input)
+    fun goBack() = nav.goBack()
+    fun goForward() = nav.goForward()
+    fun goHome() = nav.goHome()
+    fun reload() = nav.reload()
 
+    fun setJavaScriptMode(mode: JavaScriptMode) = policy.setJavaScriptMode(mode)
+    fun toggleWebGL(enabled: Boolean) = policy.toggleWebGL(enabled)
+    fun setFingerprintProtectionLevel(level: FingerprintProtectionLevel) = policy.setFingerprintProtectionLevel(level)
+    fun setFirewallLevel(l: FirewallLevel) = policy.setFirewallLevel(l)
+    fun toggleSandboxEnabled(e: Boolean) = policy.toggleSandboxEnabled(e)
+
+    fun toggleHttpsOnly(e: Boolean) = policy.toggleGenericPolicy { it.copy(networkHttpsOnly = e) }
+    fun toggleThirdPartyBlocking(e: Boolean) = policy.toggleGenericPolicy { it.copy(filterBlockThirdPartyRequests = e) }
+    fun toggleInlineScriptBlocking(e: Boolean) = policy.toggleGenericPolicy { it.copy(filterBlockInlineScripts = e) }
+    fun toggleResetIdentityOnRefresh(e: Boolean) = policy.toggleGenericPolicy { it.copy(identityResetOnRefresh = e) }
+    fun toggleStrictFirstPartyIsolation(e: Boolean) = policy.toggleGenericPolicy { it.copy(filterStrictFirstPartyIsolation = e) }
+    fun toggleWebSockets(e: Boolean) = policy.toggleGenericPolicy { it.copy(filterBlockWebSockets = e) }
+    fun toggleRemoteDebugging(e: Boolean) = policy.toggleGenericPolicy { it.copy(debugBlockRemoteDebugging = e) }
+    fun toggleForceRelaxSecurity(e: Boolean) = policy.toggleGenericPolicy { it.copy(forceRelaxSecurityForDebug = e) }
+
+    fun killSwitch() = purge.initiateKillSwitch(terminateProcess = false)
+    fun hardKillSwitch() = purge.initiateKillSwitch(terminateProcess = true)
+
+    // 5. MISC LOGIC
     fun handleSecurityEvent(json: String) {
-        try {
-            when (JSONObject(json).optString("type")) {
-                "tamper_detected" -> {
-                    AmnosLog.e("BrowserViewModel", "BLOCKING: Tamper detected in JS sandbox.")
-                    hardKillSwitch()
-                }
-            }
-        } catch (e: Exception) {
-            AmnosLog.w("BrowserViewModel", "Failed to parse security event: $json")
-        }
-    }
-
-    fun openPrivacyChecklist() {
-        uiState.value = BrowserUIState.PRIVACY_CHECKLIST
-    }
-
-    fun closePrivacyChecklist() {
-        uiState.value = BrowserUIState.HOME
-    }
-
-    fun openFirewall() {
-        syncFirewallState()
-        uiState.value = BrowserUIState.FIREWALL
-    }
-
-    fun closeFirewall() {
-        uiState.value = if (currentTab.value != null && currentTab.value?.currentUrl != null) BrowserUIState.BROWSING else BrowserUIState.HOME
-    }
-
-    fun setFirewallLevel(level: com.amnos.browser.core.security.FirewallLevel) {
-        AmnosLog.d("BrowserViewModel", "Setting Firewall Level: $level")
-        sessionManager.updatePrivacyPolicy { it.copy(networkFirewallLevel = level) }
-        firewallLevel.value = level
-        refreshPolicyState()
-    }
-
-    fun toggleSandboxEnabled(enabled: Boolean) {
-        AmnosLog.d("BrowserViewModel", "Toggling Sandbox Isolation: $enabled")
-        sessionManager.updatePrivacyPolicy { it.copy(purgeSandboxEnabled = enabled) }
-        isSandboxEnabled.value = enabled
-        refreshPolicyState()
-    }
-
-    fun handleBlockedNavigation(url: String) {
-        if (firewallLevel.value == com.amnos.browser.core.security.FirewallLevel.BALANCED) {
-            blockedNavigationUrl.value = url
-        } else {
-            // Paranoid mode silently blocks, no dialog needed.
-            AmnosLog.w("BrowserViewModel", "SILENT BLOCK (Paranoid): $url")
-        }
+        if (JSONObject(json).optString("type") == "tamper_detected") hardKillSwitch()
     }
 
     fun confirmBlockedNavigation() {
-        blockedNavigationUrl.value?.let { url ->
-            val tab = currentTab.value ?: return
-            sessionManager.loadUrl(tab, url, forceBypassSandbox = true)
-        }
+        blockedNavigationUrl.value?.let { sessionManager.loadUrl(currentTab.value!!, it, forceBypassSandbox = true) }
         blockedNavigationUrl.value = null
     }
 
-    fun cancelBlockedNavigation() {
-        blockedNavigationUrl.value = null
-    }
+    fun cancelBlockedNavigation() { blockedNavigationUrl.value = null }
 
-    // FIREWALL LOGIC
     fun addFirewallRule(host: String, allow: Boolean) {
-        if (allow) DomainPolicyManager.addAllowedDomain(host)
-        else DomainPolicyManager.addBlockedDomain(host)
+        if (allow) DomainPolicyManager.addAllowedDomain(host) else DomainPolicyManager.addBlockedDomain(host)
         syncFirewallState()
-        AmnosLog.i("BrowserUI", "Firewall rule added: $host (allow=$allow)")
     }
 
-    fun removeFirewallRule(host: String, isAllowRule: Boolean) {
-        if (isAllowRule) DomainPolicyManager.removeAllowedDomain(host)
-        else DomainPolicyManager.removeBlockedDomain(host)
+    fun removeFirewallRule(host: String, isAllow: Boolean) {
+        if (isAllow) DomainPolicyManager.removeAllowedDomain(host) else DomainPolicyManager.removeBlockedDomain(host)
         syncFirewallState()
-        AmnosLog.v("BrowserUI", "Firewall rule removed: $host")
     }
 
     private fun syncFirewallState() {
@@ -272,73 +196,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         firewallBlockedDomains.addAll(DomainPolicyManager.getBlockedDomains())
     }
 
-    // Navigation Delegates
-    fun navigate(input: String) = navHandler.navigate(input)
-    fun goBack() = navHandler.goBack()
-    fun goForward() = navHandler.goForward()
-    fun goHome() = navHandler.goHome()
-    fun reload() = navHandler.reload()
-
-    fun injectWebInput(text: String) {
-        currentTab.value?.webView?.injectInput(text)
-    }
-
-    fun injectWebBackspace() {
-        currentTab.value?.webView?.injectBackspace()
-    }
-
-    fun injectWebSearch() {
-        currentTab.value?.webView?.injectSearch()
-    }
-
-    fun killSwitch() {
-        viewModelScope.launch {
-            try {
-                isBurning.value = true
-                AmnosLog.w("BrowserUI", "CRITICAL: Initiating UI-Atomic Detach sequence")
-                
-                // DETACH UI FIRST: Force Compose to remove the WebView from the window tree
-                currentTab.value = null
-                delay(150) // Increased frame buffer for detachment
-                
-                // Trigger the core wipe
-                sessionManager.killAll(terminateProcess = false)
-                
-                // Allow animation and background wipe to finish
-                delay(1500) 
-                
-                // Re-initialize for next use
-                initializeSession()
-                
-                // Final UI state normalization
-                uiState.value = BrowserUIState.HOME
-                urlInput.value = ""
-                AmnosLog.i("BrowserUI", "Session Purge Complete. Returned to Home.")
-            } catch (e: Exception) {
-                AmnosLog.e("BrowserUI", "FATAL error during UI wipe sequence", e)
-            } finally {
-                delay(500) // Keep overlay for a moment for visual confirmation
-                isBurning.value = false
-            }
-        }
-    }
-
-    fun hardKillSwitch() {
-        viewModelScope.launch {
-            try {
-                isBurning.value = true
-                // DETACH UI FIRST
-                currentTab.value = null
-                delay(120)
-                
-                sessionManager.killAll(terminateProcess = true)
-            } catch (e: Exception) {
-                AmnosLog.e("BrowserUI", "FATAL error during HARD UI wipe sequence", e)
-            } finally {
-                isBurning.value = false
-            }
-        }
-    }
+    internal fun refreshPolicyState() = policy.syncUIState()
 
     private fun handleSessionTimeout() {
         sessionManager.killAll(terminateProcess = false)
@@ -347,36 +205,11 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     private fun zeroAllUIState() {
         currentTab.value = null
-        urlInput.value = ""
         uiState.value = BrowserUIState.HOME
-        canGoBack.value = false
-        canGoForward.value = false
-        // Note: isBurning is managed by the trigger source to allow animations to complete
+        urlInput.value = ""
         loadingProgress.intValue = 0
         blockedTrackersCount.intValue = 0
-        sessionLabel.value = ""
         isLocked.value = false
-        userPin = FingerprintManager.newUnlockPin()
-        pinInput.value = ""
-        webKeyboardRequested.value = false
-        pendingAddressBarValue = null
-        showSecurityDashboard.value = false
-        blockedNavigationUrl.value = null
-        showAccessibilityWarning.value = false
-        firewallAllowedDomains.clear()
-        firewallBlockedDomains.clear()
-    }
-
-    internal fun refreshPolicyState() {
-        privacyPolicy.value = sessionManager.privacyPolicy
-        javaScriptMode.value = sessionManager.privacyPolicy.hardwareJavascriptMode
-        isWebGLEnabled.value = sessionManager.privacyPolicy.hardwareWebGlMode == com.amnos.browser.core.security.WebGlMode.SPOOF
-        fingerprintProtectionLevel.value = sessionManager.privacyPolicy.hardwareFingerprintLevel
-        blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount()
-        blockRemoteDebugging.value = sessionManager.privacyPolicy.debugBlockRemoteDebugging
-        forceRelaxSecurityForDebug.value = sessionManager.privacyPolicy.forceRelaxSecurityForDebug
-        firewallLevel.value = sessionManager.privacyPolicy.networkFirewallLevel
-        isSandboxEnabled.value = sessionManager.privacyPolicy.purgeSandboxEnabled
     }
 
     internal fun recreateCurrentTab() {
@@ -384,24 +217,16 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
             currentTab.value = sessionManager.recreateTab(
                 tab = tab,
                 onStateChanged = stateChangedCallback,
-                onProgressChanged = progressChangedCallback,
-                onTrackerBlocked = trackerBlockedCallback,
-                onNavigationRequested = navHandler::handleMainFrameNavigation,
-                onNavigationCommitted = navigationCommittedCallback,
-                onNavigationFailed = navigationFailedCallback,
-                onKeyboardRequested = keyboardRequestedCallback,
+                onProgressChanged = { loadingProgress.intValue = it },
+                onTrackerBlocked = { blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount() },
+                onNavigationRequested = nav::handleMainFrameNavigation,
+                onNavigationCommitted = { urlInput.value = it },
+                onNavigationFailed = { nav.pendingAddressBarValue = null },
+                onKeyboardRequested = { webKeyboardRequested.value = it },
                 onSecurityEvent = ::handleSecurityEvent
             )
         }
     }
 
-    internal fun updatePendingAddressBar(value: String?) { pendingAddressBarValue = value }
-    internal fun updateBlockedTrackersCount() {
-        blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount()
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        sessionManager.killAll(terminateProcess = false)
-    }
+    var webKeyboardRequested = mutableStateOf(false)
 }
