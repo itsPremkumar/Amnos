@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.amnos.browser.ui.screens.browser.BrowserViewModel
 import com.amnos.browser.ui.theme.*
-import com.amnos.browser.core.network.BlockReason
 import com.amnos.browser.core.security.AmnosSandboxMode
 import com.amnos.browser.core.model.RequestEntry
 import com.amnos.browser.core.model.RequestDisposition
@@ -50,7 +49,7 @@ fun FirewallDashboard(viewModel: BrowserViewModel) {
                 modifier = Modifier.weight(1f)
             )
             Surface(
-                color = if (viewModel.sandboxMode.value == AmnosSandboxMode.PARANOID) KillRed else MainBlue,
+                color = if (viewModel.sandboxMode.value == AmnosSandboxMode.PARANOID) KillRed else AccentBlue,
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
@@ -118,7 +117,7 @@ fun FirewallDashboard(viewModel: BrowserViewModel) {
                 modifier = Modifier.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Security, contentDescription = null, tint = MainBlue, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Security, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text("ACTIVE RULES", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -137,13 +136,13 @@ fun FirewallDashboard(viewModel: BrowserViewModel) {
 fun FirewallModeButton(label: String, active: Boolean, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.height(36.dp).clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick),
-        color = if (active) MainBlue.copy(alpha = 0.2f) else SurfaceGray,
-        border = if (active) BorderStroke(1.dp, MainBlue) else null
+        color = if (active) AccentBlue.copy(alpha = 0.2f) else SurfaceGray,
+        border = if (active) BorderStroke(1.dp, AccentBlue) else null
     ) {
         Box(Modifier.padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
             Text(
                 label,
-                color = if (active) MainBlue else TextGray,
+                color = if (active) AccentBlue else TextGray,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -153,7 +152,7 @@ fun FirewallModeButton(label: String, active: Boolean, onClick: () -> Unit) {
 
 @Composable
 fun RequestLogItem(log: RequestEntry, onBlock: (String) -> Unit, onAllow: (String) -> Unit) {
-    val host = try { log.url.toHttpUrlOrNull()?.host ?: log.url } catch (e: Exception) { log.url }
+    val host = try { log.url.toHttpUrlOrNull()?.host ?: log.url } catch (_: Exception) { log.url }
     
     Surface(
         color = SurfaceGray,
@@ -171,7 +170,7 @@ fun RequestLogItem(log: RequestEntry, onBlock: (String) -> Unit, onAllow: (Strin
                 }
                 val color = when {
                     !isBlocked -> Color(0xFF4CAF50)
-                    log.reason == "firewall_rule" -> MainBlue
+                    log.reason == "firewall_rule" -> AccentBlue
                     else -> KillRed
                 }
                 
@@ -209,7 +208,7 @@ fun RequestLogItem(log: RequestEntry, onBlock: (String) -> Unit, onAllow: (Strin
                     onClick = { onAllow(host) },
                     modifier = Modifier.height(28.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MainBlue.copy(alpha = 0.1f), contentColor = MainBlue),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue.copy(alpha = 0.1f), contentColor = AccentBlue),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text("ALLOW", fontSize = 10.sp, fontWeight = FontWeight.Bold)
