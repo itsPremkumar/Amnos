@@ -209,19 +209,38 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     fun killSwitch() {
         viewModelScope.launch {
-            isBurning.value = true
-            sessionManager.killAll(terminateProcess = false)
-            delay(1200) // Allow animation to play
-            initializeSession()
-            isBurning.value = false
+            try {
+                isBurning.value = true
+                AmnosLog.w("BrowserUI", "CRITICAL: Initiating UI-Atomic Detach sequence")
+                
+                // DETACH UI FIRST: Force Compose to remove the WebView from the window tree
+                currentTab.value = null
+                delay(120) // Frame buffer to ensure detactment
+                
+                sessionManager.killAll(terminateProcess = false)
+                delay(1100) // Allow remaining animation to play
+                initializeSession()
+            } catch (e: Exception) {
+                AmnosLog.e("BrowserUI", "FATAL error during UI wipe sequence", e)
+            } finally {
+                isBurning.value = false
+            }
         }
     }
 
     fun hardKillSwitch() {
         viewModelScope.launch {
-            isBurning.value = true
-            sessionManager.killAll(terminateProcess = true)
-            // Process will be killed asynchronously by the SuperWipeEngine
+            try {
+                isBurning.value = true
+                // DETACH UI FIRST
+                currentTab.value = null
+                delay(120)
+                
+                sessionManager.killAll(terminateProcess = true)
+            } catch (e: Exception) {
+                AmnosLog.e("BrowserUI", "FATAL error during HARD UI wipe sequence", e)
+                isBurning.value = false
+            }
         }
     }
 

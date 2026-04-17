@@ -148,6 +148,14 @@ class SecureWebView(context: Context) : WebView(context) {
         if (isDecommissioned) return
         isDecommissioned = true
         
+        AmnosLog.w("SecureWebView", "TEARDOWN: Native destruction sequence (Attached: $isAttachedToWindow)")
+
+        // SAFETY: Force removal from UI parent to prevent native crash
+        (parent as? android.view.ViewGroup)?.let { 
+            AmnosLog.d("SecureWebView", "TEARDOWN: Forcefully detaching from layout parent")
+            it.removeView(this) 
+        }
+
         removeDocumentStartScript()
         scriptHandler = null
         fallbackInjectionScript = null
@@ -176,7 +184,13 @@ class SecureWebView(context: Context) : WebView(context) {
         pauseTimers()
 
         removeAllViews()
-        super.destroy()
+        
+        try {
+            AmnosLog.w("SecureWebView", "TEARDOWN: Invoking super.destroy()")
+            super.destroy()
+        } catch (e: Exception) {
+            AmnosLog.e("SecureWebView", "TEARDOWN FATAL: Native crash caught during super.destroy()", e)
+        }
     }
 
     private fun installDocumentStartScript(policy: PrivacyPolicy, injectionScript: String) {

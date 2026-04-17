@@ -51,7 +51,11 @@ object AmnosLog {
     }
 
     private fun printFallback(tag: String, message: String, level: String, throwable: Throwable?) {
-        if (!systemLoggingAllowed) {
+        // AMNOS EMERGENCY BYPASS: Always allow ERROR/FATAL logs to reach system console 
+        // regardless of policy to ensure crashes are visible for diagnostics.
+        val isEmergency = level == "ERROR" || message.contains("FATAL", true) || message.contains("CRITICAL", true)
+        
+        if (!systemLoggingAllowed && !isEmergency) {
             return
         }
 

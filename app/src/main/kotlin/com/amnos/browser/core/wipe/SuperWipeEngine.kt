@@ -36,15 +36,17 @@ class SuperWipeEngine(
         KeyManager.obliterateKey()
 
         // Phase 1: WebView Teardown
-        AmnosLog.d("SuperWipeEngine", "Phase 1: WebView Teardown")
-        tabs.forEach { tab ->
+        AmnosLog.w("SuperWipeEngine", "Phase 1: CRITICAL WebView Teardown (Count: ${tabs.size})")
+        val tabsToDestroy = tabs.toList()
+        tabs.clear() // Prevent any external activity access during teardown
+        
+        tabsToDestroy.forEach { tab ->
             try {
                 tab.webView.surgicalTeardown()
             } catch (e: Exception) {
-                AmnosLog.e("SuperWipeEngine", "Error during surgical teardown", e)
+                AmnosLog.e("SuperWipeEngine", "FAILED surgical teardown for tab ${tab.tabId}", e)
             }
         }
-        tabs.clear()
 
         // Phase 2 & 5: Storage Sanitization & Service Worker Purge
         AmnosLog.d("SuperWipeEngine", "Phase 2 & 5: Storage & SW Sanitization")
