@@ -49,16 +49,18 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var showAccessibilityWarning = mutableStateOf(false)
     
     var sessionLabel = mutableStateOf(sessionManager.sessionId.take(8))
-    val requestLog = sessionManager.securityController.requestLog
-    val activeConnections = sessionManager.securityController.activeConnections
-    val proxyStatus = sessionManager.securityController.proxyStatus
-    val dohStatus = sessionManager.securityController.dohStatus
-    val webRtcStatus = sessionManager.securityController.webRtcStatus
-    val webSocketStatus = sessionManager.securityController.webSocketStatus
-    val webRtcAttemptCount = sessionManager.securityController.webRtcAttemptCount
-    val webSocketAttemptCount = sessionManager.securityController.webSocketAttemptCount
-    val privacyWarning = sessionManager.securityController.warningMessage
-    val internalLogs = sessionManager.securityController.internalLogs
+    // SEGMENTED SECURITY ACCESSORS
+    private val security = sessionManager.securityController
+    val requestLog = security.privacyLog.requestLog
+    val activeConnections = security.monitor.activeConnections
+    val proxyStatus = security.monitor.proxyStatus
+    val dohStatus = security.monitor.dohStatus
+    val webRtcStatus = security.monitor.webRtcStatus
+    val webSocketStatus = security.monitor.webSocketStatus
+    val webRtcAttemptCount = security.monitor.webRtcAttemptCount
+    val webSocketAttemptCount = security.monitor.webSocketAttemptCount
+    val privacyWarning = security.warningMessage
+    val internalLogs = security.forensicLog.internalLogs
     var isLocked = mutableStateOf(false)
     var userPin = FingerprintManager.newUnlockPin()
     var pinInput = mutableStateOf("")
