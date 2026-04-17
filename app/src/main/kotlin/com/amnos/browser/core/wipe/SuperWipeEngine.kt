@@ -15,7 +15,8 @@ enum class WipeReason {
     KILL_SWITCH,
     SESSION_TIMEOUT,
     BACKGROUND_WIPE,
-    CRASH
+    CRASH,
+    TAMPER
 }
 
 class SuperWipeEngine(

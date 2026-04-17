@@ -28,9 +28,11 @@ object RiskEngine {
     /**
      * Periodic check that can be called from Lifecycle or UI loops.
      */
-    fun monitor(onTamper: () -> Unit) {
+    fun monitor(policy: PrivacyPolicy, onTamper: () -> Unit) {
+        if (!policy.debugAntiDebugger) return
+
         if (checkIntegrity()) {
-            AmnosLog.w("RiskEngine", "INTEGRITY FAILURE: Triggering immediate hard wipe.")
+            AmnosLog.e("RiskEngine", "INTEGRITY FAILURE: Automated Nuclear Exit triggered.")
             onTamper()
         }
     }

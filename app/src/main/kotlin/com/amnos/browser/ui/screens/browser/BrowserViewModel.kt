@@ -55,6 +55,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var isLocked = mutableStateOf(false)
     var userPin = FingerprintManager.newUnlockPin()
     var pinInput = mutableStateOf("")
+    var deviceProfile = mutableStateOf<com.amnos.browser.core.fingerprint.DeviceProfile?>(null)
     
     // Debug State
     var blockRemoteDebugging = mutableStateOf(sessionManager.privacyPolicy.debugBlockRemoteDebugging)
@@ -137,6 +138,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
             onSecurityEvent = ::handleSecurityEvent
         )
         currentTab.value = tab
+        deviceProfile.value = tab.profile
         sessionLabel.value = sessionManager.sessionId.take(8)
         refreshPolicyState()
         loadUrl?.let { nav.navigate(it) }

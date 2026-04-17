@@ -29,6 +29,8 @@ import com.amnos.browser.ui.theme.TextGray
 
 @Composable
 fun IdentityTab(viewModel: BrowserViewModel) {
+    val profile = viewModel.deviceProfile.value
+    
     Column {
         Text("Digital Persona", color = Color.White, fontWeight = FontWeight.Bold)
         Text("Your ephemeral identity for this session.", color = TextGray, fontSize = 12.sp)
@@ -39,6 +41,23 @@ fun IdentityTab(viewModel: BrowserViewModel) {
         
         Spacer(Modifier.height(16.dp))
 
+        // Live Entropy Feed
+        Card(
+            colors = CardDefaults.cardColors(containerColor = AccentBlue.copy(alpha = 0.1f)),
+            modifier = Modifier.fillMaxWidth().border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+        ) {
+            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(8.dp).background(AccentBlue, RoundedCornerShape(4.dp)))
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text("LIVE ENTROPY FEED", color = AccentBlue, fontSize = 9.sp, fontWeight = FontWeight.Black)
+                    Text("Injecting noise: GPU, Canvas, Audio, Battery, Performance", color = Color.White.copy(alpha = 0.8f), fontSize = 10.sp)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
         Card(
             colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
             modifier = Modifier.fillMaxWidth()
@@ -47,7 +66,7 @@ fun IdentityTab(viewModel: BrowserViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Public, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Connection Masking", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Network Masking", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Spacer(Modifier.weight(1f))
                     Box(
                         modifier = Modifier
@@ -58,9 +77,9 @@ fun IdentityTab(viewModel: BrowserViewModel) {
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                IdentityDetailRow("Public IP Status", "Proxy Masked", true)
-                IdentityDetailRow("DNS Resolution", "Encrypted (DoH)", true)
-                IdentityDetailRow("WebRTC Leak Protection", "Enabled (Refined)", true)
+                IdentityDetailRow("DNS Resolution", if (viewModel.dohStatus.value) "Encrypted (Rotating DoH)" else "System Default", true)
+                IdentityDetailRow("WebRTC Leak Shield", "Hardened (Refined)", true)
+                IdentityDetailRow("Referrer Privacy", "Stripped / Top-Level", true)
             }
         }
 
@@ -74,13 +93,13 @@ fun IdentityTab(viewModel: BrowserViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Fingerprint, null, tint = AccentBlue, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Digital Fingerprint", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Identity Masking", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
                 Spacer(Modifier.height(12.dp))
-                IdentityDetailRow("User-Agent Spoofing", "Chrome 122 / Linux (Hardened)", true)
-                IdentityDetailRow("Hardware Concurrency", "Normalised (8 Cores)", true)
-                IdentityDetailRow("Canvas Fingerprinting", "Noise Injected", true)
-                IdentityDetailRow("WebGL Metadata", "Randomized", true)
+                IdentityDetailRow("Profile Mask", profile?.gpuRenderer ?: "Generative", true)
+                IdentityDetailRow("Memory Signature", "${profile?.deviceMemory ?: 8} GB RAM", true)
+                IdentityDetailRow("Concurrency Map", "${profile?.hardwareConcurrency ?: 8} Cores", true)
+                IdentityDetailRow("Client Hint Sync", "VERIFIED (Sec-CH-UA)", true)
             }
         }
     }

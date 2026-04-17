@@ -38,6 +38,12 @@ object SecurityHeaderFactory {
         if (fingerprintEnabled) {
             builder.set("User-Agent", profile.userAgent)
             builder.set("Accept-Language", profile.acceptLanguageHeader)
+            
+            // Inject Synchronized Client Hints
+            builder.set("Sec-CH-UA", "\"${profile.clientHints.brand}\";v=\"${profile.clientHints.version}\", \"Chromium\";v=\"${profile.clientHints.version}\", \"Not=A?Brand\";v=\"99\"")
+            builder.set("Sec-CH-UA-Mobile", if (profile.clientHints.mobile) "?1" else "?0")
+            builder.set("Sec-CH-UA-Platform", "\"${profile.clientHints.platform}\"")
+            builder.set("Sec-CH-UA-Model", "\"${profile.clientHints.model}\"")
         }
         
         builder.set("DNT", "1")
@@ -67,7 +73,9 @@ object SecurityHeaderFactory {
             if (name.equals("Set-Cookie", ignoreCase = true) ||
                 name.equals("Content-Security-Policy", ignoreCase = true) ||
                 name.equals("Content-Encoding", ignoreCase = true) ||
-                name.equals("Content-Length", ignoreCase = true)
+                name.equals("Content-Length", ignoreCase = true) ||
+                name.equals("ETag", ignoreCase = true) ||
+                name.equals("Last-Modified", ignoreCase = true)
             ) {
                 return@forEach
             }

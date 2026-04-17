@@ -253,6 +253,14 @@ class MainActivity : ComponentActivity() {
         AmnosLog.d("MainActivity", "onResume: Session active")
         cancelPendingGhostWipe()
         setupGlobalKeyboardKiller()
+        
+        // NUCLEAR LOCKDOWN: Monitor for tampering if anti-debugger is active
+        if (::sessionManager.isInitialized) {
+            com.amnos.browser.core.security.RiskEngine.monitor(sessionManager.privacyPolicy) {
+                AmnosLog.e("MainActivity", "CRITICAL TAMPER DETECTED: Executing Nuclear Exit")
+                sessionManager.killAll(terminateProcess = true, wipeClipboard = true)
+            }
+        }
     }
 
     override fun onPause() {
