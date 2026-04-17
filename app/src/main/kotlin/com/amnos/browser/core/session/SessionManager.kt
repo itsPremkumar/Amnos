@@ -333,7 +333,7 @@ class SessionManager private constructor(
             AmnosLog.w("SessionManager", "Failed to post wipe to main thread. Continuing inline as a fallback.")
         }
 
-        val shouldTerminate = terminateProcess || privacyPolicy.sandboxMode == com.amnos.browser.core.security.AmnosSandboxMode.PARANOID
+        val shouldTerminate = terminateProcess || privacyPolicy.firewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID
         val now = SystemClock.elapsedRealtime()
         if (!shouldTerminate && now - lastWipeElapsedRealtime < wipeDebounceMs) {
             AmnosLog.w("SessionManager", "Wipe request ignored because a recent wipe already completed.")

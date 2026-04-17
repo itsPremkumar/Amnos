@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.amnos.browser.ui.screens.browser.BrowserViewModel
 import com.amnos.browser.ui.theme.*
-import com.amnos.browser.core.security.AmnosSandboxMode
+import com.amnos.browser.core.security.FirewallLevel
 import com.amnos.browser.core.model.RequestEntry
 import com.amnos.browser.core.model.RequestDisposition
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -54,11 +54,11 @@ fun FirewallDashboard(viewModel: BrowserViewModel) {
                 modifier = Modifier.weight(1f)
             )
             Surface(
-                color = if (viewModel.sandboxMode.value == AmnosSandboxMode.PARANOID) KillRed else AccentBlue,
+                color = if (viewModel.firewallLevel.value == FirewallLevel.PARANOID) KillRed else AccentBlue,
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
-                    viewModel.sandboxMode.value.name,
+                    viewModel.firewallLevel.value.name,
                     color = Color.White,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
@@ -70,17 +70,44 @@ fun FirewallDashboard(viewModel: BrowserViewModel) {
         Spacer(Modifier.height(24.dp))
 
         // QUICK CONTROLS
-        Text("SANDBOX MODE", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text("FIREWALL LEVEL", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FirewallModeButton("OPEN", viewModel.sandboxMode.value == AmnosSandboxMode.OPEN) {
-                viewModel.setSandboxMode(AmnosSandboxMode.OPEN)
+            FirewallModeButton("OPEN", viewModel.firewallLevel.value == FirewallLevel.OPEN) {
+                viewModel.setFirewallLevel(FirewallLevel.OPEN)
             }
-            FirewallModeButton("BALANCED", viewModel.sandboxMode.value == AmnosSandboxMode.BALANCED) {
-                viewModel.setSandboxMode(AmnosSandboxMode.BALANCED)
+            FirewallModeButton("BALANCED", viewModel.firewallLevel.value == FirewallLevel.BALANCED) {
+                viewModel.setFirewallLevel(FirewallLevel.BALANCED)
             }
-            FirewallModeButton("PARANOID", viewModel.sandboxMode.value == AmnosSandboxMode.PARANOID) {
-                viewModel.setSandboxMode(AmnosSandboxMode.PARANOID)
+            FirewallModeButton("PARANOID", viewModel.firewallLevel.value == FirewallLevel.PARANOID) {
+                viewModel.setFirewallLevel(FirewallLevel.PARANOID)
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        // SYSTEM ISOLATION TOGGLE
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = SurfaceGray,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("SYSTEM ISOLATION", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Intent Jail, Forensic wipes, RAM scrambling", color = TextGray, fontSize = 10.sp)
+                }
+                Switch(
+                    checked = viewModel.isSandboxEnabled.value,
+                    onCheckedChange = { viewModel.toggleSandboxEnabled(it) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = AccentBlue,
+                        checkedTrackColor = AccentBlue.copy(alpha = 0.5f)
+                    )
+                )
             }
         }
 

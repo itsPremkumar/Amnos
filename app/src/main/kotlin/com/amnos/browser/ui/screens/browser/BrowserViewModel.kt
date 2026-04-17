@@ -31,7 +31,8 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var loadingProgress = mutableIntStateOf(0)
 
     var blockedTrackersCount = mutableIntStateOf(0)
-    var sandboxMode = mutableStateOf(sessionManager.privacyPolicy.sandboxMode)
+    var firewallLevel = mutableStateOf(sessionManager.privacyPolicy.firewallLevel)
+    var isSandboxEnabled = mutableStateOf(sessionManager.privacyPolicy.isSandboxEnabled)
     var showSecurityDashboard = mutableStateOf(false)
     var blockedNavigationUrl = mutableStateOf<String?>(null)
     
@@ -212,15 +213,22 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         uiState.value = if (currentTab.value != null && currentTab.value?.currentUrl != null) BrowserUIState.BROWSING else BrowserUIState.HOME
     }
 
-    fun setSandboxMode(mode: com.amnos.browser.core.security.AmnosSandboxMode) {
-        AmnosLog.d("BrowserViewModel", "Setting Sandbox Mode: $mode")
-        sessionManager.updatePrivacyPolicy { it.copy(sandboxMode = mode) }
-        sandboxMode.value = mode
+    fun setFirewallLevel(level: com.amnos.browser.core.security.FirewallLevel) {
+        AmnosLog.d("BrowserViewModel", "Setting Firewall Level: $level")
+        sessionManager.updatePrivacyPolicy { it.copy(firewallLevel = level) }
+        firewallLevel.value = level
+        refreshPolicyState()
+    }
+
+    fun toggleSandboxEnabled(enabled: Boolean) {
+        AmnosLog.d("BrowserViewModel", "Toggling Sandbox Isolation: $enabled")
+        sessionManager.updatePrivacyPolicy { it.copy(isSandboxEnabled = enabled) }
+        isSandboxEnabled.value = enabled
         refreshPolicyState()
     }
 
     fun handleBlockedNavigation(url: String) {
-        if (sandboxMode.value == com.amnos.browser.core.security.AmnosSandboxMode.BALANCED) {
+        if (firewallLevel.value == com.amnos.browser.core.security.FirewallLevel.BALANCED) {
             blockedNavigationUrl.value = url
         } else {
             // Paranoid mode silently blocks, no dialog needed.
@@ -365,7 +373,8 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount()
         enableRemoteDebugging.value = sessionManager.privacyPolicy.enableRemoteDebugging
         forceRelaxSecurityForDebug.value = sessionManager.privacyPolicy.forceRelaxSecurityForDebug
-        sandboxMode.value = sessionManager.privacyPolicy.sandboxMode
+        firewallLevel.value = sessionManager.privacyPolicy.firewallLevel
+        isSandboxEnabled.value = sessionManager.privacyPolicy.isSandboxEnabled
     }
 
     internal fun recreateCurrentTab() {

@@ -53,18 +53,18 @@ class ScriptInjector(
         policyObj.put("webGlDisabled", policy.webGlMode == WebGlMode.DISABLED)
         policyObj.put("strictFirstPartyIsolation", policy.strictFirstPartyIsolation)
         policyObj.put("fingerprintLevel", policy.fingerprintProtectionLevel.name)
-        policyObj.put("sandboxMode", policy.sandboxMode.name)
+        policyObj.put("firewallLevel", policy.firewallLevel.name)
         policyObj.put(
             "timingResolutionMs",
-            when (policy.sandboxMode) {
-                com.amnos.browser.core.security.AmnosSandboxMode.PARANOID -> 200
+            when (policy.firewallLevel) {
+                com.amnos.browser.core.security.FirewallLevel.PARANOID -> 200
                 else -> if (policy.fingerprintProtectionLevel == FingerprintProtectionLevel.STRICT) 100 else 16
             }
         )
         policyObj.put(
             "timingJitterMs",
-            when (policy.sandboxMode) {
-                com.amnos.browser.core.security.AmnosSandboxMode.PARANOID -> 50
+            when (policy.firewallLevel) {
+                com.amnos.browser.core.security.FirewallLevel.PARANOID -> 50
                 else -> if (policy.fingerprintProtectionLevel == FingerprintProtectionLevel.STRICT) 12 else 3
             }
         )

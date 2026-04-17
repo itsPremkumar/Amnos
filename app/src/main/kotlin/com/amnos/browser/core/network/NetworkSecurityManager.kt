@@ -77,7 +77,7 @@ class NetworkSecurityManager(
         }
 
         // 2. V2 PARANOID MODE FIREWALL (Whitelist only)
-        if (policy.sandboxMode == com.amnos.browser.core.security.AmnosSandboxMode.PARANOID) {
+        if (policy.firewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID) {
             if (!DomainPolicyManager.isAllowed(urlStr)) {
                 AmnosLog.w("NetworkSecurity", "FIREWALL BLOCKED unknown domain in PARANOID mode: $urlStr")
                 return RequestDecision(

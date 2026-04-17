@@ -58,7 +58,7 @@ class MainActivity : ComponentActivity() {
                     if (::sessionManager.isInitialized) {
                         val policy = sessionManager.privacyPolicy
                         val shouldWipe = (intent.action == Intent.ACTION_SCREEN_OFF && policy.wipeOnScreenOff) ||
-                                       (intent.action == Intent.ACTION_USER_PRESENT && policy.sandboxMode != com.amnos.browser.core.security.AmnosSandboxMode.OPEN)
+                                       (intent.action == Intent.ACTION_USER_PRESENT && policy.isSandboxEnabled)
                         
                         if (shouldWipe) {
                             AmnosLog.w("MainActivity", "System Security Event: ${intent.action}. Triggering session isolation.")
@@ -222,8 +222,7 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        val mode = sessionManager.privacyPolicy.sandboxMode
-        if (mode == com.amnos.browser.core.security.AmnosSandboxMode.OPEN) {
+        if (!sessionManager.privacyPolicy.isSandboxEnabled) {
             return
         }
 
@@ -368,8 +367,8 @@ class MainActivity : ComponentActivity() {
     private fun extractNavigationRequest(intent: Intent?): String? {
         intent ?: return null
         
-        // V2 SANDBOX GATING: If in PARANOID mode, block ALL inbound intents by default
-        if (::sessionManager.isInitialized && sessionManager.privacyPolicy.sandboxMode == com.amnos.browser.core.security.AmnosSandboxMode.PARANOID) {
+        // V2 SANDBOX GATING: If in Sandbox mode, block ALL inbound intents by default
+        if (::sessionManager.isInitialized && sessionManager.privacyPolicy.isSandboxEnabled && sessionManager.privacyPolicy.firewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID) {
             AmnosLog.w("MainActivity", "INBOUND INTENT BLOCKED: Paranoid Sandbox Mode is ACTIVE.")
             return null
         }

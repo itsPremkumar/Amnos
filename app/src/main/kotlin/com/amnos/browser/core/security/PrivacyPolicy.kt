@@ -16,7 +16,7 @@ enum class FingerprintProtectionLevel {
     STRICT,
     DISABLED
 }
-enum class AmnosSandboxMode {
+enum class FirewallLevel {
     PARANOID,
     BALANCED,
     OPEN
@@ -28,12 +28,13 @@ enum class CamouflageProfile {
 }
 
 data class PrivacyPolicy(
-    val sandboxMode: AmnosSandboxMode = when (com.amnos.browser.BuildConfig.SECURITY_SANDBOX_MODE.uppercase()) {
-        "PARANOID" -> AmnosSandboxMode.PARANOID
-        "BALANCED" -> AmnosSandboxMode.BALANCED
-        "OPEN" -> AmnosSandboxMode.OPEN
-        else -> AmnosSandboxMode.PARANOID
+    val firewallLevel: FirewallLevel = when (com.amnos.browser.BuildConfig.SECURITY_FIREWALL_LEVEL.uppercase()) {
+        "PARANOID" -> FirewallLevel.PARANOID
+        "BALANCED" -> FirewallLevel.BALANCED
+        "OPEN" -> FirewallLevel.OPEN
+        else -> FirewallLevel.PARANOID
     },
+    val isSandboxEnabled: Boolean = com.amnos.browser.BuildConfig.SECURITY_SANDBOX_ENABLED,
     // MASTER DEBUG TOGGLE
     val forceRelaxSecurityForDebug: Boolean = !com.amnos.browser.BuildConfig.SECURITY_LOCKDOWN_MODE,
     

@@ -13,7 +13,8 @@ Use these profiles as templates for your `.env` file depending on your mission.
 
 | Section | Key | Value | Rationale |
 | :--- | :--- | :--- | :--- |
-| **Integrity** | `SECURITY_SANDBOX_MODE` | `PARANOID` | Blocks all unknown domains by default. |
+| **Integrity** | `SECURITY_FIREWALL_LEVEL` | `PARANOID` | Blocks all unknown domains by default. |
+| **Integrity** | `SECURITY_SANDBOX_ENABLED` | `true` | Enables Intent Jail and Forensic Wipes. |
 | **Logic** | `SECURITY_BLOCK_THIRD_PARTY_SCRIPTS` | `true` | Prevents cross-site tracking execution. |
 | **Network** | `SECURITY_BLOCK_UNSAFE_METHODS` | `true` | Read-only mode; prevents form/login data leakage. |
 | **Stealth** | `SECURITY_ABSOLUTE_CLOAKING` | `true` | Hidden from Android Task Manager. |
@@ -24,7 +25,8 @@ he
 
 | Section | Key | Value | Rationale |
 | :--- | :--- | :--- | :--- |
-| **Integrity** | `SECURITY_SANDBOX_MODE` | `BALANCED` | Allows navigation while keeping tracker shields active. |
+| **Integrity** | `SECURITY_FIREWALL_LEVEL` | `BALANCED` | Allows navigation while keeping tracker shields active. |
+| **Integrity** | `SECURITY_SANDBOX_ENABLED` | `true` | System isolation remains active. |
 | **Engine** | `SECURITY_JAVASCRIPT_MODE` | `RESTRICTED` | Disables invasive JS APIs but kept for site logic. |
 | **Fingerprint**| `SECURITY_FINGERPRINT_LEVEL` | `STRICT` | Uses high-entropy noise for Canvas/Audio/WebGL. |
 | **Risky** | `SECURITY_BLOCK_THIRD_PARTY_SCRIPTS`| `false` | Required for CDNs (scripts from Cloudflare/Google). |
@@ -49,7 +51,8 @@ he
 
 | Key | Type | Risk | Description |
 | :--- | :--- | :--- | :--- |
-| `SECURITY_SANDBOX_MODE` | Enum | Low | `PARANOID`: Whitelist-only navigation. `BALANCED`: Standard browsing. |
+| `SECURITY_FIREWALL_LEVEL` | Enum | Low | `PARANOID`: Whitelist-only navigation. `BALANCED`: Standard browsing. |
+| `SECURITY_SANDBOX_ENABLED` | Bool | Low | Master toggle for Intent Jail, Forensic Wipes, and System isolation. |
 | `SECURITY_ENFORCE_STRICT_POLICIES` | Bool | Med | If true, minor policy violations will trigger app termination. |
 | `SECURITY_ANTI_DEBUGGER` | Bool | **HIGH** | If true, app kills itself if ADB or debugger is detected. |
 | `SECURITY_ABSOLUTE_CLOAKING` | Bool | Med | Completely removes the app from the "Recents" screen. |
