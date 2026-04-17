@@ -103,14 +103,13 @@ object SecurityHeaderFactory {
             return null
         }
 
-        val scriptSources = mutableListOf("'self'", "https:")
-        if (!policy.blockInlineScripts) scriptSources.add("'unsafe-inline'")
+        val scriptSources = linkedSetOf("'self'", "https:")
         
-        if (!policy.blockEval || isSearchEngine(host)) {
-            scriptSources.add("'unsafe-eval'")
-        }
-        if (!policy.blockInlineScripts || isSearchEngine(host)) {
+        if (!policy.blockInlineScripts || isCompatibilityCriticalHost(host)) {
             scriptSources.add("'unsafe-inline'")
+        }
+        if (!policy.blockEval || isCompatibilityCriticalHost(host)) {
+            scriptSources.add("'unsafe-eval'")
         }
         
         val scriptSourceStr = scriptSources.joinToString(" ")
@@ -118,12 +117,10 @@ object SecurityHeaderFactory {
         if (!policy.blockWebSockets) connectSources.add("wss:")
         val connectSourceStr = connectSources.joinToString(" ")
         
-        val workerSource = if (policy.sandboxMode == com.amnos.browser.core.security.AmnosSandboxMode.PARANOID) {
+        val workerSource = if (policy.blockServiceWorkers && !isCompatibilityCriticalHost(host)) {
             "'none'"
-        } else if (isSearchEngine(host)) {
-            "'self' blob:"
         } else {
-            "'none'"
+            "'self' blob:"
         }
 
         return listOf(
@@ -142,9 +139,22 @@ object SecurityHeaderFactory {
         ).joinToString("; ")
     }
 
-    private fun isSearchEngine(host: String): Boolean {
-        val searchHosts = setOf("duckduckgo.com", "google.com", "www.google.com", "www.google.co.in")
-        return searchHosts.any { host.endsWith(it, ignoreCase = true) }
+    private fun isCompatibilityCriticalHost(host: String): Boolean {
+        val normalizedHost = host.lowercase(Locale.US)
+        val compatibilityHosts = setOf(
+            "duckduckgo.com",
+            "google.com",
+            "www.google.com",
+            "www.google.co.in",
+            "youtube.com",
+            "www.youtube.com",
+            "youtube-nocookie.com",
+            "youtu.be",
+            "vimeo.com",
+            "player.vimeo.com",
+            "vimeocdn.com"
+        )
+        return compatibilityHosts.any { normalizedHost.endsWith(it) }
     }
 
     private fun isThirdPartyHost(host: String, topLevelHost: String?): Boolean {

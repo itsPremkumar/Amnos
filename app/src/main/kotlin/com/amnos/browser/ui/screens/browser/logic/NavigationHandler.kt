@@ -2,6 +2,7 @@ package com.amnos.browser.ui.screens.browser.logic
 
 import com.amnos.browser.core.network.NavigationResolver
 import com.amnos.browser.core.session.AmnosLog
+import com.amnos.browser.ui.screens.browser.BrowserStateReducer
 import com.amnos.browser.core.session.SessionManager
 import com.amnos.browser.ui.screens.browser.BrowserUIState
 import com.amnos.browser.ui.screens.browser.BrowserViewModel
@@ -14,7 +15,7 @@ class NavigationHandler(
         val resolvedNavigation = NavigationResolver.resolve(input) ?: return
         AmnosLog.d("NavigationHandler", "Navigating to: ${resolvedNavigation.sanitizedUrl}")
 
-        viewModel.uiState.value = BrowserUIState.BROWSING
+        viewModel.uiState.value = BrowserStateReducer.showBrowsing()
         viewModel.urlInput.value = resolvedNavigation.displayText
         viewModel.updatePendingAddressBar(resolvedNavigation.displayText)
         handleMainFrameNavigation(resolvedNavigation.sanitizedUrl, resolvedNavigation.displayText)
@@ -39,7 +40,7 @@ class NavigationHandler(
     }
 
     fun goHome() {
-        viewModel.uiState.value = BrowserUIState.HOME
+        viewModel.uiState.value = BrowserStateReducer.showHome()
         viewModel.urlInput.value = ""
         viewModel.updatePendingAddressBar(null)
         viewModel.currentTab.value?.apply {

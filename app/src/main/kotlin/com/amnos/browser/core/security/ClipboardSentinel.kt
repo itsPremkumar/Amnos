@@ -1,5 +1,6 @@
 package com.amnos.browser.core.security
 
+import android.app.ActivityManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -14,6 +15,11 @@ object ClipboardSentinel {
 
     fun wipe(context: Context) {
         try {
+            if (android.os.Build.VERSION.SDK_INT >= 29 && !isProcessForeground()) {
+                AmnosLog.d("ClipboardSentinel", "Clipboard scrub skipped: process not foreground.")
+                return
+            }
+
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             
             if (android.os.Build.VERSION.SDK_INT >= 33) {
@@ -44,5 +50,12 @@ object ClipboardSentinel {
                 AmnosLog.e("ClipboardSentinel", "Failed to scrub clipboard", e)
             }
         }
+    }
+
+    private fun isProcessForeground(): Boolean {
+        val state = ActivityManager.RunningAppProcessInfo()
+        ActivityManager.getMyMemoryState(state)
+        return state.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND ||
+            state.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE
     }
 }

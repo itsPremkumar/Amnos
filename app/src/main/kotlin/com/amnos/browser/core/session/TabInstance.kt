@@ -9,6 +9,7 @@ data class TabInstance(
     val profile: DeviceProfile,
     val webView: SecureWebView,
     val onKeyboardRequested: (Boolean) -> Unit = {},
+    val onSecurityEvent: (String) -> Unit = {},
     var currentUrl: String? = null,
     var siteKey: String? = null
 )

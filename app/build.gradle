@@ -6,6 +6,7 @@ def securityDefaults = [
     SECURITY_BLOCK_SCREENSHOTS            : "true",
     SECURITY_ENFORCE_STRICT_POLICIES      : "true",
     SECURITY_BLOCK_TRACKERS               : "true",
+    SECURITY_AGGRESSIVE_AD_BLOCKING       : "true",
     SECURITY_HTTPS_ONLY                   : "true",
     SECURITY_BLOCK_THIRD_PARTY_REQUESTS   : "true",
     SECURITY_BLOCK_THIRD_PARTY_SCRIPTS    : "true",
@@ -29,7 +30,13 @@ def securityDefaults = [
     SECURITY_FORENSIC_RAM_SCRAMBLE        : "true",
     SECURITY_LOCKDOWN_MODE                : "true",
     SECURITY_BLOCK_REMOTE_DEBUGGING       : "true",
-    SECURITY_SESSION_TIMEOUT_MS           : "120000"
+    SECURITY_SESSION_TIMEOUT_MS           : "120000",
+    SECURITY_CAMOUFLAGE_PROFILE           : "CALCULATOR",
+    SECURITY_DECOY_UNLOCK_PIN             : "1111",
+    SECURITY_PANIC_GESTURE_ENABLED        : "true",
+    SECURITY_WIPE_ON_SCREEN_OFF           : "true",
+    SECURITY_WIPE_ON_BACKGROUND           : "true",
+    SECURITY_BACKGROUND_WIPE_DELAY_MS     : "5000"
 ]
 
 def parseEnvLines(File envFile) {
@@ -86,10 +93,10 @@ android {
         def envValues = envFile.exists() ? parseEnvLines(envFile) : [:]
         securityDefaults.each { key, defaultValue ->
             def configuredValue = envValues.containsKey(key) ? envValues[key] : defaultValue
-            if (key == "SECURITY_FINGERPRINT_LEVEL" || key == "SECURITY_SANDBOX_MODE") {
+            if (key == "SECURITY_FINGERPRINT_LEVEL" || key == "SECURITY_SANDBOX_MODE" || key == "SECURITY_CAMOUFLAGE_PROFILE" || key == "SECURITY_DECOY_UNLOCK_PIN") {
                 def escaped = configuredValue.replace("\\", "\\\\").replace("\"", "\\\"")
                 buildConfigField "String", key, "\"${escaped}\""
-            } else if (key == "SECURITY_SESSION_TIMEOUT_MS") {
+            } else if (key == "SECURITY_SESSION_TIMEOUT_MS" || key == "SECURITY_BACKGROUND_WIPE_DELAY_MS") {
                 buildConfigField "long", key, "${configuredValue}L"
             } else {
                 buildConfigField "boolean", key, normalizeBooleanValue(key, configuredValue)

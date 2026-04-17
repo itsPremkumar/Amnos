@@ -80,9 +80,7 @@ fun HomeViewCompact(
 
         AddressSearchBar(viewModel, keyboardViewModel, focusManager)
         
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        SecurityStatusFooter()
+        SecurityStatusFooter(viewModel)
     }
 }
 
@@ -129,7 +127,7 @@ fun HomeViewLandscapeCompact(
         ) {
             AddressSearchBar(viewModel, keyboardViewModel, focusManager)
             Spacer(modifier = Modifier.height(16.dp))
-            SecurityStatusFooter()
+            SecurityStatusFooter(viewModel)
         }
     }
 }
@@ -163,7 +161,7 @@ fun HomeViewExpanded(
         ) {
             AddressSearchBar(viewModel, keyboardViewModel, focusManager)
             Spacer(modifier = Modifier.height(48.dp))
-            SecurityStatusFooter()
+            SecurityStatusFooter(viewModel)
         }
     }
 }
@@ -248,7 +246,7 @@ fun AddressSearchBar(
 }
 
 @Composable
-fun SecurityStatusFooter() {
+fun SecurityStatusFooter(viewModel: BrowserViewModel) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = "Active session — Zero durable state",
@@ -272,6 +270,14 @@ fun SecurityStatusFooter() {
                 fontSize = 12.sp,
                 color = TextGray.copy(alpha = 0.8f)
             )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TextButton(
+            onClick = viewModel::openPrivacyChecklist
+        ) {
+            Text("Privacy Checklist", color = AccentBlue, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

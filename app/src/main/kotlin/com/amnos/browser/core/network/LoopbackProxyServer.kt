@@ -80,7 +80,14 @@ class LoopbackProxyServer(
                 val client = socket.accept()
                 sockets.add(client)
                 AmnosLog.v("LoopbackProxyServer", "New client connection from ${client.inetAddress}:${client.port}")
-                workerPool?.execute {
+                val executor = workerPool
+                if (executor == null || executor.isShutdown) {
+                    sockets.remove(client)
+                    client.close()
+                    AmnosLog.w("LoopbackProxyServer", "Dropping proxy client because the worker pool is unavailable.")
+                    continue
+                }
+                executor.execute {
                     handleClient(client)
                 }
             } catch (_: SocketException) {
@@ -179,7 +186,12 @@ class LoopbackProxyServer(
             AmnosLog.i("LoopbackProxyServer", "TUNNEL ESTABLISHED: $host:$port (ID: ${id.take(8)})")
             onTunnelOpened(id, host, port)
 
-            val executor = workerPool ?: throw IllegalStateException("Proxy worker pool is not available")
+            val executor = workerPool
+            if (executor == null || executor.isShutdown) {
+                AmnosLog.w("LoopbackProxyServer", "CONNECT rejected because the proxy is shutting down.")
+                writeSimpleResponse(output, 503, "Service Unavailable", "Amnos proxy is restarting")
+                return
+            }
             val upstream = executor.submit {
                 pipe(client.getInputStream(), remote.getOutputStream())
             }

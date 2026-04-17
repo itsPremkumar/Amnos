@@ -61,12 +61,15 @@ class SecurityRuleEngine(
             
             // FUNCTIONAL MEDIA BYPASS: Known video platform CDN domains are always allowed
             // regardless of blocklist status, to prevent video playback failures.
-            val isVideoPlatformCdn = parsed.host.contains("googlevideo.com") || 
-                parsed.host.contains("ytimg.com") ||
-                parsed.host.contains("ggpht.com") ||
-                parsed.host.contains("gstatic.com") ||
-                parsed.host.contains("youtube.com") ||
-                parsed.host.contains("youtu.be")
+            val isVideoPlatformCdn = parsed.host.endsWith("googlevideo.com") ||
+                parsed.host.endsWith("ytimg.com") ||
+                parsed.host.endsWith("ggpht.com") ||
+                parsed.host.endsWith("gstatic.com") ||
+                parsed.host.endsWith("youtube.com") ||
+                parsed.host.endsWith("youtu.be") ||
+                parsed.host.endsWith("vimeo.com") ||
+                parsed.host.endsWith("vimeocdn.com") ||
+                parsed.host.equals("vod-progressive.akamaized.net", ignoreCase = true)
             
             if (!isFirstParty && !isVideoPlatformCdn && adBlocker.shouldBlock(sanitizedUrl)) {
                 AmnosLog.w("SecurityEngine", "BLOCKED: Ad/Tracker detected at ${parsed.host}")

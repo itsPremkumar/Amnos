@@ -2,12 +2,15 @@ package com.amnos.browser.core.webview
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Looper
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.webkit.CookieManager
 import android.webkit.WebSettings
 import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.view.ViewGroup
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.ServiceWorkerControllerCompat
 import androidx.webkit.WebMessageCompat
@@ -94,6 +97,7 @@ class SecureWebView(context: Context) : WebView(context) {
 
         overScrollMode = View.OVER_SCROLL_NEVER
         isHapticFeedbackEnabled = false
+        isLongClickable = false
         setOnLongClickListener { true }
 
         importantForAutofill = IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
@@ -144,52 +148,87 @@ class SecureWebView(context: Context) : WebView(context) {
         }
     }
 
+    fun clearVolatileState() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            post { clearVolatileState() }
+            return
+        }
+        if (isDecommissioned) return
+
+        runTeardownStep("clear_volatile_detach") {
+            (parent as? ViewGroup)?.removeView(this)
+        }
+        runTeardownStep("clear_volatile_stop_loading") { stopLoading() }
+        runTeardownStep("clear_volatile_blank") { loadUrl("about:blank") }
+        runTeardownStep("clear_volatile_history") { clearHistory() }
+        runTeardownStep("clear_volatile_cache") { clearCache(true) }
+        runTeardownStep("clear_volatile_form_data") { clearFormData() }
+        runTeardownStep("clear_volatile_ssl") { clearSslPreferences() }
+        runTeardownStep("clear_volatile_web_storage") { android.webkit.WebStorage.getInstance().deleteAllData() }
+        runTeardownStep("clear_volatile_children") { removeAllViews() }
+    }
+
     fun surgicalTeardown() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            post { surgicalTeardown() }
+            return
+        }
         if (isDecommissioned) return
         isDecommissioned = true
         
         AmnosLog.w("SecureWebView", "TEARDOWN: Native destruction sequence (Attached: $isAttachedToWindow)")
 
-        // SAFETY: Force removal from UI parent to prevent native crash
-        (parent as? android.view.ViewGroup)?.let { 
-            AmnosLog.d("SecureWebView", "TEARDOWN: Forcefully detaching from layout parent")
-            it.removeView(this) 
-        }
-
-        removeDocumentStartScript()
-        scriptHandler = null
-        fallbackInjectionScript = null
-
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
-            try {
-                WebViewCompat.removeWebMessageListener(this, BRIDGE_NAME)
-            } catch (ignored: Exception) {
+        // SAFETY GATE: Ensure the view is removed from its parent before destruction
+        // to prevent native IllegalStateException on certain Android versions.
+        runTeardownStep("detach_from_parent") {
+            (parent as? ViewGroup)?.let {
+                AmnosLog.d("SecureWebView", "TEARDOWN: Forcefully detaching from layout parent")
+                it.removeView(this)
             }
         }
 
-        stopLoading()
-        loadUrl("about:blank")
-        clearHistory()
-        clearCache(true)
-        clearFormData()
-        clearSslPreferences()
+        runTeardownStep("remove_document_start_script") { removeDocumentStartScript() }
+        scriptHandler = null
+        fallbackInjectionScript = null
 
-        android.webkit.WebStorage.getInstance().deleteAllData()
+        runTeardownStep("remove_security_bridge") {
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+                WebViewCompat.removeWebMessageListener(this, BRIDGE_NAME)
+            }
+        }
 
-        val cookieManager = CookieManager.getInstance()
-        cookieManager.removeAllCookies(null)
-        cookieManager.flush()
+        runTeardownStep("clear_clients") {
+            setDownloadListener(null)
+            webChromeClient = null
+            webViewClient = WebViewClient()
+            setOnLongClickListener(null)
+        }
 
-        onPause()
-        pauseTimers()
+        runTeardownStep("stop_loading") { stopLoading() }
+        runTeardownStep("load_blank") { loadUrl("about:blank") }
+        runTeardownStep("clear_history") { clearHistory() }
+        runTeardownStep("clear_cache") { clearCache(true) }
+        runTeardownStep("clear_form_data") { clearFormData() }
+        runTeardownStep("clear_ssl_preferences") { clearSslPreferences() }
 
-        removeAllViews()
+        runTeardownStep("clear_web_storage") {
+            android.webkit.WebStorage.getInstance().deleteAllData()
+        }
+
+        runTeardownStep("clear_cookies") {
+            val cookieManager = CookieManager.getInstance()
+            cookieManager.removeAllCookies(null)
+            cookieManager.flush()
+        }
+
+        runTeardownStep("pause_webview") { onPause() }
+        runTeardownStep("pause_timers") { pauseTimers() }
+
+        runTeardownStep("remove_child_views") { removeAllViews() }
         
-        try {
-            AmnosLog.w("SecureWebView", "TEARDOWN: Invoking super.destroy()")
+        runTeardownStep("destroy_native_webview") {
+            AmnosLog.w("SecureWebView", "TEARDOWN: Invoking native super.destroy()")
             super.destroy()
-        } catch (e: Exception) {
-            AmnosLog.e("SecureWebView", "TEARDOWN FATAL: Native crash caught during super.destroy()", e)
         }
     }
 
@@ -327,14 +366,23 @@ class SecureWebView(context: Context) : WebView(context) {
             serviceWorkerSettings.setAllowFileAccess(false)
         }
         if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BLOCK_NETWORK_LOADS)) {
-            // AMNOS ZERO-EXFILTRATION: Completely castrate Service Workers from bypassing the sandbox
-            serviceWorkerSettings.setBlockNetworkLoads(true)
+            // Keep worker network plumbing available for modern player bootstraps.
+            // Registration itself is still gated by the injected JS policy layer.
+            serviceWorkerSettings.setBlockNetworkLoads(false)
         }
     }
 
     private fun removeDocumentStartScript() {
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
             scriptHandler?.remove()
+        }
+    }
+
+    private inline fun runTeardownStep(step: String, block: () -> Unit) {
+        try {
+            block()
+        } catch (error: Throwable) {
+            AmnosLog.w("SecureWebView", "TEARDOWN: Step failed but was contained [$step]", error)
         }
     }
 }

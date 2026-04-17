@@ -27,65 +27,79 @@ class SuperWipeEngine(
     private val onWipeCompleted: () -> Unit
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var isWiping = java.util.concurrent.atomic.AtomicBoolean(false)
 
     fun execute(reason: WipeReason, terminateProcess: Boolean = false, wipeClipboard: Boolean = true) {
-        AmnosLog.d("SuperWipeEngine", "SUPER WIPE TRIGGERED | Reason: $reason | Terminate: $terminateProcess")
+        if (!isWiping.compareAndSet(false, true)) {
+            AmnosLog.w("SuperWipeEngine", "ABORT: Wipe already in progress. Ignoring concurrent request.")
+            return
+        }
 
-        // Phase 0: Cryptographic Kill Switch
-        AmnosLog.d("SuperWipeEngine", "Phase 0: Cryptographic Kill Switch")
-        KeyManager.obliterateKey()
+        try {
+            AmnosLog.w("SuperWipeEngine", "SUPER WIPE TRIGGERED | Reason: $reason | Terminate: $terminateProcess")
 
-        // Phase 1: WebView Teardown
-        AmnosLog.w("SuperWipeEngine", "Phase 1: CRITICAL WebView Teardown (Count: ${tabs.size})")
-        val tabsToDestroy = tabs.toList()
-        tabs.clear() // Prevent any external activity access during teardown
-        
-        tabsToDestroy.forEach { tab ->
-            try {
-                tab.webView.surgicalTeardown()
-            } catch (e: Exception) {
-                AmnosLog.e("SuperWipeEngine", "FAILED surgical teardown for tab ${tab.tabId}", e)
+            // Phase 0: Cryptographic Kill Switch
+            AmnosLog.d("SuperWipeEngine", "Phase 0: Cryptographic Kill Switch")
+            KeyManager.obliterateKey()
+
+            // Phase 1: WebView Teardown
+            AmnosLog.w("SuperWipeEngine", "Phase 1: CRITICAL WebView Teardown (Count: ${tabs.size})")
+            val tabsToDestroy = tabs.toList()
+            tabs.clear() // Prevent any external activity access during teardown
+            
+            tabsToDestroy.forEach { tab ->
+                try {
+                    tab.webView.surgicalTeardown()
+                } catch (e: Exception) {
+                    AmnosLog.e("SuperWipeEngine", "FAILED surgical teardown for tab ${tab.tabId}", e)
+                }
             }
-        }
 
-        // Phase 2 & 5: Storage Sanitization & Service Worker Purge
-        AmnosLog.d("SuperWipeEngine", "Phase 2 & 5: Storage & SW Sanitization")
-        if (wipeClipboard) {
-            storageService.wipeClipboard()
-        }
-        storageService.clearVolatileDownloads()
-        storageService.superPurge(
-            onWebViewsDestroyed = {}, // We already destroyed them synchronously above
-            logCallback = securityController::logInternal
-        )
+            // Phase 2 & 5: Storage Sanitization & Service Worker Purge
+            AmnosLog.d("SuperWipeEngine", "Phase 2 & 5: Storage & SW Sanitization")
+            if (wipeClipboard) {
+                com.amnos.browser.core.security.ClipboardVault.wipe()
+                storageService.wipeClipboard()
+            }
+            storageService.clearVolatileDownloads()
+            storageService.superPurge(
+                onWebViewsDestroyed = {}, // We already destroyed them synchronously above
+                logCallback = securityController::logInternal
+            )
 
-        // Phase 3: Memory Invalidation
-        AmnosLog.d("SuperWipeEngine", "Phase 3: Memory Invalidation")
-        securityController.obliterate()
-        System.gc()
-        System.runFinalization()
+            // Phase 3: Memory Invalidation
+            AmnosLog.d("SuperWipeEngine", "Phase 3: Memory Invalidation")
+            securityController.obliterate()
+            System.gc()
+            System.runFinalization()
 
-        // Phase 4: Network Rotation
-        AmnosLog.d("SuperWipeEngine", "Phase 4: Network Rotation")
-        loopbackProxyServer.stop()
-        DnsManager.destroyAndRebuild()
+            // Phase 4: Network Rotation
+            AmnosLog.d("SuperWipeEngine", "Phase 4: Network Rotation")
+            loopbackProxyServer.stop()
+            DnsManager.destroyAndRebuild()
 
-        // Note: Phase 6 (UI Zeroing) is handled by the UI layer listening to onWipeCompleted
+            // Note: Phase 6 (UI Zeroing) is handled by the UI layer listening to onWipeCompleted
 
-        // Phase 7: Heap Hardening (Best Effort)
-        AmnosLog.d("SuperWipeEngine", "Phase 7: Heap Hardening")
-        hardenHeap()
+            // Phase 7: Heap Hardening (Best Effort)
+            AmnosLog.d("SuperWipeEngine", "Phase 7: Heap Hardening")
+            hardenHeap()
 
-        onNewSessionNeeded()
-        onWipeCompleted()
+            onNewSessionNeeded()
+            onWipeCompleted()
 
-        // Phase 8: Process Kill
-        if (terminateProcess) {
-            AmnosLog.w("SuperWipeEngine", "Phase 8: Delayed Process Termination initiated (200ms drain window)")
-            mainHandler.postDelayed({
-                AmnosLog.w("SuperWipeEngine", "EXECUTING HARD PROCESS KILL")
-                Process.killProcess(Process.myPid())
-            }, 200)
+            // Phase 8: Process Kill
+            if (terminateProcess) {
+                AmnosLog.w("SuperWipeEngine", "Phase 8: Delayed Process Termination initiated (300ms drain window)")
+                mainHandler.postDelayed({
+                    AmnosLog.w("SuperWipeEngine", "EXECUTING HARD PROCESS KILL")
+                    android.os.Process.killProcess(android.os.Process.myPid())
+                    kotlin.system.exitProcess(0)
+                }, 300)
+            }
+        } finally {
+            if (!terminateProcess) {
+                isWiping.set(false)
+            }
         }
     }
 

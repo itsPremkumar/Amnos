@@ -3,6 +3,7 @@ package com.amnos.browser.core.webview
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import androidx.core.net.toUri
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -207,6 +208,17 @@ class PrivacyWebViewClient(
                 "ERROR"
             )
         }
+    }
+
+    override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+        securityController.logInternal(
+            "PrivacyWebViewClient",
+            "Render process gone. didCrash=${detail?.didCrash()} priority=${detail?.rendererPriorityAtExit()}",
+            "ERROR"
+        )
+        onNavigationFailed(view?.url)
+        (view as? SecureWebView)?.surgicalTeardown()
+        return true
     }
 
     private fun showBlockedPage(view: WebView?, reason: BlockReason) {

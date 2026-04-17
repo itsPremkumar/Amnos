@@ -21,6 +21,11 @@ enum class AmnosSandboxMode {
     BALANCED,
     OPEN
 }
+enum class CamouflageProfile {
+    CALCULATOR,
+    WEATHER,
+    DISABLED
+}
 
 data class PrivacyPolicy(
     val sandboxMode: AmnosSandboxMode = when (com.amnos.browser.BuildConfig.SECURITY_SANDBOX_MODE.uppercase()) {
@@ -39,10 +44,12 @@ data class PrivacyPolicy(
     val antiDebuggerEnabled: Boolean = com.amnos.browser.BuildConfig.SECURITY_LOCKDOWN_MODE && com.amnos.browser.BuildConfig.SECURITY_ANTI_DEBUGGER,
     val absoluteCloakingEnabled: Boolean = com.amnos.browser.BuildConfig.SECURITY_ABSOLUTE_CLOAKING,
     val forensicScrambleEnabled: Boolean = com.amnos.browser.BuildConfig.SECURITY_FORENSIC_RAM_SCRAMBLE,
+    val enforceStrictPolicies: Boolean = com.amnos.browser.BuildConfig.SECURITY_ENFORCE_STRICT_POLICIES,
 
     // NETWORK SECURITY
     val httpsOnlyEnabled: Boolean = com.amnos.browser.BuildConfig.SECURITY_HTTPS_ONLY,
     val blockTrackers: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_TRACKERS,
+    val aggressiveAdBlocking: Boolean = com.amnos.browser.BuildConfig.SECURITY_AGGRESSIVE_AD_BLOCKING,
     val blockThirdPartyRequests: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_THIRD_PARTY_REQUESTS,
     val blockThirdPartyScripts: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_THIRD_PARTY_SCRIPTS,
     val blockInlineScripts: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_INLINE_SCRIPTS,
@@ -74,7 +81,19 @@ data class PrivacyPolicy(
     },
     val javascriptMode: JavaScriptMode = JavaScriptMode.RESTRICTED,
     val resetIdentityOnRefresh: Boolean = true,
-    val sessionTimeoutMillis: Long = com.amnos.browser.BuildConfig.SECURITY_SESSION_TIMEOUT_MS
+    val sessionTimeoutMillis: Long = com.amnos.browser.BuildConfig.SECURITY_SESSION_TIMEOUT_MS,
+    
+    // V3.1 STEALTH & PANIC
+    val camouflageProfile: CamouflageProfile = when (com.amnos.browser.BuildConfig.SECURITY_CAMOUFLAGE_PROFILE.uppercase()) {
+        "CALCULATOR" -> CamouflageProfile.CALCULATOR
+        "WEATHER" -> CamouflageProfile.WEATHER
+        else -> CamouflageProfile.DISABLED
+    },
+    val decoyUnlockPin: String = com.amnos.browser.BuildConfig.SECURITY_DECOY_UNLOCK_PIN,
+    val panicGestureEnabled: Boolean = com.amnos.browser.BuildConfig.SECURITY_PANIC_GESTURE_ENABLED,
+    val wipeOnScreenOff: Boolean = com.amnos.browser.BuildConfig.SECURITY_WIPE_ON_SCREEN_OFF,
+    val wipeOnBackground: Boolean = com.amnos.browser.BuildConfig.SECURITY_WIPE_ON_BACKGROUND,
+    val backgroundWipeDelayMs: Long = com.amnos.browser.BuildConfig.SECURITY_BACKGROUND_WIPE_DELAY_MS
 ) {
     val isJavaScriptEnabled: Boolean
         get() = javascriptMode != JavaScriptMode.DISABLED

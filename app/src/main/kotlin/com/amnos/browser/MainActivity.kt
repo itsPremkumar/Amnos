@@ -24,15 +24,15 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import com.amnos.browser.core.security.PrivacyPolicy
+import com.amnos.browser.core.security.CamouflageProfile
 import com.amnos.browser.core.security.KeyManager
 import com.amnos.browser.core.session.AmnosLog
-import android.view.accessibility.AccessibilityManager
 import android.accessibilityservice.AccessibilityServiceInfo
-import com.amnos.browser.core.session.RuntimeSecurityConfig
 import com.amnos.browser.core.session.SessionManager
 import com.amnos.browser.ui.screens.browser.BrowserScreen
 import com.amnos.browser.ui.screens.browser.BrowserViewModel
 import com.amnos.browser.ui.theme.PrivacyBrowserTheme
+import com.amnos.browser.core.session.RuntimeSecurityConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,7 +49,27 @@ class MainActivity : ComponentActivity() {
     private var keyboardGuardRootView: View? = null
     private var keyboardGuardListener: android.view.ViewTreeObserver.OnGlobalLayoutListener? = null
     private var pendingLaunchRequest: String? = null
+    private var securityReceiverRegistered = false
     private val lifecycleHandler = Handler(Looper.getMainLooper())
+    private val securityReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF, Intent.ACTION_USER_PRESENT -> {
+                    if (::sessionManager.isInitialized) {
+                        val policy = sessionManager.privacyPolicy
+                        val shouldWipe = (intent.action == Intent.ACTION_SCREEN_OFF && policy.wipeOnScreenOff) ||
+                                       (intent.action == Intent.ACTION_USER_PRESENT && policy.sandboxMode != com.amnos.browser.core.security.AmnosSandboxMode.OPEN)
+                        
+                        if (shouldWipe) {
+                            AmnosLog.w("MainActivity", "System Security Event: ${intent.action}. Triggering session isolation.")
+                            sessionManager.killAll(terminateProcess = false, wipeClipboard = true)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private val delayedGhostWipe = Runnable {
         if (::sessionManager.isInitialized && !isChangingConfigurations) {
             AmnosLog.d("MainActivity", "Ghost wipe grace period elapsed.")
@@ -58,6 +78,20 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        val filter = android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }
+        androidx.core.content.ContextCompat.registerReceiver(
+            this,
+            securityReceiver,
+            filter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        securityReceiverRegistered = true
+        
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
@@ -65,19 +99,17 @@ class MainActivity : ComponentActivity() {
         installCrashHandler()
 
         try {
-            // Start Ghost Sentinel Service for Task Removal Detection (if enabled)
-            val sessionManagerForStartup = SessionManager.getInstance(this, RuntimeSecurityConfig.webViewProfileSuffix)
-            if (sessionManagerForStartup.privacyPolicy.absoluteCloakingEnabled) {
-                startService(Intent(this, com.amnos.browser.core.service.GhostService::class.java))
-            }
-
             android.webkit.WebView.setDataDirectorySuffix(RuntimeSecurityConfig.webViewProfileSuffix)
             AmnosLog.d("MainActivity", "WebView data directory suffix set successfully")
         } catch (e: Exception) {
             AmnosLog.w("MainActivity", "WebView suffix already set or failed: ${e.message}")
         }
+        
+        val sessionManagerForStartup = SessionManager.getInstance(this, RuntimeSecurityConfig.webViewProfileSuffix)
+        if (sessionManagerForStartup.privacyPolicy.absoluteCloakingEnabled) {
+            startService(Intent(this, com.amnos.browser.core.service.GhostService::class.java))
+        }
 
-        super.onCreate(savedInstanceState)
         pendingLaunchRequest = extractNavigationRequest(intent)
         AmnosLog.d("MainActivity", "onCreate: Initializing Amnos UI")
 
@@ -91,6 +123,14 @@ class MainActivity : ComponentActivity() {
                         ) {
                             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
+                    } else if (viewModel.isDecoyVisible.value) {
+                        com.amnos.browser.ui.screens.decoy.DecoyCalculatorView(
+                            secretPin = sessionManager.privacyPolicy.decoyUnlockPin,
+                            onUnlock = {
+                                viewModel.isDecoyVisible.value = false
+                                AmnosLog.i("MainActivity", "DECOY UNLOCKED: Restoring real browser container.")
+                            }
+                        )
                     } else {
                         BrowserScreen(viewModel)
                     }
@@ -145,20 +185,57 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         AmnosLog.d("MainActivity", "onStart: UI visible")
+        // IDENTITY RESTORE: Switch back to Amnos icon when the user opens the app
+        if (::sessionManager.isInitialized && sessionManager.privacyPolicy.camouflageProfile != CamouflageProfile.DISABLED) {
+            com.amnos.browser.core.security.CamouflageManager.applyMode(this, com.amnos.browser.core.security.CamouflageMode.DEFAULT)
+        }
     }
 
     override fun onStop() {
         super.onStop()
         AmnosLog.d("MainActivity", "onStop: UI hidden")
         if (::sessionManager.isInitialized && !isChangingConfigurations) {
-            scheduleGhostWipe("Application backgrounded (Pure RAM mode enabled).")
+            val policy = sessionManager.privacyPolicy
+            
+            if (policy.wipeOnBackground) {
+                scheduleGhostWipe("Application backgrounded", policy.backgroundWipeDelayMs)
+            }
+            
+            // IDENTITY DISGUISE: Mask as configured profile instantly on backgrounding
+            if (policy.camouflageProfile != CamouflageProfile.DISABLED) {
+                val mode = if (policy.camouflageProfile == CamouflageProfile.CALCULATOR) 
+                    com.amnos.browser.core.security.CamouflageMode.CALCULATOR 
+                else 
+                    com.amnos.browser.core.security.CamouflageMode.WEATHER
+                
+                com.amnos.browser.core.security.CamouflageManager.applyMode(this, mode)
+                if (::viewModel.isInitialized) {
+                    viewModel.isDecoyVisible.value = true
+                }
+            }
         }
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (::sessionManager.isInitialized && level >= TRIM_MEMORY_UI_HIDDEN && !isChangingConfigurations) {
-            scheduleGhostWipe("Memory pressure UI-hidden event received.")
+        if (!::sessionManager.isInitialized || isChangingConfigurations) {
+            return
+        }
+
+        val mode = sessionManager.privacyPolicy.sandboxMode
+        if (mode == com.amnos.browser.core.security.AmnosSandboxMode.OPEN) {
+            return
+        }
+
+        when {
+            level >= TRIM_MEMORY_COMPLETE || level >= TRIM_MEMORY_RUNNING_CRITICAL -> {
+                AmnosLog.w("MainActivity", "Critical memory pressure detected. Triggering immediate session isolation.")
+                sessionManager.killAll(terminateProcess = false, wipeClipboard = true)
+            }
+            level >= TRIM_MEMORY_UI_HIDDEN -> {
+                val delayMs = maxOf(BACKGROUND_WIPE_GRACE_MS, sessionManager.privacyPolicy.backgroundWipeDelayMs)
+                scheduleGhostWipe("Memory pressure background event", delayMs)
+            }
         }
     }
 
@@ -183,15 +260,6 @@ class MainActivity : ComponentActivity() {
         super.onPause()
         AmnosLog.d("MainActivity", "onPause: Session backgrounded")
         teardownGlobalKeyboardKiller()
-    }
-
-    override fun onDestroy() {
-        cancelPendingGhostWipe()
-        teardownGlobalKeyboardKiller()
-        if (Thread.getDefaultUncaughtExceptionHandler() === crashHandler) {
-            Thread.setDefaultUncaughtExceptionHandler(previousUncaughtExceptionHandler)
-        }
-        super.onDestroy()
     }
 
     private fun setupGlobalKeyboardKiller() {
@@ -224,6 +292,29 @@ class MainActivity : ComponentActivity() {
         keyboardGuardRootView = null
         keyboardGuardListener = null
     }
+
+    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent?): Boolean {
+        // AMNOS PANIC GESTURE: Volume Down Double Press -> Kill All + Terminate
+        if (::sessionManager.isInitialized &&
+            keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN &&
+            sessionManager.privacyPolicy.panicGestureEnabled
+        ) {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastVolumeDownTime < 500) {
+                AmnosLog.w("MainActivity", "PANIC TRIGGER: Volume Panic Gesture Detected. Initiating Hard Wipe.")
+                if (::viewModel.isInitialized) {
+                    viewModel.hardKillSwitch()
+                } else if (::sessionManager.isInitialized) {
+                    sessionManager.killAll(terminateProcess = true)
+                }
+                return true
+            }
+            lastVolumeDownTime = currentTime
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    private var lastVolumeDownTime: Long = 0
 
     override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
         if (::sessionManager.isInitialized && !sessionManager.privacyPolicy.blockForensicLogging) {
@@ -308,14 +399,27 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun scheduleGhostWipe(reason: String) {
+    private fun scheduleGhostWipe(reason: String, delayMs: Long = BACKGROUND_WIPE_GRACE_MS) {
         cancelPendingGhostWipe()
-        AmnosLog.d("MainActivity", "Ghost wipe scheduled in ${BACKGROUND_WIPE_GRACE_MS}ms. Reason: $reason")
-        lifecycleHandler.postDelayed(delayedGhostWipe, BACKGROUND_WIPE_GRACE_MS)
+        AmnosLog.d("MainActivity", "Ghost wipe scheduled in ${delayMs}ms. Reason: $reason")
+        lifecycleHandler.postDelayed(delayedGhostWipe, delayMs)
     }
 
     private fun cancelPendingGhostWipe() {
         lifecycleHandler.removeCallbacks(delayedGhostWipe)
+    }
+
+    override fun onDestroy() {
+        if (securityReceiverRegistered) {
+            unregisterReceiver(securityReceiver)
+            securityReceiverRegistered = false
+        }
+        cancelPendingGhostWipe()
+        teardownGlobalKeyboardKiller()
+        if (Thread.getDefaultUncaughtExceptionHandler() === crashHandler) {
+            Thread.setDefaultUncaughtExceptionHandler(previousUncaughtExceptionHandler)
+        }
+        super.onDestroy()
     }
 
     private val crashHandler = Thread.UncaughtExceptionHandler { thread, throwable ->

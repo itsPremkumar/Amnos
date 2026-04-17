@@ -1,4 +1,6 @@
 package com.amnos.browser.ui.screens.browser
+ 
+import com.amnos.browser.ui.screens.settings.PrivacyChecklistView
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
@@ -87,6 +89,9 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                     when (state) {
                         BrowserUIState.HOME -> HomeView(viewModel, keyboardViewModel)
                         BrowserUIState.BROWSING -> BrowsingView(viewModel, keyboardViewModel)
+                        BrowserUIState.PRIVACY_CHECKLIST -> PrivacyChecklistView(
+                            onBack = viewModel::closePrivacyChecklist
+                        )
                     }
                 }
             }

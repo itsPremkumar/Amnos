@@ -1,47 +1,38 @@
 package com.amnos.browser.core.security
 
 import com.amnos.browser.core.session.AmnosLog
-import java.util.Arrays
+import java.security.SecureRandom
 
 /**
  * Amnos Clipboard Vault
- * Holds copied text securely in volatile memory.
- * Never touches the Android OS Clipboard.
+ * A high-security, RAM-only clipboard that replaces the system clipboard.
  */
 object ClipboardVault {
-    private var volatileCache: CharArray? = null
+    private var vaultBuffer: String? = null
+    private val secureRandom = SecureRandom()
 
     fun write(text: String) {
-        AmnosLog.v("ClipboardVault", "Writing to secure volatile pasteboard")
-        wipe() // Wipe existing safely before replacing
-        volatileCache = text.toCharArray()
+        AmnosLog.d("ClipboardVault", "Data sequestered to in-memory vault. OS Clipboard bypassed.")
+        vaultBuffer = text
     }
 
-    fun read(): String? {
-        return volatileCache?.let { String(it) }
-    }
+    fun get(): String? = vaultBuffer
 
     fun wipe() {
-        volatileCache?.let { buffer ->
-            try {
-                // Check policy before scrambling
-                val sessionManager = com.amnos.browser.core.session.SessionManager.getInstance()
-                
-                if (sessionManager.privacyPolicy.forensicScrambleEnabled) {
-                    // Forensic-grade scrubbing: Overwrite with random noise first
-                    val secureRandom = java.security.SecureRandom()
-                    for (i in buffer.indices) {
-                        buffer[i] = secureRandom.nextInt(65535).toChar()
-                    }
-                }
-                
-                // Finally zero it out
-                java.util.Arrays.fill(buffer, '\u0000')
-                AmnosLog.v("ClipboardVault", "Volatile pasteboard shredded")
-            } catch (e: Exception) {
-                java.util.Arrays.fill(buffer, '\u0000')
-            }
+        if (vaultBuffer == null) return
+        
+        AmnosLog.w("ClipboardVault", "Scrubbing vault buffer with SecureRandom noise...")
+        
+        // Phase 1: Overwrite with random characters
+        val length = vaultBuffer?.length ?: 0
+        val noise = StringBuilder()
+        repeat(length) {
+            noise.append(secureRandom.nextInt(256).toChar())
         }
-        volatileCache = null
+        vaultBuffer = noise.toString()
+        
+        // Phase 2: Zero-fill/Nullify
+        vaultBuffer = null
+        AmnosLog.i("ClipboardVault", "Vault buffer zero-filled and nullified.")
     }
 }

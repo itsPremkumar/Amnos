@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.core.net.toUri
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.webkit.ProxyConfig
 import androidx.webkit.ProxyController
@@ -18,6 +19,7 @@ import com.amnos.browser.core.network.LoopbackProxyServer
 import com.amnos.browser.core.network.NetworkSecurityManager
 import com.amnos.browser.core.security.FingerprintProtectionLevel
 import com.amnos.browser.core.security.JavaScriptMode
+import org.json.JSONObject
 import com.amnos.browser.core.security.PrivacyPolicy
 import com.amnos.browser.core.security.WebGlMode
 import com.amnos.browser.core.webview.PrivacyWebChromeClient
@@ -28,13 +30,13 @@ import com.amnos.browser.core.security.KeyManager
 import com.amnos.browser.core.wipe.SuperWipeEngine
 import com.amnos.browser.core.wipe.WipeReason
 import com.amnos.browser.core.model.*
-import org.json.JSONObject
 
 class SessionManager private constructor(
     private val context: Context,
     private val webViewDataSuffix: String
 ) {
     companion object {
+        @SuppressLint("StaticFieldLeak")
         @Volatile
         private var INSTANCE: SessionManager? = null
 
@@ -53,10 +55,12 @@ class SessionManager private constructor(
     private val adBlocker = AdBlocker(context)
     private val tabs = mutableListOf<TabInstance>()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val wipeDebounceMs = 5_000L
     private val timeoutRunnable = Runnable { timeoutListener?.invoke() }
     private var timeoutListener: (() -> Unit)? = null
     private var onSessionWiped: (() -> Unit)? = null
     private var activeSessionId: String = FingerprintManager.newSessionId()
+    private var lastWipeElapsedRealtime: Long = 0L
 
     val securityController = SecurityController()
     val storageService = StorageService(context, webViewDataSuffix)
@@ -137,7 +141,8 @@ class SessionManager private constructor(
         onNavigationRequested: (String) -> Boolean,
         onNavigationCommitted: (String) -> Unit,
         onNavigationFailed: (String?) -> Unit,
-        onKeyboardRequested: (show: Boolean) -> Unit
+        onKeyboardRequested: (show: Boolean) -> Unit,
+        onSecurityEvent: ((String) -> Unit)? = null
     ): TabInstance {
         AmnosLog.d("SessionManager", "Creating new tab instance")
         val tabId = FingerprintManager.newTabId()
@@ -150,11 +155,13 @@ class SessionManager private constructor(
         AmnosLog.d("SessionManager", "Instantiating SecureWebView")
         val webView = SecureWebView(context)
         val finalScript = buildInjectionScript(profile)
+        val securityEventHandler: (String) -> Unit = { rawMessage ->
+            handleSecurityEvent(rawMessage, onKeyboardRequested)
+            onSecurityEvent?.invoke(rawMessage)
+        }
 
         AmnosLog.d("SessionManager", "Applying hardening to WebView")
-        webView.applyHardening(profile, privacyPolicy, finalScript) { rawMessage ->
-            handleSecurityEvent(rawMessage, onKeyboardRequested)
-        }
+        webView.applyHardening(profile, privacyPolicy, finalScript, securityEventHandler)
         webView.resumeTimers()
 
         webView.setDownloadListener { url, _, _, _, _ ->
@@ -186,7 +193,8 @@ class SessionManager private constructor(
             tabId = tabId,
             profile = profile,
             webView = webView,
-            onKeyboardRequested = onKeyboardRequested
+            onKeyboardRequested = onKeyboardRequested,
+            onSecurityEvent = securityEventHandler
         )
         tabs.add(tab)
         touchSession()
@@ -201,7 +209,8 @@ class SessionManager private constructor(
         onNavigationRequested: (String) -> Boolean,
         onNavigationCommitted: (String) -> Unit,
         onNavigationFailed: (String?) -> Unit,
-        onKeyboardRequested: (show: Boolean) -> Unit
+        onKeyboardRequested: (show: Boolean) -> Unit,
+        onSecurityEvent: ((String) -> Unit)? = null
     ): TabInstance {
         val previousUrl = tab.currentUrl
         val previousIndex = tabs.indexOf(tab).coerceAtLeast(0)
@@ -213,7 +222,8 @@ class SessionManager private constructor(
             onNavigationRequested = onNavigationRequested,
             onNavigationCommitted = onNavigationCommitted,
             onNavigationFailed = onNavigationFailed,
-            onKeyboardRequested = onKeyboardRequested
+            onKeyboardRequested = onKeyboardRequested,
+            onSecurityEvent = onSecurityEvent
         )
         tabs.remove(replacement)
         tabs.add(previousIndex.coerceAtMost(tabs.size), replacement)
@@ -234,7 +244,7 @@ class SessionManager private constructor(
                 tab.profile,
                 privacyPolicy,
                 buildInjectionScript(tab.profile),
-                { rawMessage -> handleSecurityEvent(rawMessage, tab.onKeyboardRequested) }
+                tab.onSecurityEvent
             )
         }
         touchSession()
@@ -313,10 +323,33 @@ class SessionManager private constructor(
     }
 
     fun killAll(terminateProcess: Boolean = false, wipeClipboard: Boolean = true) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            val posted = mainHandler.post {
+                killAll(terminateProcess = terminateProcess, wipeClipboard = wipeClipboard)
+            }
+            if (posted) {
+                return
+            }
+            AmnosLog.w("SessionManager", "Failed to post wipe to main thread. Continuing inline as a fallback.")
+        }
+
         val shouldTerminate = terminateProcess || privacyPolicy.sandboxMode == com.amnos.browser.core.security.AmnosSandboxMode.PARANOID
+        val now = SystemClock.elapsedRealtime()
+        if (!shouldTerminate && now - lastWipeElapsedRealtime < wipeDebounceMs) {
+            AmnosLog.w("SessionManager", "Wipe request ignored because a recent wipe already completed.")
+            return
+        }
+
         val reason = if (shouldTerminate) WipeReason.KILL_SWITCH else WipeReason.BACKGROUND_WIPE
+        if (!shouldTerminate) {
+            lastWipeElapsedRealtime = now
+        }
         mainHandler.removeCallbacks(timeoutRunnable)
-        superWipeEngine.execute(reason, shouldTerminate, wipeClipboard)
+        superWipeEngine.execute(
+            reason = reason,
+            terminateProcess = shouldTerminate,
+            wipeClipboard = wipeClipboard
+        )
     }
 
     private fun buildInjectionScript(profile: DeviceProfile): String {
@@ -364,7 +397,9 @@ class SessionManager private constructor(
                 }
                 "clipboard_copy" -> {
                     val text = payload.optString("text")
-                    com.amnos.browser.core.security.ClipboardVault.write(text)
+                    if (text.isNotBlank()) {
+                        com.amnos.browser.core.security.ClipboardVault.write(text)
+                    }
                 }
                 "webrtc" -> {
                     securityController.recordWebRtcAttempt(

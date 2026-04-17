@@ -15,7 +15,18 @@
     
     // Dynamic search engine detection to handle in-tab navigations
     const searchHosts = ["duckduckgo.com", "google.com", "www.google.com", "www.google.co.in"];
+    const mediaCompatibilityHosts = [
+        "youtube.com",
+        "www.youtube.com",
+        "youtube-nocookie.com",
+        "youtu.be",
+        "vimeo.com",
+        "www.vimeo.com",
+        "player.vimeo.com",
+        "vimeocdn.com"
+    ];
     const isSearchEngine = searchHosts.some(h => window.location.hostname.endsWith(h));
+    const isCompatibilityCriticalHost = isSearchEngine || mediaCompatibilityHosts.some(h => window.location.hostname.endsWith(h));
     const noop = function() {};
     const nativeWebSocket = window.WebSocket;
     const nativeDateNow = Date.now.bind(Date);
@@ -559,7 +570,7 @@
         }));
     }
 
-    if (policy.blockServiceWorkers && !isSearchEngine && navigator.serviceWorker) {
+    if (policy.blockServiceWorkers && !isCompatibilityCriticalHost && navigator.serviceWorker) {
         defineValue(navigator, "serviceWorker", Object.freeze({
             register: function() { return denyPromise("Service workers blocked"); },
             getRegistration: function() { return Promise.resolve(undefined); },
@@ -689,7 +700,7 @@
         defineValue(window, "WebSocket", WebSocketWrapper);
     }
 
-    if (policy.blockEval && !isSearchEngine) {
+    if (policy.blockEval && !isCompatibilityCriticalHost) {
         window.eval = function() { throwSecurity("eval blocked"); };
         window.Function = function() { throwSecurity("Function constructor blocked"); };
         if (window.WebAssembly) {

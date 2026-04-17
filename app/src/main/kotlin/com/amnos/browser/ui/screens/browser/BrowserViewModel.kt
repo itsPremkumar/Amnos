@@ -16,11 +16,12 @@ import com.amnos.browser.core.session.SessionManager
 import com.amnos.browser.core.session.TabInstance
 import com.amnos.browser.ui.screens.browser.logic.NavigationHandler
 import com.amnos.browser.ui.screens.browser.logic.SecurityHandler
+import org.json.JSONObject
 
 class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel() {
     var currentTab = mutableStateOf<TabInstance?>(null)
     var urlInput = mutableStateOf("")
-    var uiState = mutableStateOf(BrowserUIState.HOME)
+    var uiState = mutableStateOf<BrowserUIState>(BrowserUIState.HOME)
 
     var canGoBack = mutableStateOf(false)
     var canGoForward = mutableStateOf(false)
@@ -57,6 +58,8 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var enableRemoteDebugging = mutableStateOf(sessionManager.privacyPolicy.enableRemoteDebugging)
     var forceRelaxSecurityForDebug = mutableStateOf(sessionManager.privacyPolicy.forceRelaxSecurityForDebug)
     val debugControlsAvailable = BuildConfig.DEBUG
+
+    var isDecoyVisible = mutableStateOf(false)
 
     private val navHandler = NavigationHandler(this, sessionManager)
     private val securityHandler = SecurityHandler(this, sessionManager)
@@ -118,6 +121,17 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
             AmnosLog.d("BrowserViewModel", "Session wipe triggered from external event")
             zeroAllUIState()
         }
+        
+        // RISK ENGINE MONITORING
+        viewModelScope.launch {
+            while (true) {
+                com.amnos.browser.core.security.RiskEngine.monitor { 
+                    hardKillSwitch()
+                }
+                delay(2000)
+            }
+        }
+        
         initializeSession()
     }
 
@@ -128,10 +142,11 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
                 onStateChanged = stateChangedCallback,
                 onProgressChanged = progressChangedCallback,
                 onTrackerBlocked = trackerBlockedCallback,
-                onNavigationRequested = { navHandler.handleMainFrameNavigation(it) },
+                onNavigationRequested = navHandler::handleMainFrameNavigation,
                 onNavigationCommitted = navigationCommittedCallback,
                 onNavigationFailed = navigationFailedCallback,
-                onKeyboardRequested = keyboardRequestedCallback
+                onKeyboardRequested = keyboardRequestedCallback,
+                onSecurityEvent = ::handleSecurityEvent
             )
             currentTab.value = tab
             sessionLabel.value = sessionManager.sessionId.take(8)
@@ -159,6 +174,27 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     fun toggleRemoteDebugging(enabled: Boolean) = securityHandler.toggleRemoteDebugging(enabled)
     fun toggleForceRelaxSecurity(enabled: Boolean) = securityHandler.toggleForceRelaxSecurity(enabled)
     fun setFingerprintProtectionLevel(level: FingerprintProtectionLevel) = securityHandler.setFingerprintProtectionLevel(level)
+
+    fun handleSecurityEvent(json: String) {
+        try {
+            when (JSONObject(json).optString("type")) {
+                "tamper_detected" -> {
+                    AmnosLog.e("BrowserViewModel", "BLOCKING: Tamper detected in JS sandbox.")
+                    hardKillSwitch()
+                }
+            }
+        } catch (e: Exception) {
+            AmnosLog.w("BrowserViewModel", "Failed to parse security event: $json")
+        }
+    }
+
+    fun openPrivacyChecklist() {
+        uiState.value = BrowserStateReducer.showPrivacyChecklist()
+    }
+
+    fun closePrivacyChecklist() {
+        uiState.value = BrowserStateReducer.showHome()
+    }
 
     fun setSandboxMode(mode: com.amnos.browser.core.security.AmnosSandboxMode) {
         AmnosLog.d("BrowserViewModel", "Setting Sandbox Mode: $mode")
@@ -239,6 +275,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
                 sessionManager.killAll(terminateProcess = true)
             } catch (e: Exception) {
                 AmnosLog.e("BrowserUI", "FATAL error during HARD UI wipe sequence", e)
+            } finally {
                 isBurning.value = false
             }
         }
@@ -284,10 +321,11 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
                 onStateChanged = stateChangedCallback,
                 onProgressChanged = progressChangedCallback,
                 onTrackerBlocked = trackerBlockedCallback,
-                onNavigationRequested = { navHandler.handleMainFrameNavigation(it) },
+                onNavigationRequested = navHandler::handleMainFrameNavigation,
                 onNavigationCommitted = navigationCommittedCallback,
                 onNavigationFailed = navigationFailedCallback,
-                onKeyboardRequested = keyboardRequestedCallback
+                onKeyboardRequested = keyboardRequestedCallback,
+                onSecurityEvent = ::handleSecurityEvent
             )
         }
     }
