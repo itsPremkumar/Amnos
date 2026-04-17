@@ -1,6 +1,7 @@
 package com.amnos.browser.core.fingerprint
 
 import com.amnos.browser.core.security.FingerprintProtectionLevel
+import com.amnos.browser.core.security.PrivacyPolicy
 import com.amnos.browser.core.session.AmnosLog
 import java.security.SecureRandom
 import java.util.UUID
@@ -48,24 +49,35 @@ object FingerprintManager {
     fun generateCoherentProfile(
         sessionId: String,
         tabId: String,
-        level: FingerprintProtectionLevel
+        policy: PrivacyPolicy
     ): DeviceProfile {
+        val level = policy.fingerprintProtectionLevel
         val sessionRandom = seededRandom(sessionId)
         val tabRandom = seededRandom(sessionId, tabId)
 
-        val template = when (level) {
-            FingerprintProtectionLevel.BALANCED -> FingerprintRegistry.androidTemplates[abs(sessionRandom.nextInt()) % FingerprintRegistry.androidTemplates.size]
-            FingerprintProtectionLevel.STRICT -> FingerprintRegistry.androidTemplates[abs(tabRandom.nextInt()) % 2]
-            FingerprintProtectionLevel.DISABLED -> FingerprintRegistry.androidTemplates.first()
+        val template = when {
+            policy.uaTemplate.isNotEmpty() && policy.uaTemplate != "RANDOM" -> {
+                when (policy.uaTemplate.uppercase()) {
+                    "PIXEL_8" -> FingerprintRegistry.androidTemplates[0]
+                    "S23" -> FingerprintRegistry.androidTemplates[1]
+                    "ONEPLUS" -> FingerprintRegistry.androidTemplates[2]
+                    else -> FingerprintRegistry.androidTemplates.first()
+                }
+            }
+            level == FingerprintProtectionLevel.BALANCED -> FingerprintRegistry.androidTemplates[abs(sessionRandom.nextInt()) % FingerprintRegistry.androidTemplates.size]
+            level == FingerprintProtectionLevel.STRICT -> FingerprintRegistry.androidTemplates[abs(tabRandom.nextInt()) % 2]
+            else -> FingerprintRegistry.androidTemplates.first()
         }
         val locale = when (level) {
             FingerprintProtectionLevel.BALANCED -> FingerprintRegistry.balancedLocalePresets[abs(tabRandom.nextInt()) % FingerprintRegistry.balancedLocalePresets.size]
             FingerprintProtectionLevel.STRICT -> FingerprintRegistry.strictLocalePreset
             FingerprintProtectionLevel.DISABLED -> FingerprintRegistry.balancedLocalePresets.first()
+            else -> FingerprintRegistry.strictLocalePreset
         }
         val userAgent = when (level) {
             FingerprintProtectionLevel.BALANCED -> template.userAgents[abs(tabRandom.nextInt()) % template.userAgents.size]
             FingerprintProtectionLevel.STRICT, FingerprintProtectionLevel.DISABLED -> template.userAgents.first()
+            else -> template.userAgents.first()
         }
 
         AmnosLog.i("FingerprintManager", "Identity Generated (Tab: ${tabId.take(8)}) -> UA: ${userAgent.take(30)}... | GPU: ${template.gpuRenderer}")

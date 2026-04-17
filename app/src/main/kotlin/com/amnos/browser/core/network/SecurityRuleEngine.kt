@@ -20,6 +20,12 @@ class SecurityRuleEngine(
             AmnosLog.w("SecurityEngine", "BLOCKED: WebSocket refused to $host (Policy: blockWebSockets=true)")
             return RequestDecision(rawUrl, RequestKind.WEBSOCKET, BlockReason.WEBSOCKET)
         }
+        
+        if (policy.blockUnsafeMethods && request.method.uppercase(Locale.US) !in listOf("GET", "HEAD")) {
+            val kind = classifyRequest(request, parsed)
+            AmnosLog.w("SecurityEngine", "BLOCKED: Unsafe method ${request.method} to ${parsed?.host ?: rawUrl}. [Read-only Mode active]")
+            return RequestDecision(sanitizedUrl, kind, BlockReason.UNSAFE_METHOD)
+        }
 
         if (request.url.scheme?.equals("http", ignoreCase = true) == true && policy.httpsOnlyEnabled) {
             val kind = classifyRequest(request, parsed)
@@ -35,7 +41,7 @@ class SecurityRuleEngine(
             return RequestDecision(sanitizedUrl, kind, BlockReason.UNSUPPORTED_SCHEME)
         }
 
-        if (isLocalNetworkHost(parsed.host)) {
+        if (parsed != null && isLocalNetworkHost(parsed.host) && policy.blockLocalNetwork) {
             val kind = classifyRequest(request, parsed)
             AmnosLog.w("SecurityEngine", "BLOCKED: Local network access to ${parsed.host} prohibited for security.")
             return RequestDecision(sanitizedUrl, kind, BlockReason.LOCAL_NETWORK)

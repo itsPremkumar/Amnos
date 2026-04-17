@@ -149,7 +149,7 @@ class SessionManager private constructor(
         val profile = FingerprintManager.generateCoherentProfile(
             activeSessionId,
             tabId,
-            privacyPolicy.fingerprintProtectionLevel
+            privacyPolicy
         )
 
         AmnosLog.d("SessionManager", "Instantiating SecureWebView")

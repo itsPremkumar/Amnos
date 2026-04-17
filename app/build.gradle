@@ -36,7 +36,14 @@ def securityDefaults = [
     SECURITY_PANIC_GESTURE_ENABLED        : "true",
     SECURITY_WIPE_ON_SCREEN_OFF           : "true",
     SECURITY_WIPE_ON_BACKGROUND           : "true",
-    SECURITY_BACKGROUND_WIPE_DELAY_MS     : "5000"
+    SECURITY_BACKGROUND_WIPE_DELAY_MS     : "5000",
+    SECURITY_DOH_URL                      : "https://1.1.1.1/dns-query",
+    SECURITY_BLOCK_UNSAFE_METHODS         : "false",
+    SECURITY_UA_TEMPLATE                  : "PIXEL_8",
+    SECURITY_JAVASCRIPT_MODE              : "RESTRICTED",
+    SECURITY_WEBGL_MODE                   : "DISABLED",
+    SECURITY_RESET_IDENTITY_ON_REFRESH    : "true",
+    SECURITY_BLOCK_LOCAL_NETWORK          : "true"
 ]
 
 def parseEnvLines(File envFile) {
@@ -93,7 +100,8 @@ android {
         def envValues = envFile.exists() ? parseEnvLines(envFile) : [:]
         securityDefaults.each { key, defaultValue ->
             def configuredValue = envValues.containsKey(key) ? envValues[key] : defaultValue
-            if (key == "SECURITY_FINGERPRINT_LEVEL" || key == "SECURITY_SANDBOX_MODE" || key == "SECURITY_CAMOUFLAGE_PROFILE" || key == "SECURITY_DECOY_UNLOCK_PIN") {
+            if (key == "SECURITY_FINGERPRINT_LEVEL" || key == "SECURITY_SANDBOX_MODE" || key == "SECURITY_CAMOUFLAGE_PROFILE" || key == "SECURITY_DECOY_UNLOCK_PIN" || 
+                key == "SECURITY_DOH_URL" || key == "SECURITY_UA_TEMPLATE" || key == "SECURITY_JAVASCRIPT_MODE" || key == "SECURITY_WEBGL_MODE") {
                 def escaped = configuredValue.replace("\\", "\\\\").replace("\"", "\\\"")
                 buildConfigField "String", key, "\"${escaped}\""
             } else if (key == "SECURITY_SESSION_TIMEOUT_MS" || key == "SECURITY_BACKGROUND_WIPE_DELAY_MS") {

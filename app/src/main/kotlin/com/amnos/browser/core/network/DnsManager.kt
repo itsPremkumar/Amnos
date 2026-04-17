@@ -22,10 +22,11 @@ object DnsManager {
     private var dnsOverHttps: Dns = createDnsOverHttps(bootstrapClient)
 
     private fun createDnsOverHttps(client: OkHttpClient): Dns {
-        AmnosLog.i("DnsManager", "Initializing DnsOverHttps (Primary: Cloudflare)")
+        val dohUrl = com.amnos.browser.BuildConfig.SECURITY_DOH_URL
+        AmnosLog.i("DnsManager", "Initializing DnsOverHttps (URL: $dohUrl)")
         return DnsOverHttps.Builder()
             .client(client)
-            .url("https://cloudflare-dns.com/dns-query".toHttpUrl())
+            .url(dohUrl.toHttpUrl())
             .bootstrapDnsHosts(
                 listOf(
                     InetAddress.getByName("1.1.1.1"),

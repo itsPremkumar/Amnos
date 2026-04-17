@@ -60,6 +60,9 @@ data class PrivacyPolicy(
     val blockWebRtc: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_WEBRTC,
     val blockDnsPrefetch: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_DNS_PREFETCH,
     val blockPreconnect: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_PRECONNECT,
+    val dohUrl: String = com.amnos.browser.BuildConfig.SECURITY_DOH_URL,
+    val blockUnsafeMethods: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_UNSAFE_METHODS,
+    val blockLocalNetwork: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_LOCAL_NETWORK,
     
     // DEBUGGING
     val enableRemoteDebugging: Boolean = !com.amnos.browser.BuildConfig.SECURITY_LOCKDOWN_MODE && !com.amnos.browser.BuildConfig.SECURITY_BLOCK_REMOTE_DEBUGGING,
@@ -72,15 +75,25 @@ data class PrivacyPolicy(
     val domStorageEnabled: Boolean = true, // Always true for result rendering
     val strictFirstPartyIsolation: Boolean = com.amnos.browser.BuildConfig.SECURITY_STRICT_FIRST_PARTY_ISOLATION,
     val enforceLoopbackProxy: Boolean = com.amnos.browser.BuildConfig.SECURITY_ENFORCE_LOOPBACK_PROXY,
-    val webGlMode: WebGlMode = WebGlMode.DISABLED,
+    val webGlMode: WebGlMode = when (com.amnos.browser.BuildConfig.SECURITY_WEBGL_MODE.uppercase()) {
+        "SPOOF" -> WebGlMode.SPOOF
+        "DISABLED" -> WebGlMode.DISABLED
+        else -> WebGlMode.DISABLED
+    },
     val fingerprintProtectionLevel: FingerprintProtectionLevel = when (com.amnos.browser.BuildConfig.SECURITY_FINGERPRINT_LEVEL.uppercase()) {
         "BALANCED" -> FingerprintProtectionLevel.BALANCED
         "STRICT" -> FingerprintProtectionLevel.STRICT
         "DISABLED", "OFF", "FALSE" -> FingerprintProtectionLevel.DISABLED
         else -> FingerprintProtectionLevel.STRICT
     },
-    val javascriptMode: JavaScriptMode = JavaScriptMode.RESTRICTED,
-    val resetIdentityOnRefresh: Boolean = true,
+    val javascriptMode: JavaScriptMode = when (com.amnos.browser.BuildConfig.SECURITY_JAVASCRIPT_MODE.uppercase()) {
+        "FULL" -> JavaScriptMode.FULL
+        "RESTRICTED" -> JavaScriptMode.RESTRICTED
+        "DISABLED" -> JavaScriptMode.DISABLED
+        else -> JavaScriptMode.RESTRICTED
+    },
+    val resetIdentityOnRefresh: Boolean = com.amnos.browser.BuildConfig.SECURITY_RESET_IDENTITY_ON_REFRESH,
+    val uaTemplate: String = com.amnos.browser.BuildConfig.SECURITY_UA_TEMPLATE,
     val sessionTimeoutMillis: Long = com.amnos.browser.BuildConfig.SECURITY_SESSION_TIMEOUT_MS,
     
     // V3.1 STEALTH & PANIC
