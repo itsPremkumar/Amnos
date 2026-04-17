@@ -30,11 +30,14 @@
 - `Set-Cookie` response headers are stripped before responses reach WebView.
 - Volatile downloads are stored under `cacheDir/volatile_downloads`.
 - Session startup and teardown both purge cookies, `WebStorage`, form data, auth data, and volatile downloads.
-- The kill switch and background wipe both rebuild the active session ID and tab silos.
+- **Task Removal Cloaking** - Uses `finishAffinity()` and `onTaskRemoved` to purge the app from "Recents".
+- The kill switch and background wipe both rebuild the active session ID, tab silos, and trigger a **Cryptographic Kill** of all session-scoped keys.
+- **Forensic RAM Scrambling** - Sensative buffers are noise-saturated before zeroing.
 
 ## Diagnostics model
 
-- `SecurityController` owns RAM-only request logs, active connections, status banners, and internal logs.
+- **Security Controller** owns RAM-only request logs, active connections, status banners, and internal logs.
+- **Threat Detection HUD** - Real-time Accessibility Service monitoring and Sandbox Mode (Paranoid/Balanced) enforcement.
 - `AmnosLog` routes subsystem events into `SecurityController.logInternal` when a session exists and falls back safely otherwise.
 - Navigation trace tags follow the sequence `[Nav:Navigate]`, `[Nav:Transform]`, `[Nav:Sanitize]`, `[Nav:Load]`, `[Nav:Commit]`, and `[Nav:Failure]`.
 

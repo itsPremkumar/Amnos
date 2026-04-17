@@ -13,6 +13,10 @@ This system provides maximum anti-forensic protection *within the Android applic
 ## The 8-Phase Destruction Pipeline
 The Super Wipe sequence is strictly orchestrated by the `SuperWipeEngine`, ensuring no race conditions outrun the destruction processes.
 
+### Phase 0: Cryptographic Kill Switch (The Disarmament)
+The very first action is to invoke `KeyManager.obliterateKey()`. This deletes the `Amnos_Session_Master_Key` from the Android Keystore (StrongBox). 
+*   **Result**: Even if the device is seized *during* the subsequent wipe phases, all encrypted application data (settings, metadata, cached fragments) becomes mathematically impossible to decrypt.
+
 ### Phase 1: Surgical WebView Teardown
 Every active WebView instance undergoes a deterministic takedown to clear rendering paths and subsystem caches:
 1. Stop all loading operations and load `about:blank` to instantly clear the rendered screen buffer.
@@ -24,7 +28,8 @@ Every active WebView instance undergoes a deterministic takedown to clear render
 ### Phase 2: Storage Sanitization 
 All disk and clipboard artifacts are hunted down:
 - **Cookies**: `CookieManager.removeAllCookies()` is invoked followed immediately by a hard `.flush()` to ensure disk persistence of the deletion block.
-- **Clipboard**: The system clipboard is overwritten to clear any copied passwords or identifiers, suppressing system UI leakage on modern Android APIs.
+- **Clipboard**: The system clipboard is overwritten to clear any copied passwords or identifiers.
+- **Internal Pasteboard**: `ClipboardVault` saturates its memory buffer with `SecureRandom` cryptographical noise before zeroing.
 - **Physical Nuke**: The app's base `app_webview` storage directory, along with `cache` and `code_cache` directories, are recursively deleted using native file IO, ensuring raw SQLite databases are destroyed.
 
 ### Phase 3: Memory Invalidation
@@ -55,4 +60,7 @@ Depending on the trigger context, the engine resolves with:
 - **Hard Kill**: Delays exactly 200 milliseconds to allow async storage I/O deletion calls (like cookie flushing) to comfortably settle against the kernel, after which `android.os.Process.killProcess(android.os.Process.myPid())` is called, destroying the entire memory execution space instantly.
 
 ## Architecture Integration
-The central orchestration lies in `SuperWipeEngine.kt`, completely decoupled from individual lifecycle loops. A singleton instance in the `SessionManager` routes `killSwitch()` UI interactions, system `onTrimMemory` background triggers, or unexpected fatal crashes directly into the pipeline ensuring Amnos safely disarms in all volatile scenarios.
+The central orchestration lies in `SuperWipeEngine.kt`, completely decoupled from individual lifecycle loops. A singleton instance in the `SessionManager` routes `killSwitch()` UI interactions, system `onTrimMemory` background triggers, or unexpected fatal crashes directly into the pipeline.
+
+### Activity Cloaking (Ghosting)
+In V2.0, the `MainActivity` listens for wipe completion and invokes `finishAffinity()`. This immediately purges the application from the Android "Recents" task list, ensuring no visual or process artifacts remain detectable by the OS or a physical observer.

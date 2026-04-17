@@ -22,6 +22,9 @@ Amnos is not Tor, not a VPN, and not a custom browser engine. It reduces exposur
 - Screenshot protection enforced via `FLAG_SECURE` when policy requires it
 - Root detection on launch — automatically escalates to STRICT fingerprint mode if rooted device is detected
 - Global crash resilience engine prevents force-close and wipes clipboard on fatal exceptions
+- **Task Removal Cloaking** — automatically purges the app from Android "Recents" upon close or wipe to prevent forensic residue
+- **Forensic RAM Scrambling** — saturates sensitive memory buffers with cryptographically secure noise before zero-filling
+- **Absolute Proxy Lock** — forces all JVM-level traffic through the internal secure loopback tunnel
 
 ---
 
@@ -108,8 +111,14 @@ Amnos is not Tor, not a VPN, and not a custom browser engine. It reduces exposur
 - **Identity reset on refresh** — tab profile can be regenerated on page refresh
 
 ### WebView hardening
-- **System IME blocked** — `onCreateInputConnection` returns `null`; `onCheckIsTextEditor` returns `false`; system keyboard suppressed via `WindowInsetsController`
-- **Ghost Keyboard** — custom in-app Compose keyboard (alpha + symbol layouts) used for all text input to prevent keystroke leakage to the system IME
+- **Ghost Keyboard** — custom in-app Compose keyboard (alpha + symbol layouts).
+  - **Premium Feedback** — real-time key popups and Material 3-grade haptics.
+  - **Sanitization Shortcuts** — "Long-press to Clear All" on the backspace key for instant field zeroing.
+  - **High-Density Adaptive** — automatically reduces height in landscape to preserve browsing visibility.
+- **Interactive UI & Safety**
+  - **Sandbox Mode Selector** — toggle between `PARANOID` (Silent zero-trust) and `BALANCED` (Gated confirm) modes.
+  - **Navigation Safety Dialogs** — explicit user confirmation required to leave the secure sandbox for external apps.
+  - **Threat Alert Banner** — real-time detection and HUD warning if Accessibility Scrapers are active on the device.
 - **Autofill disabled** — `IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS`
 - **Password/form save disabled** — `savePassword = false`, `saveFormData = false`
 - **File access disabled** — `allowFileAccess`, `allowContentAccess`, `allowFileAccessFromFileURLs`, `allowUniversalAccessFromFileURLs` all `false`

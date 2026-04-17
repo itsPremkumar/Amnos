@@ -221,8 +221,23 @@ Implement runtime modes:
    * User-gated external actions
 
 3. OPEN MODE:
-
    * Standard browsing
+
+---
+
+## PHASE 15: INTERACTION LAYER & HIGH-DENSITY UX
+
+*   **Landscape Optimization:** Split-layout Row for horizontal phone views.
+*   **Edge-to-Edge:** Full system bar transparency and inset handling.
+*   **High-Density Keyboard:** 
+    * Adaptive height (40dp in landscape).
+    * Real-time key preview popups.
+    * Material 3 tactile haptics.
+    * "Long-press to Clear All" backspace shortcut.
+*   **Threat Detection HUD:** 
+    * Live Accessibility services scanner.
+    * UI Risk Banner for active scrapers.
+    * Gated navigation safety dialogs for BALANCED mode.
 
 ---
 
@@ -235,6 +250,7 @@ After implementation:
 * Network traffic is fully intercepted and encrypted
 * OS-level leaks are minimized
 * Memory and storage leave no forensic trace
+* UI provides absolute transparency on active threats and sandbox state
 
 ---
 

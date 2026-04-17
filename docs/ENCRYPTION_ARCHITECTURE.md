@@ -9,7 +9,7 @@ In a "Pure RAM + Super Wipe" context, the goal of encryption is to secure data i
 | **DNS (DoH)** | Resolve domains without plaintext leakage | Hostnames (e.g., `bank.com`) | Network surveillance, DNS hijacking |
 | **App Storage** | Protect app-managed internal disk writes | Settings, local bookmarks, custom lists | Offline forensic extraction (Cellebrite/GrayKey) |
 | **Session State** | Obfuscate raw tokens in memory dumps | Session IDs, anti-fingerprinting seeds | Advanced heap/RAM analysis |
-| **Crash Logs** | Prevent forensic leakage if logs must be kept | Stack traces, leaked local variables | Logcat parsing, telemetry extraction |
+| **Integrity (Anti-Debug)**| Prevent runtime memory analysis/hooking | App execution logic, key material | Debugger-assisted memory dumping |
 
 > **What NOT to Encrypt:**
 > *   **WebView Core Memory/DOM:** Attempting to encrypt live DOM or WebView memory buffers introduces massive latency, breaks V8/JNI integration, and provides no real benefit against our threat model (which relies on Android Process Isolation).
@@ -38,7 +38,8 @@ Amnos strictly follows a **Zero Key Reuse** and **Ephemeral Origin** policy.
 1.  **Session Scope:** A new `SessionMasterKey` is generated asynchronously every time the app launches from a cold start, or immediately following a Super Wipe.
 2.  **Hardware Binding:** Keys are strictly generated within the Android Keystore system. We enforce `setIsStrongBoxBacked(true)` where available, keeping key material isolated in the Trusted Execution Environment (TEE).
 3.  **Secure Randomness:** Driven by `java.security.SecureRandom` using `/dev/urandom`.
-4.  **Zero-Trace Destruction:** When the Kill Switch is pulled, the key alias is instantly deleted from the Keystore. Any encrypted files on disk immediately become mathematically impossible to decrypt, even before the physical wipe (Phase 2) reaches them.
+4. **Zero-Trace Destruction:** When the Kill Switch is pulled, the key alias is instantly deleted from the Keystore. Any encrypted files on disk immediately become mathematically impossible to decrypt, even before the physical wipe (Phase 2) reaches them.
+5.  **Anti-Debugger Trap:** The encryption engine is gated by a runtime integrity check. If a debugger is detected (`isDebuggerConnected()`), the system triggers a `SuperWipe` and obliterates the Master Key immediately.
 
 ---
 
@@ -130,13 +131,17 @@ fun generateSessionKey() {
 ```kotlin
 fun encryptAndSanitize(plaintextData: ByteArray): ByteArray {
     val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-    val secretKey = keyStore.getKey("Amnos_Session_Master_Key", null) as SecretKey
-    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-    cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+    val secretKey = keyStore.getKey("Amnos_Session_Master_Key", null) as javax.crypto.SecretKey
+    val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+    cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, secretKey)
     
     val ciphertext = cipher.doFinal(plaintextData)
     
-    // Crucial: Overwrite the plaintext buffer immediately after use
+    // Forensic-grade scrubbing: Scramble with noise before zeroing
+    val secureRandom = java.security.SecureRandom()
+    for (i in plaintextData.indices) {
+        plaintextData[i] = secureRandom.nextInt(256).toByte()
+    }
     plaintextData.fill(0.toByte())
     
     return ciphertext
