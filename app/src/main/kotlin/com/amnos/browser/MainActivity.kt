@@ -57,8 +57,8 @@ class MainActivity : ComponentActivity() {
                 Intent.ACTION_SCREEN_OFF, Intent.ACTION_USER_PRESENT -> {
                     if (::sessionManager.isInitialized) {
                         val policy = sessionManager.privacyPolicy
-                        val shouldWipe = (intent.action == Intent.ACTION_SCREEN_OFF && policy.wipeOnScreenOff) ||
-                                       (intent.action == Intent.ACTION_USER_PRESENT && policy.isSandboxEnabled)
+                        val shouldWipe = (intent.action == Intent.ACTION_SCREEN_OFF && policy.purgeWipeOnScreenOff) ||
+                                       (intent.action == Intent.ACTION_USER_PRESENT && policy.purgeSandboxEnabled)
                         
                         if (shouldWipe) {
                             AmnosLog.w("MainActivity", "System Security Event: ${intent.action}. Triggering session isolation.")
@@ -106,7 +106,7 @@ class MainActivity : ComponentActivity() {
         }
         
         val sessionManagerForStartup = SessionManager.getInstance(this, RuntimeSecurityConfig.webViewProfileSuffix)
-        if (sessionManagerForStartup.privacyPolicy.absoluteCloakingEnabled) {
+        if (sessionManagerForStartup.privacyPolicy.stealthAbsoluteCloaking) {
             startService(Intent(this, com.amnos.browser.core.service.GhostService::class.java))
         }
 
@@ -125,7 +125,7 @@ class MainActivity : ComponentActivity() {
                         }
                     } else if (viewModel.isDecoyVisible.value) {
                         com.amnos.browser.ui.screens.decoy.DecoyCalculatorView(
-                            secretPin = sessionManager.privacyPolicy.decoyUnlockPin,
+                            secretPin = sessionManager.privacyPolicy.stealthDecoyUnlockPin,
                             onUnlock = {
                                 viewModel.isDecoyVisible.value = false
                                 AmnosLog.i("MainActivity", "DECOY UNLOCKED: Restoring real browser container.")
@@ -160,7 +160,7 @@ class MainActivity : ComponentActivity() {
                 viewModel = BrowserViewModel(sessionManager)
 
                 sessionManager.registerWipeListener {
-                    if (sessionManager.privacyPolicy.absoluteCloakingEnabled) {
+                    if (sessionManager.privacyPolicy.stealthAbsoluteCloaking) {
                         AmnosLog.d("MainActivity", "Session wipe triggered. Ghosting activity.")
                         finishAffinity() // Clear all activities from the Task Manager
                     }
@@ -186,7 +186,7 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         AmnosLog.d("MainActivity", "onStart: UI visible")
         // IDENTITY RESTORE: Switch back to Amnos icon when the user opens the app
-        if (::sessionManager.isInitialized && sessionManager.privacyPolicy.camouflageProfile != CamouflageProfile.DISABLED) {
+        if (::sessionManager.isInitialized && sessionManager.privacyPolicy.stealthCamouflageProfile != CamouflageProfile.DISABLED) {
             com.amnos.browser.core.security.CamouflageManager.applyMode(this, com.amnos.browser.core.security.CamouflageMode.DEFAULT)
         }
     }
@@ -197,13 +197,13 @@ class MainActivity : ComponentActivity() {
         if (::sessionManager.isInitialized && !isChangingConfigurations) {
             val policy = sessionManager.privacyPolicy
             
-            if (policy.wipeOnBackground) {
-                scheduleGhostWipe("Application backgrounded", policy.backgroundWipeDelayMs)
+            if (policy.purgeWipeOnBackground) {
+                scheduleGhostWipe("Application backgrounded", policy.purgeBackgroundWipeDelayMs)
             }
             
             // IDENTITY DISGUISE: Mask as configured profile instantly on backgrounding
-            if (policy.camouflageProfile != CamouflageProfile.DISABLED) {
-                val mode = if (policy.camouflageProfile == CamouflageProfile.CALCULATOR) 
+            if (policy.stealthCamouflageProfile != CamouflageProfile.DISABLED) {
+                val mode = if (policy.stealthCamouflageProfile == CamouflageProfile.CALCULATOR) 
                     com.amnos.browser.core.security.CamouflageMode.CALCULATOR 
                 else 
                     com.amnos.browser.core.security.CamouflageMode.WEATHER
@@ -222,7 +222,7 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        if (!sessionManager.privacyPolicy.isSandboxEnabled) {
+        if (!sessionManager.privacyPolicy.purgeSandboxEnabled) {
             return
         }
 
@@ -232,14 +232,14 @@ class MainActivity : ComponentActivity() {
                 sessionManager.killAll(terminateProcess = false, wipeClipboard = true)
             }
             level >= TRIM_MEMORY_UI_HIDDEN -> {
-                val delayMs = maxOf(BACKGROUND_WIPE_GRACE_MS, sessionManager.privacyPolicy.backgroundWipeDelayMs)
+                val delayMs = maxOf(BACKGROUND_WIPE_GRACE_MS, sessionManager.privacyPolicy.purgeBackgroundWipeDelayMs)
                 scheduleGhostWipe("Memory pressure background event", delayMs)
             }
         }
     }
 
     private fun updateSecurityFlags(policy: PrivacyPolicy) {
-        if (policy.blockScreenshots) {
+        if (policy.debugBlockScreenshots) {
             window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
             AmnosLog.d("MainActivity", "Screenshot protection ENABLED (via policy)")
         } else {
@@ -296,7 +296,7 @@ class MainActivity : ComponentActivity() {
         // AMNOS PANIC GESTURE: Volume Down Double Press -> Kill All + Terminate
         if (::sessionManager.isInitialized &&
             keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN &&
-            sessionManager.privacyPolicy.panicGestureEnabled
+            sessionManager.privacyPolicy.purgePanicGestureEnabled
         ) {
             val currentTime = System.currentTimeMillis()
             if (currentTime - lastVolumeDownTime < 500) {
@@ -316,7 +316,7 @@ class MainActivity : ComponentActivity() {
     private var lastVolumeDownTime: Long = 0
 
     override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
-        if (::sessionManager.isInitialized && !sessionManager.privacyPolicy.blockForensicLogging) {
+        if (::sessionManager.isInitialized && !sessionManager.privacyPolicy.debugBlockForensicLogging) {
             val isImeVisible = androidx.core.view.ViewCompat.getRootWindowInsets(window.decorView)
                 ?.isVisible(WindowInsetsCompat.Type.ime()) == true
             if (isImeVisible) {
@@ -368,7 +368,7 @@ class MainActivity : ComponentActivity() {
         intent ?: return null
         
         // V2 SANDBOX GATING: If in Sandbox mode, block ALL inbound intents by default
-        if (::sessionManager.isInitialized && sessionManager.privacyPolicy.isSandboxEnabled && sessionManager.privacyPolicy.firewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID) {
+        if (::sessionManager.isInitialized && sessionManager.privacyPolicy.purgeSandboxEnabled && sessionManager.privacyPolicy.networkFirewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID) {
             AmnosLog.w("MainActivity", "INBOUND INTENT BLOCKED: Paranoid Sandbox Mode is ACTIVE.")
             return null
         }

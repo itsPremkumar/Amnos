@@ -3,48 +3,60 @@ apply plugin: 'kotlin-android'
 
 def enableReleaseMinify = project.findProperty("amnos.release.minify")?.toString()?.toBoolean() ?: false
 def securityDefaults = [
-    SECURITY_BLOCK_SCREENSHOTS            : "true",
-    SECURITY_ENFORCE_STRICT_POLICIES      : "true",
-    SECURITY_BLOCK_TRACKERS               : "true",
-    SECURITY_AGGRESSIVE_AD_BLOCKING       : "true",
-    SECURITY_HTTPS_ONLY                   : "true",
-    SECURITY_BLOCK_THIRD_PARTY_REQUESTS   : "true",
-    SECURITY_BLOCK_THIRD_PARTY_SCRIPTS    : "true",
-    SECURITY_BLOCK_INLINE_SCRIPTS         : "true",
-    SECURITY_STRIP_REFERRERS              : "true",
-    SECURITY_REMOVE_TRACKING_PARAMS       : "true",
-    SECURITY_BLOCK_WEBSOCKETS             : "true",
-    SECURITY_BLOCK_WEBRTC                 : "true",
-    SECURITY_BLOCK_DNS_PREFETCH           : "true",
-    SECURITY_BLOCK_PRECONNECT             : "true",
-    SECURITY_BLOCK_SERVICE_WORKERS        : "true",
-    SECURITY_BLOCK_EVAL                   : "true",
-    SECURITY_BLOCK_IPV6                   : "true",
-    SECURITY_ENFORCE_LOOPBACK_PROXY       : "true",
-    SECURITY_STRICT_FIRST_PARTY_ISOLATION : "true",
-    SECURITY_BLOCK_FORENSIC_LOGGING       : "true",
-    SECURITY_FINGERPRINT_LEVEL            : "STRICT",
-    SECURITY_FIREWALL_LEVEL               : "PARANOID",
-    SECURITY_SANDBOX_ENABLED              : "true",
-    SECURITY_ANTI_DEBUGGER                : "true",
-    SECURITY_ABSOLUTE_CLOAKING             : "true",
-    SECURITY_FORENSIC_RAM_SCRAMBLE        : "true",
-    SECURITY_LOCKDOWN_MODE                : "true",
-    SECURITY_BLOCK_REMOTE_DEBUGGING       : "true",
-    SECURITY_SESSION_TIMEOUT_MS           : "120000",
-    SECURITY_CAMOUFLAGE_PROFILE           : "CALCULATOR",
-    SECURITY_DECOY_UNLOCK_PIN             : "1111",
-    SECURITY_PANIC_GESTURE_ENABLED        : "true",
-    SECURITY_WIPE_ON_SCREEN_OFF           : "true",
-    SECURITY_WIPE_ON_BACKGROUND           : "true",
-    SECURITY_BACKGROUND_WIPE_DELAY_MS     : "5000",
-    SECURITY_DOH_URL                      : "https://1.1.1.1/dns-query",
-    SECURITY_BLOCK_UNSAFE_METHODS         : "false",
-    SECURITY_UA_TEMPLATE                  : "PIXEL_8",
-    SECURITY_JAVASCRIPT_MODE              : "RESTRICTED",
-    SECURITY_WEBGL_MODE                   : "DISABLED",
-    SECURITY_RESET_IDENTITY_ON_REFRESH    : "true",
-    SECURITY_BLOCK_LOCAL_NETWORK          : "true"
+    // STEALTH
+    STEALTH_CAMOUFLAGE_PROFILE           : "CALCULATOR",
+    STEALTH_ABSOLUTE_CLOAKING             : "true",
+    STEALTH_DECOY_UNLOCK_PIN             : "1111",
+
+    // PURGE
+    PURGE_SANDBOX_ENABLED                : "true",
+    PURGE_FORENSIC_RAM_SCRAMBLE          : "true",
+    PURGE_WIPE_ON_SCREEN_OFF             : "true",
+    PURGE_WIPE_ON_BACKGROUND             : "true",
+    PURGE_BACKGROUND_WIPE_DELAY_MS       : "5000",
+    PURGE_PANIC_GESTURE_ENABLED           : "true",
+
+    // NETWORK
+    NETWORK_FIREWALL_LEVEL               : "PARANOID",
+    NETWORK_HTTPS_ONLY                   : "true",
+    NETWORK_DOH_URL                      : "https://1.1.1.1/dns-query",
+    NETWORK_ENFORCE_LOOPBACK_PROXY       : "false",
+    NETWORK_BLOCK_LOCAL_NETWORK           : "true",
+    NETWORK_BLOCK_WEBRTC                 : "true",
+    NETWORK_BLOCK_IPV6                   : "true",
+    NETWORK_BLOCK_DNS_PREFETCH           : "true",
+    NETWORK_BLOCK_PRECONNECT             : "true",
+
+    // FILTER
+    FILTER_BLOCK_TRACKERS                : "true",
+    FILTER_AGGRESSIVE_AD_BLOCKING        : "true",
+    FILTER_BLOCK_THIRD_PARTY_REQUESTS    : "true",
+    FILTER_BLOCK_THIRD_PARTY_SCRIPTS     : "true",
+    FILTER_BLOCK_INLINE_SCRIPTS          : "false",
+    FILTER_BLOCK_EVAL                    : "true",
+    FILTER_BLOCK_SERVICE_WORKERS         : "true",
+    FILTER_BLOCK_WEBSOCKETS              : "true",
+    FILTER_REMOVE_TRACKING_PARAMS        : "true",
+    FILTER_STRIP_REFERRERS               : "true",
+    FILTER_STRICT_FIRST_PARTY_ISOLATION  : "true",
+    FILTER_BLOCK_UNSAFE_METHODS          : "false",
+
+    // IDENTITY
+    IDENTITY_UA_TEMPLATE                 : "PIXEL_8",
+    IDENTITY_RESET_ON_REFRESH            : "true",
+    IDENTITY_SESSION_TIMEOUT_MS          : "120000",
+
+    // HARDWARE
+    HARDWARE_FINGERPRINT_LEVEL           : "STRICT",
+    HARDWARE_WEBGL_MODE                  : "DISABLED",
+    HARDWARE_JAVASCRIPT_MODE             : "RESTRICTED",
+
+    // DEBUG
+    DEBUG_LOCKDOWN_MODE                  : "true",
+    DEBUG_ANTI_DEBUGGER                  : "true",
+    DEBUG_BLOCK_REMOTE_DEBUGGING         : "true",
+    DEBUG_BLOCK_FORENSIC_LOGGING         : "true",
+    DEBUG_BLOCK_SCREENSHOTS              : "true"
 ]
 
 def parseEnvLines(File envFile) {
@@ -101,11 +113,12 @@ android {
         def envValues = envFile.exists() ? parseEnvLines(envFile) : [:]
         securityDefaults.each { key, defaultValue ->
             def configuredValue = envValues.containsKey(key) ? envValues[key] : defaultValue
-            if (key == "SECURITY_FINGERPRINT_LEVEL" || key == "SECURITY_FIREWALL_LEVEL" || key == "SECURITY_CAMOUFLAGE_PROFILE" || key == "SECURITY_DECOY_UNLOCK_PIN" || 
-                key == "SECURITY_DOH_URL" || key == "SECURITY_UA_TEMPLATE" || key == "SECURITY_JAVASCRIPT_MODE" || key == "SECURITY_WEBGL_MODE") {
+            if (key in ["NETWORK_FIREWALL_LEVEL", "STEALTH_CAMOUFLAGE_PROFILE", "STEALTH_DECOY_UNLOCK_PIN", 
+                        "NETWORK_DOH_URL", "IDENTITY_UA_TEMPLATE", "HARDWARE_JAVASCRIPT_MODE", 
+                        "HARDWARE_WEBGL_MODE", "HARDWARE_FINGERPRINT_LEVEL"]) {
                 def escaped = configuredValue.replace("\\", "\\\\").replace("\"", "\\\"")
                 buildConfigField "String", key, "\"${escaped}\""
-            } else if (key == "SECURITY_SESSION_TIMEOUT_MS" || key == "SECURITY_BACKGROUND_WIPE_DELAY_MS") {
+            } else if (key in ["IDENTITY_SESSION_TIMEOUT_MS", "PURGE_BACKGROUND_WIPE_DELAY_MS"]) {
                 buildConfigField "long", key, "${configuredValue}L"
             } else {
                 buildConfigField "boolean", key, normalizeBooleanValue(key, configuredValue)

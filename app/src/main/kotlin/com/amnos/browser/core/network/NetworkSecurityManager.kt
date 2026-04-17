@@ -38,7 +38,7 @@ class NetworkSecurityManager(
         }
 
         val policy = policyProvider()
-        val finalUrl = if (policy.removeTrackingParameters) {
+        val finalUrl = if (policy.filterRemoveTrackingParams) {
             val sanitized = UrlSanitizer.sanitize(normalized)
             if (sanitized != normalized) {
                 AmnosLog.d("NetworkSecurity", "URL sanitized: Tracking parameters removed from '$normalized'")
@@ -77,7 +77,7 @@ class NetworkSecurityManager(
         }
 
         // 2. V2 PARANOID MODE FIREWALL (Whitelist only)
-        if (policy.firewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID) {
+        if (policy.networkFirewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID) {
             if (!DomainPolicyManager.isAllowed(urlStr)) {
                 AmnosLog.w("NetworkSecurity", "FIREWALL BLOCKED unknown domain in PARANOID mode: $urlStr")
                 return RequestDecision(
@@ -140,7 +140,7 @@ class NetworkSecurityManager(
 
     fun isTunnelAllowed(host: String, port: Int): Boolean {
         if (port <= 0 || port > 65535) return false
-        if (policyProvider().httpsOnlyEnabled && port == 80) return false
+        if (policyProvider().networkHttpsOnly && port == 80) return false
         return !ruleEngine.isLocalNetworkHost(host)
     }
 

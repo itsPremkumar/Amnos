@@ -31,8 +31,8 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var loadingProgress = mutableIntStateOf(0)
 
     var blockedTrackersCount = mutableIntStateOf(0)
-    var firewallLevel = mutableStateOf(sessionManager.privacyPolicy.firewallLevel)
-    var isSandboxEnabled = mutableStateOf(sessionManager.privacyPolicy.isSandboxEnabled)
+    var firewallLevel = mutableStateOf(sessionManager.privacyPolicy.networkFirewallLevel)
+    var isSandboxEnabled = mutableStateOf(sessionManager.privacyPolicy.purgeSandboxEnabled)
     var showSecurityDashboard = mutableStateOf(false)
     var blockedNavigationUrl = mutableStateOf<String?>(null)
     
@@ -42,9 +42,9 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     // RESTORED PROPERTIES
     var privacyPolicy = mutableStateOf(sessionManager.privacyPolicy)
-    var javaScriptMode = mutableStateOf(sessionManager.privacyPolicy.javascriptMode)
-    var isWebGLEnabled = mutableStateOf(sessionManager.privacyPolicy.webGlMode == com.amnos.browser.core.security.WebGlMode.SPOOF)
-    var fingerprintProtectionLevel = mutableStateOf(sessionManager.privacyPolicy.fingerprintProtectionLevel)
+    var javaScriptMode = mutableStateOf(sessionManager.privacyPolicy.hardwareJavascriptMode)
+    var isWebGLEnabled = mutableStateOf(sessionManager.privacyPolicy.hardwareWebGlMode == com.amnos.browser.core.security.WebGlMode.SPOOF)
+    var fingerprintProtectionLevel = mutableStateOf(sessionManager.privacyPolicy.hardwareFingerprintLevel)
     
     var showAccessibilityWarning = mutableStateOf(false)
     
@@ -62,9 +62,9 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var isLocked = mutableStateOf(false)
     var userPin = FingerprintManager.newUnlockPin()
     var pinInput = mutableStateOf("")
-    var enableRemoteDebugging = mutableStateOf(sessionManager.privacyPolicy.enableRemoteDebugging)
+    var blockRemoteDebugging = mutableStateOf(sessionManager.privacyPolicy.debugBlockRemoteDebugging)
     var forceRelaxSecurityForDebug = mutableStateOf(sessionManager.privacyPolicy.forceRelaxSecurityForDebug)
-    val debugControlsAvailable = BuildConfig.DEBUG
+    val debugControlsAvailable = !BuildConfig.DEBUG_LOCKDOWN_MODE
 
     var isDecoyVisible = mutableStateOf(false)
 
@@ -215,14 +215,14 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     fun setFirewallLevel(level: com.amnos.browser.core.security.FirewallLevel) {
         AmnosLog.d("BrowserViewModel", "Setting Firewall Level: $level")
-        sessionManager.updatePrivacyPolicy { it.copy(firewallLevel = level) }
+        sessionManager.updatePrivacyPolicy { it.copy(networkFirewallLevel = level) }
         firewallLevel.value = level
         refreshPolicyState()
     }
 
     fun toggleSandboxEnabled(enabled: Boolean) {
         AmnosLog.d("BrowserViewModel", "Toggling Sandbox Isolation: $enabled")
-        sessionManager.updatePrivacyPolicy { it.copy(isSandboxEnabled = enabled) }
+        sessionManager.updatePrivacyPolicy { it.copy(purgeSandboxEnabled = enabled) }
         isSandboxEnabled.value = enabled
         refreshPolicyState()
     }
@@ -367,14 +367,14 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
 
     internal fun refreshPolicyState() {
         privacyPolicy.value = sessionManager.privacyPolicy
-        javaScriptMode.value = sessionManager.privacyPolicy.javascriptMode
-        isWebGLEnabled.value = sessionManager.privacyPolicy.webGlMode == com.amnos.browser.core.security.WebGlMode.SPOOF
-        fingerprintProtectionLevel.value = sessionManager.privacyPolicy.fingerprintProtectionLevel
+        javaScriptMode.value = sessionManager.privacyPolicy.hardwareJavascriptMode
+        isWebGLEnabled.value = sessionManager.privacyPolicy.hardwareWebGlMode == com.amnos.browser.core.security.WebGlMode.SPOOF
+        fingerprintProtectionLevel.value = sessionManager.privacyPolicy.hardwareFingerprintLevel
         blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount()
-        enableRemoteDebugging.value = sessionManager.privacyPolicy.enableRemoteDebugging
+        blockRemoteDebugging.value = sessionManager.privacyPolicy.debugBlockRemoteDebugging
         forceRelaxSecurityForDebug.value = sessionManager.privacyPolicy.forceRelaxSecurityForDebug
-        firewallLevel.value = sessionManager.privacyPolicy.firewallLevel
-        isSandboxEnabled.value = sessionManager.privacyPolicy.isSandboxEnabled
+        firewallLevel.value = sessionManager.privacyPolicy.networkFirewallLevel
+        isSandboxEnabled.value = sessionManager.privacyPolicy.purgeSandboxEnabled
     }
 
     internal fun recreateCurrentTab() {

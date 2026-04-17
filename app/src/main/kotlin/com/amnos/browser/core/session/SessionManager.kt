@@ -101,10 +101,10 @@ class SessionManager private constructor(
         context.assets.open("FingerprintObfuscator.js").bufferedReader().use { it.readText() }
     }
 
-    init {
+        init {
         AmnosLog.attach { securityController }
         AmnosLog.d("SessionManager", "Initializing SessionManager")
-        securityController.setFingerprintLevel(privacyPolicy.fingerprintProtectionLevel)
+        securityController.setFingerprintLevel(privacyPolicy.hardwareFingerprintLevel)
         syncForensicLogging()
         try {
             KeyManager.generateSessionKey(context)
@@ -131,7 +131,7 @@ class SessionManager private constructor(
 
     fun touchSession() {
         mainHandler.removeCallbacks(timeoutRunnable)
-        mainHandler.postDelayed(timeoutRunnable, privacyPolicy.sessionTimeoutMillis)
+        mainHandler.postDelayed(timeoutRunnable, privacyPolicy.identitySessionTimeoutMs)
     }
 
     fun createTab(
@@ -233,10 +233,10 @@ class SessionManager private constructor(
 
     fun updatePrivacyPolicy(update: (PrivacyPolicy) -> PrivacyPolicy) {
         privacyPolicy = update(privacyPolicy).let { updated ->
-            if (BuildConfig.DEBUG) updated else updated.copy(enableRemoteDebugging = false, forceRelaxSecurityForDebug = false)
+            if (BuildConfig.DEBUG_LOCKDOWN_MODE) updated.copy(enableRemoteDebugging = false, forceRelaxSecurityForDebug = false) else updated
         }
 
-        securityController.setFingerprintLevel(privacyPolicy.fingerprintProtectionLevel)
+        securityController.setFingerprintLevel(privacyPolicy.hardwareFingerprintLevel)
         syncForensicLogging()
         configureProxy()
         tabs.forEach { tab ->
@@ -251,26 +251,26 @@ class SessionManager private constructor(
     }
 
     fun setJavaScriptMode(mode: JavaScriptMode) {
-        updatePrivacyPolicy { it.copy(javascriptMode = mode) }
+        updatePrivacyPolicy { it.copy(hardwareJavascriptMode = mode) }
     }
 
     fun setWebGlEnabled(enabled: Boolean) {
         updatePrivacyPolicy {
-            it.copy(webGlMode = if (enabled) WebGlMode.SPOOF else WebGlMode.DISABLED)
+            it.copy(hardwareWebGlMode = if (enabled) WebGlMode.SPOOF else WebGlMode.DISABLED)
         }
     }
 
     fun setFingerprintProtectionLevel(level: FingerprintProtectionLevel) {
         updatePrivacyPolicy { current ->
             current.copy(
-                fingerprintProtectionLevel = level,
-                webGlMode = when (level) {
+                hardwareFingerprintLevel = level,
+                hardwareWebGlMode = when (level) {
                     FingerprintProtectionLevel.STRICT -> WebGlMode.DISABLED
                     FingerprintProtectionLevel.DISABLED -> WebGlMode.SPOOF // Allow WebGL if not strict/disabled (spoof is safer than raw but works)
-                    else -> current.webGlMode
+                    else -> current.hardwareWebGlMode
                 },
-                blockInlineScripts = if (level == FingerprintProtectionLevel.STRICT) true else current.blockInlineScripts,
-                strictFirstPartyIsolation = level != FingerprintProtectionLevel.DISABLED
+                filterBlockInlineScripts = if (level == FingerprintProtectionLevel.STRICT) true else current.filterBlockInlineScripts,
+                filterStrictFirstPartyIsolation = level != FingerprintProtectionLevel.DISABLED
             )
         }
     }
@@ -305,7 +305,7 @@ class SessionManager private constructor(
     }
 
     fun shouldRecreateForTopLevelNavigation(tab: TabInstance, nextUrl: String): Boolean {
-        if (!privacyPolicy.strictFirstPartyIsolation) {
+        if (!privacyPolicy.filterStrictFirstPartyIsolation) {
             return false
         }
         if (tab.currentUrl.isNullOrBlank()) {
@@ -333,7 +333,7 @@ class SessionManager private constructor(
             AmnosLog.w("SessionManager", "Failed to post wipe to main thread. Continuing inline as a fallback.")
         }
 
-        val shouldTerminate = terminateProcess || privacyPolicy.firewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID
+        val shouldTerminate = terminateProcess || privacyPolicy.networkFirewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID
         val now = SystemClock.elapsedRealtime()
         if (!shouldTerminate && now - lastWipeElapsedRealtime < wipeDebounceMs) {
             AmnosLog.w("SessionManager", "Wipe request ignored because a recent wipe already completed.")
@@ -365,7 +365,7 @@ class SessionManager private constructor(
             return
         }
 
-        if (!privacyPolicy.enforceLoopbackProxy || !WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+        if (!privacyPolicy.networkEnforceLoopbackProxy || !WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
             loopbackProxyServer.stop()
             clearProxyOverride()
             securityController.updateProxyStatus(active = false, dohGlobal = false, port = null)
@@ -447,8 +447,8 @@ class SessionManager private constructor(
     }
 
     private fun syncForensicLogging() {
-        val allowSystemLogging = !privacyPolicy.blockForensicLogging
-        securityController.setForensicLoggingBlocked(privacyPolicy.blockForensicLogging)
+        val allowSystemLogging = !privacyPolicy.debugBlockForensicLogging
+        securityController.setForensicLoggingBlocked(privacyPolicy.debugBlockForensicLogging)
         AmnosLog.setSystemLoggingAllowed(allowSystemLogging)
     }
 }

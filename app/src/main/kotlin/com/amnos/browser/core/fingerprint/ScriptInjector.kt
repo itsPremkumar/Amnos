@@ -42,30 +42,30 @@ class ScriptInjector(
         root.put("gpuRenderer", profile.gpuRenderer)
 
         val policyObj = JSONObject()
-        policyObj.put("blockInlineScripts", policy.blockInlineScripts)
-        policyObj.put("blockWebSockets", policy.blockWebSockets)
-        policyObj.put("allowFirstPartyWebSockets", policy.allowFirstPartyWebSockets)
-        policyObj.put("blockWebRtc", policy.blockWebRtc)
-        policyObj.put("blockDnsPrefetch", policy.blockDnsPrefetch)
-        policyObj.put("blockPreconnect", policy.blockPreconnect)
-        policyObj.put("blockEval", policy.blockEval)
-        policyObj.put("blockServiceWorkers", policy.blockServiceWorkers)
-        policyObj.put("webGlDisabled", policy.webGlMode == WebGlMode.DISABLED)
-        policyObj.put("strictFirstPartyIsolation", policy.strictFirstPartyIsolation)
-        policyObj.put("fingerprintLevel", policy.fingerprintProtectionLevel.name)
-        policyObj.put("firewallLevel", policy.firewallLevel.name)
+        policyObj.put("blockInlineScripts", policy.filterBlockInlineScripts)
+        policyObj.put("blockWebSockets", policy.filterBlockWebSockets)
+        policyObj.put("allowFirstPartyWebSockets", false)
+        policyObj.put("blockWebRtc", policy.networkBlockWebRtc)
+        policyObj.put("blockDnsPrefetch", policy.networkBlockDnsPrefetch)
+        policyObj.put("blockPreconnect", policy.networkBlockPreconnect)
+        policyObj.put("blockEval", policy.filterBlockEval)
+        policyObj.put("blockServiceWorkers", policy.filterBlockServiceWorkers)
+        policyObj.put("webGlDisabled", policy.hardwareWebGlMode == WebGlMode.DISABLED)
+        policyObj.put("strictFirstPartyIsolation", policy.filterStrictFirstPartyIsolation)
+        policyObj.put("fingerprintLevel", policy.hardwareFingerprintLevel.name)
+        policyObj.put("firewallLevel", policy.networkFirewallLevel.name)
         policyObj.put(
             "timingResolutionMs",
-            when (policy.firewallLevel) {
+            when (policy.networkFirewallLevel) {
                 com.amnos.browser.core.security.FirewallLevel.PARANOID -> 200
-                else -> if (policy.fingerprintProtectionLevel == FingerprintProtectionLevel.STRICT) 100 else 16
+                else -> if (policy.hardwareFingerprintLevel == FingerprintProtectionLevel.STRICT) 100 else 16
             }
         )
         policyObj.put(
             "timingJitterMs",
-            when (policy.firewallLevel) {
+            when (policy.networkFirewallLevel) {
                 com.amnos.browser.core.security.FirewallLevel.PARANOID -> 50
-                else -> if (policy.fingerprintProtectionLevel == FingerprintProtectionLevel.STRICT) 12 else 3
+                else -> if (policy.hardwareFingerprintLevel == FingerprintProtectionLevel.STRICT) 12 else 3
             }
         )
         root.put("policy", policyObj)

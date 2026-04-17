@@ -51,13 +51,13 @@ object FingerprintManager {
         tabId: String,
         policy: PrivacyPolicy
     ): DeviceProfile {
-        val level = policy.fingerprintProtectionLevel
+        val level = policy.hardwareFingerprintLevel
         val sessionRandom = seededRandom(sessionId)
         val tabRandom = seededRandom(sessionId, tabId)
 
         val template = when {
-            policy.uaTemplate.isNotEmpty() && policy.uaTemplate != "RANDOM" -> {
-                when (policy.uaTemplate.uppercase()) {
+            policy.identityUaTemplate.isNotEmpty() && policy.identityUaTemplate != "RANDOM" -> {
+                when (policy.identityUaTemplate.uppercase()) {
                     "PIXEL_8" -> FingerprintRegistry.androidTemplates[0]
                     "S23" -> FingerprintRegistry.androidTemplates[1]
                     "ONEPLUS" -> FingerprintRegistry.androidTemplates[2]

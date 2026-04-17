@@ -1,132 +1,83 @@
-# Amnos Master Configuration Guide (`.env`)
+# AMNOS LOGICAL SECURITY CONFIGURATION (V3.3)
 
-This document provides a comprehensive breakdown of every configuration switch available in the `.env` file. These settings control the core security, privacy, and forensic posture of the Amnos Browser.
-
----
-
-## 🛠️ Configuration Profiles
-
-Use these profiles as templates for your `.env` file depending on your mission.
-
-### 1. 👻 The "GHOST" Setup (Ultra-Paranoid)
-*Maximum isolation, zero persistent residue. Expect many websites to break.*
-
-| Section | Key | Value | Rationale |
-| :--- | :--- | :--- | :--- |
-| **Integrity** | `SECURITY_FIREWALL_LEVEL` | `PARANOID` | Blocks all unknown domains by default. |
-| **Integrity** | `SECURITY_SANDBOX_ENABLED` | `true` | Enables Intent Jail and Forensic Wipes. |
-| **Logic** | `SECURITY_BLOCK_THIRD_PARTY_SCRIPTS` | `true` | Prevents cross-site tracking execution. |
-| **Network** | `SECURITY_BLOCK_UNSAFE_METHODS` | `true` | Read-only mode; prevents form/login data leakage. |
-| **Stealth** | `SECURITY_ABSOLUTE_CLOAKING` | `true` | Hidden from Android Task Manager. |
-| **Purge** | `SECURITY_WIPE_ON_BACKGROUND` | `true` | Instant RAM nuke wn multitasking. |
-he
-### 2. 🛡️ Standard Privacy (Daily Driver)
-*Highest privacy while maintaining compatibility with modern websites (YouTube, etc.).*
-
-| Section | Key | Value | Rationale |
-| :--- | :--- | :--- | :--- |
-| **Integrity** | `SECURITY_FIREWALL_LEVEL` | `BALANCED` | Allows navigation while keeping tracker shields active. |
-| **Integrity** | `SECURITY_SANDBOX_ENABLED` | `true` | System isolation remains active. |
-| **Engine** | `SECURITY_JAVASCRIPT_MODE` | `RESTRICTED` | Disables invasive JS APIs but kept for site logic. |
-| **Fingerprint**| `SECURITY_FINGERPRINT_LEVEL` | `STRICT` | Uses high-entropy noise for Canvas/Audio/WebGL. |
-| **Risky** | `SECURITY_BLOCK_THIRD_PARTY_SCRIPTS`| `false` | Required for CDNs (scripts from Cloudflare/Google). |
-
-### 3. 🔧 Developer / Debugging Mode
-*Mandatory settings for using Android Studio, Logcat, or Chrome DevTools.*
-
-| Section | Key | Value | Rationale |
-| :--- | :--- | :--- | :--- |
-| **Lockdown** | `SECURITY_LOCKDOWN_MODE` | `false` | Disables Anti-Debugger self-destruct. |
-| **Lockdown** | `SECURITY_ANTI_DEBUGGER` | `false` | Allows ADB attachment. |
-| **Logging** | `SECURITY_BLOCK_FORENSIC_LOGGING`| `false` | Enables system Logcat output. |
-| **Capture** | `SECURITY_BLOCK_SCREENSHOTS` | `false` | Allows taking screenshots for debugging. |
-| **DevTools** | `SECURITY_BLOCK_REMOTE_DEBUGGING`| `false` | Enables `chrome://inspect` on PC. |
+Amnos uses a tiered security model split into 7 logical clusters. This separation ensures that "Network" rules don't interfere with "Stealth" policies, and "Hardware" masking remains independent of "Identity" spoofing.
 
 ---
 
-## 🛡️ DETAILED KEY REFERENCE
+## 👻 Cluster 1: STEALTH (Passive Defense)
+Controls how the app hides itself from local physical observation.
 
-### Section 1: Core Integrity & Sandbox
-*Focus: Runtime environment security.*
-
-| Key | Type | Risk | Description |
-| :--- | :--- | :--- | :--- |
-| `SECURITY_FIREWALL_LEVEL` | Enum | Low | `PARANOID`: Whitelist-only navigation. `BALANCED`: Standard browsing. |
-| `SECURITY_SANDBOX_ENABLED` | Bool | Low | Master toggle for Intent Jail, Forensic Wipes, and System isolation. |
-| `SECURITY_ENFORCE_STRICT_POLICIES` | Bool | Med | If true, minor policy violations will trigger app termination. |
-| `SECURITY_ANTI_DEBUGGER` | Bool | **HIGH** | If true, app kills itself if ADB or debugger is detected. |
-| `SECURITY_ABSOLUTE_CLOAKING` | Bool | Med | Completely removes the app from the "Recents" screen. |
-
-### Section 2: Developer Cockpit
-*Focus: Debugging and Local Hardware exposure.*
-
-| Key | Type | Risk | Description |
-| :--- | :--- | :--- | :--- |
-| `SECURITY_LOCKDOWN_MODE` | Bool | **HIGH** | Master switch. If true, all developer features are physically fused. |
-| `SECURITY_BLOCK_FORENSIC_LOGGING` | Bool | Low | Prevents sensitive URLs from appearing in system Logcat. |
-| `SECURITY_BLOCK_SCREENSHOTS` | Bool | Low | Enforces `FLAG_SECURE` to block OS-level screen capture. |
-| `SECURITY_BLOCK_REMOTE_DEBUGGING` | Bool | Low | Specifically controls WebView remote inspection. |
-
-### Section 3: Network Isolation
-*Focus: Data in transit and IP leak protection.*
-
-| Key | Type | Risk | Description |
-| :--- | :--- | :--- | :--- |
-| `SECURITY_HTTPS_ONLY` | Bool | Safe | Blocks all plain HTTP traffic. Mandatory for production. |
-| `SECURITY_BLOCK_WEBRTC` | Bool | Safe | Prevents IP leakage via STUN/TURN (breaks video chat). |
-| `SECURITY_DOH_URL` | String | Safe | URL for DNS-over-HTTPS resolution (e.g., Cloudflare/NextDNS). |
-| `SECURITY_BLOCK_UNSAFE_METHODS` | Bool | Med | Blocks POST/PUT/DELETE. Only GET/HEAD allowed. |
-| `SECURITY_BLOCK_LOCAL_NETWORK` | Bool | Safe | Blocks access to loops/LAN (Prevents cross-device scanning). |
-
-### Section 5: Anti-Fingerprinting
-*Focus: Identity obfuscation.*
-
-| Key | Type | Risk | Description |
-| :--- | :--- | :--- | :--- |
-| `SECURITY_FINGERPRINT_LEVEL` | Enum | Med | `STRICT` (randomized noise) or `BALANCED` (device templates). |
-| `SECURITY_UA_TEMPLATE` | Enum | Low | Pick Profile: `PIXEL_8`, `S23`, `ONEPLUS`. |
-| `SECURITY_SESSION_TIMEOUT_MS` | Long | Safe | Auto-wipe timer for idle sessions. Default 120,000ms. |
-
-### Section 6: Experimental & Risky (Site Breaking)
-*Focus: Paranoid script/resource blocking.*
-
-> [!CAUTION]
-> These settings ARE NOT RECOMMENDED for daily browsing as they will break 90% of the modern web (logins, interactive UI, CDNs).
-
-| Key | Type | Risk | Description |
-| :--- | :--- | :--- | :--- |
-| `SECURITY_BLOCK_THIRD_PARTY_SCRIPTS` | Bool | **STRICT** | Blocks scripts not on the primary domain. (Breaks Google/FB logins). |
-| `SECURITY_BLOCK_INLINE_SCRIPTS` | Bool | **STRICT** | Blocks scripts embedded in HTML. (Breaks most UI frameworks). |
-| `SECURITY_ENFORCE_LOOPBACK_PROXY` | Bool | Exp | Forces traffic through a local `127.0.0.1` tunnel. |
-| `SECURITY_JAVASCRIPT_MODE` | Enum | Med | `RESTRICTED` (blocks sensors/battery/WebRTC) or `DISABLED`. |
-
-### Section 7: Forensic Purge & Stealth
-*Focus: Post-session data destruction.*
-
-| Key | Type | Risk | Description |
-| :--- | :--- | :--- | :--- |
-| `SECURITY_FORENSIC_RAM_SCRAMBLE` | Bool | Safe | Overwrites RAM buffers with noise before clearing. |
-| `SECURITY_PANIC_GESTURE_ENABLED` | Bool | **HIGH** | Double Volume-Down instantly wipes the entire app state. |
-| `SECURITY_CAMOUFLAGE_PROFILE` | Enum | Med | Disguises the app icon/label as `CALCULATOR` or `WEATHER`. |
-| `SECURITY_DECOY_UNLOCK_PIN` | String | Med | Master PIN to reveal the browser from behind the Decoy UI. |
+| Key | Value/Level | Description |
+| :--- | :--- | :--- |
+| `STEALTH_CAMOUFLAGE_PROFILE` | `CALCULATOR` | Changes the app icon and name to a decoy calculator. |
+| `STEALTH_ABSOLUTE_CLOAKING` | `true` | The app is completely hidden from the Android "Recent Apps" list. |
+| `STEALTH_DECOY_UNLOCK_PIN` | `String` | PIN used to access the disguised app. |
 
 ---
 
-## 📋 MANDATORY DEBUGGING CHECKLIST
+## 🧹 Cluster 2: PURGE (Active Defense)
+Controls the destruction of session data and memory scrambling.
 
-If you are developing or debugging Amnos, ensure your `.env` is updated as follows:
-
-1.  Set `SECURITY_LOCKDOWN_MODE=false`
-2.  Set `SECURITY_ANTI_DEBUGGER=false`
-3.  Set `SECURITY_BLOCK_FORENSIC_LOGGING=false`
-4.  Set `SECURITY_BLOCK_REMOTE_DEBUGGING=false` (If you need Chrome DevTools)
-5.  Set `SECURITY_BLOCK_SCREENSHOTS=false` (If you need to capture logs/UI)
+| Key | Value/Level | Description |
+| :--- | :--- | :--- |
+| `PURGE_SANDBOX_ENABLED` | `true` | Enables system-level isolation and Intent Jail. |
+| `PURGE_FORENSIC_RAM_SCRAMBLE` | `true` | Overwrites RAM with garbage data before session termination. |
+| `PURGE_WIPE_ON_SCREEN_OFF` | `true` | Deletes the active session as soon as the screen is locked. |
+| `PURGE_PANIC_GESTURE_ENABLED` | `true` | Enables the Volume-Down double-click to instantly kill the app and wipe data. |
 
 ---
 
-## 🧭 LEGEND
+## 🛡️ Cluster 3: NETWORK ENGINE (Protocols)
+Defines the "Pipe" or encryption layer for all web traffic.
 
-- **Safe**: Highly recommended, minimal site breakage.
-- **Med**: Some site breakage possible (e.g., video chat, specific UI).
-- **Exp / Med**: Unstable, may cause connection drops or weird behavior.
-- **HIGH / STRICT**: Will cause massive breakage; intended for high-threat scenarios only.
+| Key | Value/Level | Description |
+| :--- | :--- | :--- |
+| `NETWORK_FIREWALL_LEVEL` | `PARANOID` | `PARANOID`: Whitelist-only. `BALANCED`: Regular navigation. |
+| `NETWORK_HTTPS_ONLY` | `true` | Strictly blocks all non-HTTPS (cleartext) traffic. |
+| `NETWORK_DOH_URL` | `URL` | The DNS-over-HTTPS provider used to hide queries from ISPs. |
+| `NETWORK_BLOCK_WEBRTC` | `true` | Prevents IP leakage via WebRTC STUN/TURN requests. |
+
+---
+
+## 🕵️ Cluster 4: PRIVACY FILTER (Content)
+Defines "What" is allowed to travel through the network pipe.
+
+| Key | Value/Level | Description |
+| :--- | :--- | :--- |
+| `FILTER_BLOCK_TRACKERS` | `true` | Blocks 50k+ known tracking and data-mining domains. |
+| `FILTER_AGGRESSIVE_AD_BLOCKING`| `true` | Removes cosmetic ads and popups. |
+| `FILTER_REMOVE_TRACKING_PARAMS`| `true` | Strips `?utm_source=...` and similar junk from URLs. |
+| `FILTER_BLOCK_SERVICE_WORKERS` | `true` | Prevents background site execution. |
+
+---
+
+## 🎭 Cluster 5: IDENTITY (Spoofing)
+Defines who the browser "Claims to Be" to websites.
+
+| Key | Value/Level | Description |
+| :--- | :--- | :--- |
+| `IDENTITY_UA_TEMPLATE` | `PIXEL_8` | Spoofs the User-Agent to match a specific device profile. |
+| `IDENTITY_RESET_ON_REFRESH` | `true` | Changes sub-identifiers every time a page is reloaded. |
+| `IDENTITY_SESSION_TIMEOUT_MS` | `Number` | Automatically wipes everything after X milliseconds of inactivity. |
+
+---
+
+## ⚙️ Cluster 6: HARDWARE (Technical Masking)
+How your real hardware behaves and leaks unique entropy.
+
+| Key | Value/Level | Description |
+| :--- | :--- | :--- |
+| `HARDWARE_FINGERPRINT_LEVEL` | `STRICT` | Adds noise to Canvas, Audio, and GPU signatures. |
+| `HARDWARE_WEBGL_MODE` | `DISABLED`| Disables GPU surfaces to prevent profiling. |
+| `HARDWARE_JAVASCRIPT_MODE` | `RESTRICTED` | Disables invasive JS APIs like `battery` or `bluetooth`. |
+
+---
+
+## 🔧 Cluster 7: DEBUGGER & LOGGING
+Controls for technical auditing and preventing external inspection.
+
+| Key | Value/Level | Description |
+| :--- | :--- | :--- |
+| `DEBUG_LOCKDOWN_MODE` | `true` | If true, all developer backdoors (ADB, Remote Debug) are disabled. |
+| `DEBUG_ANTI_DEBUGGER` | `true` | App kills itself if a debugger or emulator is detected. |
+| `DEBUG_BLOCK_SCREENSHOTS` | `true` | Prevents Android System from taking screenshots or screen recordings. |

@@ -109,14 +109,14 @@ fun SecurityControlsGroup(viewModel: BrowserViewModel) {
         SecurityToggle(
             title = "HTTPS Enforcement",
             description = "Blocks all insecure cleartext traffic.",
-            checked = policy.httpsOnlyEnabled,
+            checked = policy.networkHttpsOnly,
             onCheckedChange = viewModel::toggleHttpsOnly
         )
 
         SecurityToggle(
             title = "Siloed Identifiers",
             description = "Aggressive first-party isolation for all state.",
-            checked = policy.strictFirstPartyIsolation,
+            checked = policy.filterStrictFirstPartyIsolation,
             onCheckedChange = viewModel::toggleStrictFirstPartyIsolation
         )
 

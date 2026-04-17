@@ -28,7 +28,7 @@ class SecurityHandler(
 
     fun toggleHttpsOnly(enabled: Boolean) {
         AmnosLog.i("SecurityHandler", "Policy Update: HTTPS-only toggled to $enabled")
-        sessionManager.updatePrivacyPolicy { it.copy(httpsOnlyEnabled = enabled) }
+        sessionManager.updatePrivacyPolicy { it.copy(networkHttpsOnly = enabled) }
         viewModel.refreshPolicyState()
         viewModel.reload()
     }
@@ -37,8 +37,8 @@ class SecurityHandler(
         AmnosLog.i("SecurityHandler", "Policy Update: Third-party blocking toggled to $enabled")
         sessionManager.updatePrivacyPolicy {
             it.copy(
-                blockThirdPartyRequests = enabled,
-                blockThirdPartyScripts = enabled
+                filterBlockThirdPartyRequests = enabled,
+                filterBlockThirdPartyScripts = enabled
             )
         }
         viewModel.refreshPolicyState()
@@ -48,12 +48,12 @@ class SecurityHandler(
     fun toggleInlineScriptBlocking(enabled: Boolean) {
         sessionManager.updatePrivacyPolicy {
             it.copy(
-                blockInlineScripts = enabled,
-                blockEval = enabled,
-                javascriptMode = if (enabled && it.javascriptMode == JavaScriptMode.FULL) {
+                filterBlockInlineScripts = enabled,
+                filterBlockEval = enabled,
+                hardwareJavascriptMode = if (enabled && it.hardwareJavascriptMode == JavaScriptMode.FULL) {
                     JavaScriptMode.RESTRICTED
                 } else {
-                    it.javascriptMode
+                    it.hardwareJavascriptMode
                 }
             )
         }
@@ -62,31 +62,32 @@ class SecurityHandler(
     }
 
     fun toggleResetIdentityOnRefresh(enabled: Boolean) {
-        sessionManager.updatePrivacyPolicy { it.copy(resetIdentityOnRefresh = enabled) }
+        sessionManager.updatePrivacyPolicy { it.copy(identityResetOnRefresh = enabled) }
         viewModel.refreshPolicyState()
     }
 
     fun toggleStrictFirstPartyIsolation(enabled: Boolean) {
-        sessionManager.updatePrivacyPolicy { it.copy(strictFirstPartyIsolation = enabled) }
+        sessionManager.updatePrivacyPolicy { it.copy(filterStrictFirstPartyIsolation = enabled) }
         viewModel.refreshPolicyState()
     }
 
     fun toggleWebSockets(enabled: Boolean) {
-        sessionManager.updatePrivacyPolicy { it.copy(blockWebSockets = enabled) }
+        sessionManager.updatePrivacyPolicy { it.copy(filterBlockWebSockets = enabled) }
         viewModel.refreshPolicyState()
         viewModel.reload()
     }
 
     fun toggleRemoteDebugging(enabled: Boolean) {
-        if (!BuildConfig.DEBUG) {
+        if (com.amnos.browser.BuildConfig.DEBUG_LOCKDOWN_MODE) {
             sessionManager.securityController.logInternal(
                 "[Diagnostics:RemoteDebugging]",
-                "Ignored remote debugging toggle outside debug builds.",
+                "Ignored remote debugging toggle while Lockdown Mode is ACTIVE.",
                 "WARN"
             )
             return
         }
-        sessionManager.updatePrivacyPolicy { it.copy(enableRemoteDebugging = enabled) }
+        // Inverting logic: enabled=true means blockRemoteDebugging=false
+        sessionManager.updatePrivacyPolicy { it.copy(debugBlockRemoteDebugging = !enabled) }
         viewModel.refreshPolicyState()
         try {
             android.webkit.WebView.setWebContentsDebuggingEnabled(enabled)
@@ -97,10 +98,10 @@ class SecurityHandler(
     }
 
     fun toggleForceRelaxSecurity(enabled: Boolean) {
-        if (!BuildConfig.DEBUG) {
+        if (com.amnos.browser.BuildConfig.DEBUG_LOCKDOWN_MODE) {
             sessionManager.securityController.logInternal(
                 "[Diagnostics:RelaxedMode]",
-                "Ignored relaxed security toggle outside debug builds.",
+                "Ignored relaxed security toggle while Lockdown Mode is ACTIVE.",
                 "WARN"
             )
             return

@@ -40,7 +40,7 @@ class PrivacyWebViewClient(
         // 1. INTENT JAIL: Force all navigation to stay within the secure browser.
         val policy = policyProvider()
         if (scheme != "http" && scheme != "https") {
-            val level = if (policy.firewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID) "CRITICAL" else "WARN"
+            val level = if (policy.networkFirewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID) "CRITICAL" else "WARN"
             AmnosLog.w("PrivacyWebViewClient", "INTENT JAIL: Blocked escape attempt to scheme: $scheme ($level)")
             securityController.logInternal("SecurityJail", "Blocked external app launch: $scheme", level)
             return true // Block the navigation
@@ -107,7 +107,7 @@ class PrivacyWebViewClient(
                     thirdParty = decision.thirdParty
                 )
                 
-                if (!policyProvider().blockForensicLogging) {
+                if (!policyProvider().debugBlockForensicLogging) {
                     AmnosLog.v("PrivacyWebViewClient", "Interception SUCCESS (Proxied): ${request.method} ${decision.sanitizedUrl}")
                 }
                 return proxiedResponse
