@@ -28,26 +28,34 @@ object FingerprintManager {
             policy.identityUaTemplate.uppercase() == "DYNAMIC" -> {
                 FingerprintRegistry.generateDynamicTemplate(tabSeed)
             }
-            policy.identityUaTemplate.isNotEmpty() && policy.identityUaTemplate != "RANDOM" -> {
-                when (policy.identityUaTemplate.uppercase()) {
+            policy.identityUaTemplate.isNotEmpty() -> {
+                val found = when (policy.identityUaTemplate.uppercase()) {
                     "PIXEL_8" -> FingerprintRegistry.androidTemplates[0]
-                    else -> FingerprintRegistry.androidTemplates.first()
+                    "S24" -> FingerprintRegistry.androidTemplates[1]
+                    "S23" -> FingerprintRegistry.androidTemplates[2]
+                    "ONEPLUS" -> FingerprintRegistry.androidTemplates[3]
+                    "PIXEL_7A" -> FingerprintRegistry.androidTemplates[4]
+                    "NOTHING" -> FingerprintRegistry.androidTemplates[5]
+                    "XIAOMI" -> FingerprintRegistry.androidTemplates[6]
+                    "XPERIA" -> FingerprintRegistry.androidTemplates[7]
+                    "GENERIC" -> FingerprintRegistry.androidTemplates[8]
+                    else -> null
                 }
+                found ?: FingerprintRegistry.androidTemplates[abs(sessionRandom.nextInt()) % FingerprintRegistry.androidTemplates.size]
             }
-            level == FingerprintProtectionLevel.BALANCED -> FingerprintRegistry.androidTemplates[abs(sessionRandom.nextInt()) % FingerprintRegistry.androidTemplates.size]
-            else -> FingerprintRegistry.androidTemplates.first()
+            else -> FingerprintRegistry.androidTemplates[abs(sessionRandom.nextInt()) % FingerprintRegistry.androidTemplates.size]
         }
 
         val locale = when (level) {
             FingerprintProtectionLevel.BALANCED -> FingerprintRegistry.balancedLocalePresets[abs(tabSeed) % FingerprintRegistry.balancedLocalePresets.size]
-            FingerprintProtectionLevel.STRICT -> FingerprintRegistry.strictLocalePreset
+            FingerprintProtectionLevel.STRICT, FingerprintProtectionLevel.TITAN -> FingerprintRegistry.strictLocalePreset
             else -> FingerprintRegistry.balancedLocalePresets.first()
         }
 
         val baseUa = template.userAgents.first()
         val finalUserAgent = jitterUserAgent(baseUa, tabSeed)
 
-        AmnosLog.i("FingerprintManager", "IDENTITY DYNAMICS: [${policy.identityUaTemplate}] -> Profile synthesized for Tab ${tabId.take(4)}")
+        AmnosLog.i("FingerprintManager", "IDENTITY LOCK: [${policy.identityUaTemplate}] -> Masking as ${template.gpuRenderer}")
 
         return DeviceProfile(
             sessionId = sessionId,
@@ -68,13 +76,9 @@ object FingerprintManager {
 
     private fun jitterUserAgent(base: String, seed: Int): String {
         val rand = Random(seed)
-        // Mozilla/5.0 (Linux; Android 14; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36
-        
+        // Mobile-only jittering
         return base.replace(Regex("Chrome/[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+")) {
-            val major = 120 + rand.nextInt(5)
-            val patch = 4000 + rand.nextInt(1000)
-            val build = 10 + rand.nextInt(90)
-            "Chrome/$major.0.$patch.$build"
+            "Chrome/${120 + rand.nextInt(5)}.0.${4000 + rand.nextInt(1000)}.${rand.nextInt(100)}"
         }.replace(Regex("AppleWebKit/[0-9]+\\.[0-9]+")) {
             "AppleWebKit/537.${30 + rand.nextInt(10)}"
         }
