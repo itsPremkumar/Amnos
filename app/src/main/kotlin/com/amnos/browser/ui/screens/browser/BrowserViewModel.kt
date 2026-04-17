@@ -251,14 +251,25 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
                 
                 // DETACH UI FIRST: Force Compose to remove the WebView from the window tree
                 currentTab.value = null
-                delay(120) // Frame buffer to ensure detactment
+                delay(150) // Increased frame buffer for detachment
                 
+                // Trigger the core wipe
                 sessionManager.killAll(terminateProcess = false)
-                delay(1100) // Allow remaining animation to play
+                
+                // Allow animation and background wipe to finish
+                delay(1500) 
+                
+                // Re-initialize for next use
                 initializeSession()
+                
+                // Final UI state normalization
+                uiState.value = BrowserUIState.HOME
+                urlInput.value = ""
+                AmnosLog.i("BrowserUI", "Session Purge Complete. Returned to Home.")
             } catch (e: Exception) {
                 AmnosLog.e("BrowserUI", "FATAL error during UI wipe sequence", e)
             } finally {
+                delay(500) // Keep overlay for a moment for visual confirmation
                 isBurning.value = false
             }
         }
@@ -292,7 +303,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         uiState.value = BrowserUIState.HOME
         canGoBack.value = false
         canGoForward.value = false
-        isBurning.value = false
+        // Note: isBurning is managed by the trigger source to allow animations to complete
         loadingProgress.intValue = 0
         blockedTrackersCount.intValue = 0
         sessionLabel.value = ""
@@ -301,6 +312,9 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         pinInput.value = ""
         webKeyboardRequested.value = false
         pendingAddressBarValue = null
+        showSecurityDashboard.value = false
+        blockedNavigationUrl.value = null
+        showAccessibilityWarning.value = false
     }
 
     internal fun refreshPolicyState() {

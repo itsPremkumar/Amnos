@@ -58,7 +58,7 @@ class SessionManager private constructor(
     private val wipeDebounceMs = 5_000L
     private val timeoutRunnable = Runnable { timeoutListener?.invoke() }
     private var timeoutListener: (() -> Unit)? = null
-    private var onSessionWiped: (() -> Unit)? = null
+    private val onSessionWipedListeners = mutableListOf<() -> Unit>()
     private var activeSessionId: String = FingerprintManager.newSessionId()
     private var lastWipeElapsedRealtime: Long = 0L
 
@@ -87,7 +87,7 @@ class SessionManager private constructor(
                 configureProxy()
             },
             onWipeCompleted = {
-                onSessionWiped?.invoke()
+                onSessionWipedListeners.forEach { it.invoke() }
             }
         )
     }
@@ -126,7 +126,7 @@ class SessionManager private constructor(
     }
 
     fun registerWipeListener(listener: () -> Unit) {
-        onSessionWiped = listener
+        onSessionWipedListeners.add(listener)
     }
 
     fun touchSession() {
