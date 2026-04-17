@@ -10,8 +10,24 @@ import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.Proxy
 import java.util.concurrent.TimeUnit
+import kotlin.random.Random
 
 object DnsManager {
+    private val DOH_POOL = listOf(
+        "https://1.1.1.1/dns-query",      // Cloudflare
+        "https://dns.google/dns-query",   // Google
+        "https://9.9.9.9/dns-query",      // Quad9
+        "https://doh.mullvad.net/dns-query", // Mullvad
+        "https://doh.mullvad.net/dns-query"  // Mullvad (Retry/Weight)
+    )
+
+    private val BOOTSTRAP_POOL = mapOf(
+        "1.1.1.1" to listOf("1.1.1.1", "1.0.0.1"),
+        "dns.google" to listOf("8.8.8.8", "8.8.4.4"),
+        "9.9.9.9" to listOf("9.9.9.9", "149.112.112.112"),
+        "doh.mullvad.net" to listOf("194.242.2.2")
+    )
+
     @Volatile
     private var bootstrapClient = OkHttpClient.Builder()
         .proxy(Proxy.NO_PROXY)
@@ -22,18 +38,30 @@ object DnsManager {
     private var dnsOverHttps: Dns = createDnsOverHttps(bootstrapClient)
 
     private fun createDnsOverHttps(client: OkHttpClient): Dns {
-        val dohUrl = com.amnos.browser.BuildConfig.SECURITY_DOH_URL
-        AmnosLog.i("DnsManager", "Initializing DnsOverHttps (URL: $dohUrl)")
-        return DnsOverHttps.Builder()
+        val configUrl = com.amnos.browser.BuildConfig.SECURITY_DOH_URL
+        val isDynamic = configUrl.uppercase() == "DYNAMIC"
+        
+        val urlToUse = if (isDynamic) {
+            DOH_POOL[Random.nextInt(DOH_POOL.size)]
+        } else {
+            configUrl
+        }
+
+        AmnosLog.i("DnsManager", "Initializing DnsOverHttps (URL: $urlToUse, mode: ${if (isDynamic) "DYNAMIC" else "STATIC"})")
+        
+        val builder = DnsOverHttps.Builder()
             .client(client)
-            .url(dohUrl.toHttpUrl())
-            .bootstrapDnsHosts(
-                listOf(
-                    InetAddress.getByName("1.1.1.1"),
-                    InetAddress.getByName("1.0.0.1")
-                )
-            )
-            .build()
+            .url(urlToUse.toHttpUrl())
+
+        // Add bootstrap hosts if known to avoid circularity
+        try {
+            val host = urlToUse.toHttpUrl().host
+            BOOTSTRAP_POOL[host]?.let { ips ->
+                builder.bootstrapDnsHosts(ips.map { InetAddress.getByName(it) })
+            }
+        } catch (ignored: Exception) {}
+
+        return builder.build()
     }
 
     fun lookup(hostname: String, blockIpv6: Boolean): List<InetAddress> {
@@ -82,11 +110,6 @@ object DnsManager {
                 .connectTimeout(60, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
                 .writeTimeout(60, TimeUnit.SECONDS)
-                .callTimeout(java.time.Duration.ofSeconds(60))
-                .dispatcher(okhttp3.Dispatcher().apply {
-                    maxRequests = 64
-                    maxRequestsPerHost = 20
-                })
                 .build().also {
                     if (blockIpv6) {
                         ipv4OnlyClient = it
@@ -101,7 +124,6 @@ object DnsManager {
         synchronized(this) {
             AmnosLog.w("DnsManager", "Network Rotation: Rebuilding HTTP clients and DNS state")
             
-            // Drain and close existing clients
             ipv4OnlyClient?.dispatcher?.cancelAll()
             ipv4OnlyClient?.connectionPool?.evictAll()
             ipv4OnlyClient = null
@@ -113,7 +135,6 @@ object DnsManager {
             bootstrapClient.dispatcher.cancelAll()
             bootstrapClient.connectionPool.evictAll()
             
-            // Rebuild root DNS client 
             bootstrapClient = OkHttpClient.Builder()
                 .proxy(Proxy.NO_PROXY)
                 .cookieJar(CookieJar.NO_COOKIES)

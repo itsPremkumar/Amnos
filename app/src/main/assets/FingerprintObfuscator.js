@@ -485,20 +485,36 @@
                 write: function() { return denyPromise("Clipboard blocked"); }
             }));
         }
+            // Battery Status API Hardening
+            if (navigator.getBattery) {
+                let batteryLevel = 0.7 + (config.noiseSeed % 28) / 100; // Start between 70% and 98%
+                const startTime = nativePerformanceNow();
+                
+                const getDynamicLevel = function() {
+                    const elapsedMinutes = (nativePerformanceNow() - startTime) / 60000;
+                    // Realistic discharge: ~0.1% every 5 minutes
+                    const newLevel = batteryLevel - (elapsedMinutes * 0.0002);
+                    return Math.max(0.05, newLevel);
+                };
 
-        if (navigator.getBattery) {
-            navigator.getBattery = function() {
-                safePost({ type: "spoof", detail: "navigator.getBattery" });
-                return Promise.resolve({
-                    charging: true,
-                    chargingTime: 0,
-                    dischargingTime: Infinity,
-                    level: 0.76,
+                const mockBattery = {
+                    charging: false,
+                    chargingTime: Infinity,
+                    dischargingTime: 14400,
+                    get level() { return getDynamicLevel(); },
+                    onchargingchange: null,
+                    onchargingtimechange: null,
+                    ondischargingtimechange: null,
+                    onlevelchange: null,
                     addEventListener: noop,
-                    removeEventListener: noop
-                });
-            };
-        }
+                    removeEventListener: noop,
+                    dispatchEvent: function() { return false; }
+                };
+                navigator.getBattery = function() {
+                    safePost({ type: "spoof", detail: "Battery Status (Generative Discharge)" });
+                    return Promise.resolve(mockBattery);
+                };
+            }
 
         if (navigator.connection) {
             const connectionProto = Object.getPrototypeOf(navigator.connection);
@@ -987,6 +1003,30 @@
         childList: true,
         subtree: true
     });
+
+    // Performance Timing Jitter
+    if (window.performance && window.performance.now) {
+        const originalNow = window.performance.now.bind(window.performance);
+        window.performance.now = function() {
+            const now = originalNow();
+            if (strictFingerprinting || titanFingerprinting) {
+                // Add +/- 10 microsecond jitter to break hardware clock-skew fingerprinting
+                const jitter = ((config.noiseSeed % 21) - 10) * 0.001;
+                return now + jitter;
+            }
+            return now;
+        };
+    }
+
+    if (window.performance && window.performance.getEntries) {
+        const originalGetEntries = window.performance.getEntries.bind(window.performance);
+        window.performance.getEntries = function() {
+            if (strictFingerprinting || titanFingerprinting) {
+                return []; // Hide detailed resource timing
+            }
+            return originalGetEntries();
+        };
+    }
 
     // CSS Media Query Fingerprinting Protection
     if (window.matchMedia) {

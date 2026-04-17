@@ -9,7 +9,7 @@ Controls how the app hides itself from local physical observation.
 
 | Key | Value/Level | Description |
 | :--- | :--- | :--- |
-| `STEALTH_CAMOUFLAGE_PROFILE` | `CALCULATOR` | Changes the app icon and name to a decoy calculator. |
+| `STEALTH_CAMOUFLAGE_PROFILE` | `DYNAMIC` | `DYNAMIC`: Rotates icon daily. `CALCULATOR`: Static decoy. |
 | `STEALTH_ABSOLUTE_CLOAKING` | `true` | The app is completely hidden from the Android "Recent Apps" list. |
 | `STEALTH_DECOY_UNLOCK_PIN` | `String` | PIN used to access the disguised app. |
 
@@ -34,7 +34,7 @@ Defines the "Pipe" or encryption layer for all web traffic. Orchestrated by the 
 | :--- | :--- | :--- |
 | `NETWORK_FIREWALL_LEVEL` | `PARANOID` | `PARANOID`: Whitelist-only. `BALANCED`: Regular navigation. |
 | `NETWORK_HTTPS_ONLY` | `true` | Strictly blocks all non-HTTPS (cleartext) traffic. |
-| `NETWORK_DOH_URL` | `URL` | The DNS-over-HTTPS provider used to hide queries from ISPs. |
+| `NETWORK_DOH_URL` | `DYNAMIC` | `DYNAMIC`: Rotates pool. `URL`: Specific secure endpoint. |
 | `NETWORK_BLOCK_WEBRTC` | `true` | Prevents IP leakage via WebRTC STUN/TURN requests. |
 
 ---

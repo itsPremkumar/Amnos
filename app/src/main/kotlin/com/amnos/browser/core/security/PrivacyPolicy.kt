@@ -31,9 +31,10 @@ enum class CamouflageProfile {
 
 data class PrivacyPolicy(
     // --- CLUSTER 1: STEALTH (PASSIVE) ---
-    val stealthCamouflageProfile: CamouflageProfile = when (com.amnos.browser.BuildConfig.STEALTH_CAMOUFLAGE_PROFILE.uppercase()) {
+    val stealthCamouflageProfile: CamouflageProfile = when (val cfg = com.amnos.browser.BuildConfig.STEALTH_CAMOUFLAGE_PROFILE.uppercase()) {
         "CALCULATOR" -> CamouflageProfile.CALCULATOR
         "WEATHER" -> CamouflageProfile.WEATHER
+        "DYNAMIC" -> if (System.currentTimeMillis() % 2 == 0L) CamouflageProfile.CALCULATOR else CamouflageProfile.WEATHER
         else -> CamouflageProfile.DISABLED
     },
     val stealthAbsoluteCloaking: Boolean = com.amnos.browser.BuildConfig.STEALTH_ABSOLUTE_CLOAKING,
@@ -44,10 +45,11 @@ data class PrivacyPolicy(
     val purgeForensicRamScramble: Boolean = com.amnos.browser.BuildConfig.PURGE_FORENSIC_RAM_SCRAMBLE,
     val purgeWipeOnScreenOff: Boolean = com.amnos.browser.BuildConfig.PURGE_WIPE_ON_SCREEN_OFF,
     val purgeWipeOnBackground: Boolean = com.amnos.browser.BuildConfig.PURGE_WIPE_ON_BACKGROUND,
-    val purgeBackgroundWipeDelayMs: Long = com.amnos.browser.BuildConfig.PURGE_BACKGROUND_WIPE_DELAY_MS,
+    val purgeBackgroundWipeDelayMs: Long = (com.amnos.browser.BuildConfig.PURGE_BACKGROUND_WIPE_DELAY_MS * (0.85 + (Math.random() * 0.3))).toLong(),
     val purgePanicGestureEnabled: Boolean = com.amnos.browser.BuildConfig.PURGE_PANIC_GESTURE_ENABLED,
 
     // --- CLUSTER 3: NETWORK ENGINE (PROTOCOLS) ---
+    // ... rest of network cluster ...
     val networkFirewallLevel: FirewallLevel = when (com.amnos.browser.BuildConfig.NETWORK_FIREWALL_LEVEL.uppercase()) {
         "PARANOID" -> FirewallLevel.PARANOID
         "BALANCED" -> FirewallLevel.BALANCED
@@ -64,6 +66,7 @@ data class PrivacyPolicy(
     val networkBlockPreconnect: Boolean = com.amnos.browser.BuildConfig.NETWORK_BLOCK_PRECONNECT,
 
     // --- CLUSTER 4: PRIVACY FILTER (CONTENT) ---
+    // ... rest of filter cluster ...
     val filterBlockTrackers: Boolean = com.amnos.browser.BuildConfig.FILTER_BLOCK_TRACKERS,
     val filterAggressiveAdBlocking: Boolean = com.amnos.browser.BuildConfig.FILTER_AGGRESSIVE_AD_BLOCKING,
     val filterBlockThirdPartyRequests: Boolean = com.amnos.browser.BuildConfig.FILTER_BLOCK_THIRD_PARTY_REQUESTS,
@@ -80,7 +83,7 @@ data class PrivacyPolicy(
     // --- CLUSTER 5: IDENTITY (SPOOFING) ---
     val identityUaTemplate: String = com.amnos.browser.BuildConfig.IDENTITY_UA_TEMPLATE,
     val identityResetOnRefresh: Boolean = com.amnos.browser.BuildConfig.IDENTITY_RESET_ON_REFRESH,
-    val identitySessionTimeoutMs: Long = com.amnos.browser.BuildConfig.IDENTITY_SESSION_TIMEOUT_MS,
+    val identitySessionTimeoutMs: Long = (com.amnos.browser.BuildConfig.IDENTITY_SESSION_TIMEOUT_MS * (0.85 + (Math.random() * 0.3))).toLong(),
 
     // --- CLUSTER 6: HARDWARE (TECHNICAL) ---
     val hardwareFingerprintLevel: FingerprintProtectionLevel = when (com.amnos.browser.BuildConfig.HARDWARE_FINGERPRINT_LEVEL.uppercase()) {
