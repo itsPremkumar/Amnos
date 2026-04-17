@@ -3,7 +3,7 @@
 
 [AI Discovery (llms.txt)](llms.txt)
 
-Amnos is a privacy-first hardened Android browser built on `WebView` for local-only sessions and zero durable browsing state. It prioritizes privacy over compatibility: no persistent cookies, no cache retention, aggressive tracker blocking, HTTPS-only upgrades, strict first-party isolation, and deterministic fingerprint silos scoped to the active session.
+Amnos is a privacy-first hardened Android browser built on a **Modular Cluster Architecture**. Every component—from the configuration to the UI—is categorized into seven logical security clusters for maximum forensic isolation and "zero-trust" engineering. It prioritizes privacy over compatibility: no persistent cookies, no cache retention, aggressive tracker blocking, and deterministic fingerprint silos.
 
 Amnos is not Tor, not a VPN, and not a custom browser engine. It reduces exposure inside Android WebView constraints; it does not provide network-layer anonymity against every observer.
 
@@ -157,24 +157,15 @@ Amnos is not Tor, not a VPN, and not a custom browser engine. It reduces exposur
 
 ---
 
-## Core modules
+Amnos is organized into seven identifiable security clusters:
 
-- `core/adblock`
-  Dual-list domain and pattern-based ad/tracker blocker with whitelist support.
-- `core/network`
-  Request classification, URL sanitization, navigation resolution, HTTPS-only enforcement, DoH, loopback proxy, security header injection, and CSP generation.
-- `core/session`
-  Tab lifecycle, GHOST wipe flow, volatile downloads, clipboard sentinel, session timeout, internal diagnostics, and loopback proxy orchestration.
-- `core/webview`
-  Hardened `SecureWebView` settings, document-start script injection, security bridge, privacy WebView client, and Chrome client.
-- `core/fingerprint`
-  Deterministic device-profile generation, device template registry, locale presets, and document-start API spoofing script wrapper.
-- `core/security`
-  Privacy policy model, permission sentinel, clipboard sentinel, root detector.
-- `core/service`
-  Ephemeral download management and global WebView storage purge.
-- `ui`
-  Compose browser shell, Security Cockpit (Shields / Inspector / Identity tabs), Ghost Keyboard, tracker badge, burn overlay.
+- **👻 STEALTH**: Cloaking and camouflage orchestration (`NavigationGuard`, `ResourceGuard`).
+- **🧹 PURGE**: Forensic sanitization and wipe agents (`SuperWipeEngine`, `ForensicFileSystemNuke`).
+- **⚡ NETWORK**: Encrypted transport and loopback proxy (`NetworkTrafficConfigurator`, `LoopbackProxyServer`).
+- **🛑 FILTER**: Request filtering and tracking suppression (`AdBlocker`, `FilterRegistry`).
+- **👤 IDENTITY**: Profile spoofing and session siloing (`FingerprintManager`, `SecureVault`).
+- **⚙️ HARDWARE**: API restriction and sensor masking (`PolicyController`, `TabManager`).
+- **🛠️ DEBUG**: Integrity monitoring and forensic auditing (`RiskEngine`, `ForensicAuditLog`).
 
 ---
 

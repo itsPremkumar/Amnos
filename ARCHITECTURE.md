@@ -1,50 +1,70 @@
-# Amnos v3.1 Architecture
+# Amnos Modular Security Architecture (v4.0)
 
-Amnos is organized as a four-layer privacy container. Each layer is meant to degrade independently so that a single failure does not collapse the full session boundary.
+Amnos is built on a **Modular Controller Architecture** designed for zero-trust engineering and total forensic isolation. The engine is organized into **7 Security Clusters**, ensuring that every configuration, logic controller, and data hub is specialized and identifiable.
 
-## 1. Network Layer
+---
 
-This layer sanitizes navigation, applies request policy, and proxies eligible traffic through the loopback stack.
+## The 7-Cluster Model
 
-- Entry points: `NetworkSecurityManager`, `SecurityRuleEngine`, `NetworkFetcher`, `LoopbackProxyServer`
-- Responsibilities: URL normalization, HTTPS upgrade, request classification, tracker filtering, response header hardening, domain allowlisting in strict modes
-- Stability notes: proxy shutdown must never crash active sessions; request fallbacks should fail closed for dangerous schemes and fail soft for transient transport errors
+Amnos synchronizes its configuration (`.env`), its internal logic (`Managers` & `Guards`), and its user interface (`Panels`) into seven logical clusters:
 
-## 2. RAM Layer
+### 1. 👻 STEALTH (Cloaking & Anti-Trace)
+Handles the absolute invisibility of the browser.
+- **Back-end**: `NavigationGuard`, `ResourceGuard`.
+- **UI**: `StealthPanel`.
+- **Logic**: URL sanitization, scheme blocking, and camouflage orchestration.
 
-This layer keeps volatile session state in memory and coordinates teardown when tabs or whole sessions are destroyed.
+### 2. 🧹 PURGE (Forensic Sanitization)
+Handles the total destruction of session data.
+- **Back-end**: `SuperWipeEngine`, `ForensicFileSystemNuke`.
+- **UI**: `IdentityHardeningPanel` (Integrity section).
+- **Logic**: Recursive disk deletion, RAM scrambling, and cryptographic key obliteration.
 
-- Entry points: `SessionManager`, `SuperWipeEngine`, `SecureWebView`, `ClipboardVault`
-- Responsibilities: tab lifecycle, ephemeral key rotation, WebView teardown, in-memory clipboard handling, session timeout and wipe orchestration
-- Stability notes: wipes are main-thread coordinated and debounced; WebView teardown is idempotent and contains failing cleanup steps instead of propagating them
+### 3. ⚡ NETWORK (Transport & Anonymity)
+Handles the loopback proxy and encrypted traffic.
+- **Back-end**: `NetworkTrafficConfigurator`, `LoopbackProxyServer`.
+- **UI**: `NetworkShieldsPanel`.
+- **Logic**: Proxy controller management, DoH (DNS-over-HTTPS), and WebRTC leak prevention.
 
-## 3. Stealth Layer
+### 4. 🛑 FILTER (Request Interception)
+Handles the blocking of trackers and malicious assets.
+- **Back-end**: `AdBlocker`, `FilterRegistry`.
+- **UI**: `NetworkShieldsPanel` (Filter section).
+- **Data**: `PrivacyAuditLog`.
+- **Logic**: High-performance regex matching and domain blocklist management.
 
-This layer controls how the app shell presents itself and how UI state transitions avoid exposing stale browser state.
+### 5. 👤 IDENTITY (Profile Rotation)
+Handles the spoofing of the digital fingerprint.
+- **Back-end**: `FingerprintManager`, `SecureVault`.
+- **UI**: `IdentityHardeningPanel`.
+- **Logic**: User-Agent rotation, session ID generation, and encrypted preference siloing.
 
-- Entry points: `MainActivity`, `BrowserViewModel`, `BrowserScreen`, `CamouflageManager`
-- Responsibilities: screen routing, decoy visibility, launcher alias switching, checklist and browsing state transitions
-- Stability notes: UI state changes should flow through the ViewModel so repeated transitions do not leave stale tab or address-bar state behind
+### 6. 🖥️ HARDWARE (API Restriction)
+Handles the lockdown of physical device sensors and APIs.
+- **Back-end**: `PolicyController`, `TabManager`.
+- **UI**: `AdvancedHardwarePanel`.
+- **Logic**: JavaScript mode enforcement, WebGL randomization, and Hardware Concurrency normalization.
 
-## 4. OS Layer
+### 7. 🛠️ DEBUG (Integrity & Audit)
+Handles the internal health and self-protection of the app.
+- **Back-end**: `RiskEngine`, `ForensicAuditLog`.
+- **UI**: `DebugLockdownPanel`.
+- **Logic**: Anti-debugger checks, integrity monitoring, and internal forensic tracing.
 
-This layer integrates with Android lifecycle, process, and platform surfaces where privacy regressions usually show up first.
+---
 
-- Entry points: `MainActivity`, `ClipboardSentinel`, `GhostService`, `PrivacyWebViewClient`
-- Responsibilities: screenshot blocking, memory-pressure handling, clipboard suppression, render-process crash containment, crash-handler cleanup
-- Stability notes: render-process exits must be handled without app crashes, and clipboard operations should be skipped when the process is not foregrounded
+## Core Infrastructure
 
-## Typical Session Flow
+### Modular Controller Architecture
+Instead of "God Objects," Amnos uses specialized controllers that delegate responsibilities:
+- **Managers**: Long-lived infrastructure (e.g., `TabManager`, `NetworkTrafficConfigurator`).
+- **Guards**: Specialized security enforcers that intercept WebView events (e.g., `NavigationGuard`, `ResourceGuard`).
+- **Data Hubs**: Clustered, thread-safe repositories for UI state and logs (e.g., `TrafficMonitor`, `PrivacyAuditLog`).
 
-1. `MainActivity` sets the WebView data suffix before session services initialize.
-2. `SessionManager` creates a `SecureWebView` and applies runtime policy plus the injected compatibility script.
-3. `PrivacyWebViewClient` and `PrivacyWebChromeClient` mediate navigation, progress, permission, and render-process events.
-4. `BrowserViewModel` owns view-state transitions for home, checklist, and browsing surfaces.
-5. `SuperWipeEngine` tears down tabs, storage, keys, and proxy state when a session is reset.
+### Session Lifecycle
+1. **Initialize**: `SessionManager` coordinates with the 7 clusters to establish a virgin environment.
+2. **Browse**: Specialized `Guards` and `Controllers` enforce policies in real-time.
+3. **Wipe**: `SuperWipeEngine` orchestrates a multi-phase purge across all 7 clusters.
 
-## Regression Targets
-
-- WebView teardown must remain safe when the view is still attached.
-- Repeated `Privacy Checklist -> Home -> Browsing` transitions must not corrupt UI state.
-- Media compatibility exceptions for trusted player hosts must stay narrow and documented.
-- Config values in `.env`, `.env.example`, `app/build.gradle`, and `PrivacyPolicy.kt` must evolve together.
+## Design Philosophy: Identifiability
+Every line of code in Amnos is designed to be **Identifiable**. You can track a feature by name from the `.env` key, through the manager logic, all the way to the UI panel.

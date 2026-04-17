@@ -1,6 +1,6 @@
-# AMNOS LOGICAL SECURITY CONFIGURATION (V3.3)
+# AMNOS CLUSTER ARCHITECTURE & CONFIGURATION (V4.1)
 
-Amnos uses a tiered security model split into 7 logical clusters. This separation ensures that "Network" rules don't interfere with "Stealth" policies, and "Hardware" masking remains independent of "Identity" spoofing.
+Amnos is built on a **Modular Cluster Architecture**. This 7-cluster model synchronizes your `.env` settings, back-end managers, and UI panels for total forensic and logical isolation.
 
 ---
 
@@ -27,8 +27,8 @@ Controls the destruction of session data and memory scrambling.
 
 ---
 
-## 🛡️ Cluster 3: NETWORK ENGINE (Protocols)
-Defines the "Pipe" or encryption layer for all web traffic.
+## ⚡ Cluster 3: NETWORK (Transport & Anonymity)
+Defines the "Pipe" or encryption layer for all web traffic. Orchestrated by the `NetworkTrafficConfigurator`.
 
 | Key | Value/Level | Description |
 | :--- | :--- | :--- |
@@ -39,8 +39,8 @@ Defines the "Pipe" or encryption layer for all web traffic.
 
 ---
 
-## 🕵️ Cluster 4: PRIVACY FILTER (Content)
-Defines "What" is allowed to travel through the network pipe.
+## 🛑 Cluster 4: FILTER (Request Interception)
+Defines "What" is allowed to travel through the network pipe. Managed by the `AdBlocker` and `FilterRegistry`.
 
 | Key | Value/Level | Description |
 | :--- | :--- | :--- |
@@ -73,8 +73,8 @@ How your real hardware behaves and leaks unique entropy.
 
 ---
 
-## 🔧 Cluster 7: DEBUGGER & LOGGING
-Controls for technical auditing and preventing external inspection.
+## 🛠️ Cluster 7: DEBUG (Integrity & Audit)
+Controls for technical auditing, anti-debugging, and preventing forensic inspection. Managed by the `RiskEngine` and `ForensicAuditLog`.
 
 | Key | Value/Level | Description |
 | :--- | :--- | :--- |
