@@ -27,6 +27,7 @@ def securityDefaults = [
     SECURITY_ANTI_DEBUGGER                : "true",
     SECURITY_ABSOLUTE_CLOAKING             : "true",
     SECURITY_FORENSIC_RAM_SCRAMBLE        : "true",
+    SECURITY_DEBUG_MODE                   : "true",
     SECURITY_SESSION_TIMEOUT_MS           : "120000"
 ]
 

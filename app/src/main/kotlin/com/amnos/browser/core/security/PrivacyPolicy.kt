@@ -30,13 +30,13 @@ data class PrivacyPolicy(
         else -> AmnosSandboxMode.PARANOID
     },
     // MASTER DEBUG TOGGLE
-    val forceRelaxSecurityForDebug: Boolean = !com.amnos.browser.BuildConfig.SECURITY_ENFORCE_STRICT_POLICIES,
+    val forceRelaxSecurityForDebug: Boolean = com.amnos.browser.BuildConfig.SECURITY_DEBUG_MODE || !com.amnos.browser.BuildConfig.SECURITY_ENFORCE_STRICT_POLICIES,
     
     // UI SECURITY
     val blockScreenshots: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_SCREENSHOTS,
     
     // V2 SECURITY FEATURES
-    val antiDebuggerEnabled: Boolean = com.amnos.browser.BuildConfig.SECURITY_ANTI_DEBUGGER,
+    val antiDebuggerEnabled: Boolean = if (com.amnos.browser.BuildConfig.SECURITY_DEBUG_MODE) false else com.amnos.browser.BuildConfig.SECURITY_ANTI_DEBUGGER,
     val absoluteCloakingEnabled: Boolean = com.amnos.browser.BuildConfig.SECURITY_ABSOLUTE_CLOAKING,
     val forensicScrambleEnabled: Boolean = com.amnos.browser.BuildConfig.SECURITY_FORENSIC_RAM_SCRAMBLE,
 
@@ -55,8 +55,8 @@ data class PrivacyPolicy(
     val blockPreconnect: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_PRECONNECT,
     
     // DEBUGGING
-    val enableRemoteDebugging: Boolean = false,
-    val blockForensicLogging: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_FORENSIC_LOGGING,
+    val enableRemoteDebugging: Boolean = com.amnos.browser.BuildConfig.SECURITY_DEBUG_MODE || com.amnos.browser.BuildConfig.SECURITY_ENABLE_REMOTE_DEBUGGING,
+    val blockForensicLogging: Boolean = if (com.amnos.browser.BuildConfig.SECURITY_DEBUG_MODE) false else com.amnos.browser.BuildConfig.SECURITY_BLOCK_FORENSIC_LOGGING,
     
     // WEB ENGINE SECURITY
     val blockServiceWorkers: Boolean = com.amnos.browser.BuildConfig.SECURITY_BLOCK_SERVICE_WORKERS,
