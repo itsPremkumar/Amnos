@@ -29,7 +29,15 @@ class NetworkSecurityManager(
             trimmed.startsWith("http://", ignoreCase = true) -> "https://${trimmed.removePrefix("http://")}"
             trimmed.matches(Regex("^[a-zA-Z][a-zA-Z0-9+.-]*:.*")) -> null
             trimmed.contains("://") -> null
-            else -> "https://$trimmed"
+            else -> {
+                // Smart Search Detection
+                val isProbablyUrl = trimmed.contains(".") || trimmed.equals("localhost", ignoreCase = true) || trimmed.startsWith("[")
+                if (!isProbablyUrl || trimmed.contains(" ")) {
+                    "https://duckduckgo.com/?q=${java.net.URLEncoder.encode(trimmed, "UTF-8")}"
+                } else {
+                    "https://$trimmed"
+                }
+            }
         }
 
         if (normalized == null) {
