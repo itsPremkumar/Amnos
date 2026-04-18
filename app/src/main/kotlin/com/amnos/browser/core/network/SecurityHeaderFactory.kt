@@ -82,8 +82,9 @@ object SecurityHeaderFactory {
             headers[name] = value
         }
 
-        headers["Cache-Control"] = "no-store, no-cache, max-age=0"
+        headers["Cache-Control"] = "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
         headers["Pragma"] = "no-cache"
+        headers["Expires"] = "0"
         headers["Referrer-Policy"] = "no-referrer"
         headers["X-DNS-Prefetch-Control"] = "off"
 

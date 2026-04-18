@@ -48,6 +48,7 @@ data class PrivacyPolicy(
     val purgeWipeOnBackground: Boolean = com.amnos.browser.BuildConfig.PURGE_WIPE_ON_BACKGROUND,
     val purgeBackgroundWipeDelayMs: Long = (com.amnos.browser.BuildConfig.PURGE_BACKGROUND_WIPE_DELAY_MS * (0.85 + (Math.random() * 0.3))).toLong(),
     val purgePanicGestureEnabled: Boolean = com.amnos.browser.BuildConfig.PURGE_PANIC_GESTURE_ENABLED,
+    val purgePureRamMode: Boolean = true, // Force to True for now, can be linked to BuildConfig later
 
     // --- CLUSTER 3: NETWORK ENGINE (PROTOCOLS) ---
     // ... rest of network cluster ...

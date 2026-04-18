@@ -86,10 +86,10 @@ class SecureWebView(context: Context) : WebView(context), AmnosWebView {
             javaScriptCanOpenWindowsAutomatically = false
             
             // 100% PURE RAM MODE: Disable all persistent storage APIs
-            domStorageEnabled = true  // Volatile RAM-only, wiped by Ghost Wipe 
-            databaseEnabled = if (policy.forceRelaxSecurityForDebug) true else false
+            domStorageEnabled = !policy.purgePureRamMode
+            databaseEnabled = if (policy.purgePureRamMode) false else (if (policy.forceRelaxSecurityForDebug) true else false)
             
-            cacheMode = WebSettings.LOAD_DEFAULT  // Cache is physically nuked by StorageService on session wipe
+            cacheMode = if (policy.purgePureRamMode) WebSettings.LOAD_NO_CACHE else WebSettings.LOAD_DEFAULT
 
             userAgentString = if (policy.forceRelaxSecurityForDebug) android.webkit.WebSettings.getDefaultUserAgent(context) else profile.userAgent
             setSupportMultipleWindows(false)
