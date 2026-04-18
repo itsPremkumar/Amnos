@@ -77,7 +77,7 @@ fun IdentityTab(viewModel: BrowserViewModel) {
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                IdentityDetailRow("DNS Resolution", if (viewModel.dohStatus.value) "Encrypted (Rotating DoH)" else "System Default", true)
+                IdentityDetailRow("DNS Resolution", viewModel.dohStatus.value, true)
                 IdentityDetailRow("WebRTC Leak Shield", "Hardened (Refined)", true)
                 IdentityDetailRow("Referrer Privacy", "Stripped / Top-Level", true)
             }

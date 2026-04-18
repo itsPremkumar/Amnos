@@ -38,7 +38,7 @@ object DnsManager {
     private var dnsOverHttps: Dns = createDnsOverHttps(bootstrapClient)
 
     private fun createDnsOverHttps(client: OkHttpClient): Dns {
-        val configUrl = com.amnos.browser.BuildConfig.SECURITY_DOH_URL
+        val configUrl = com.amnos.browser.BuildConfig.NETWORK_DOH_URL
         val isDynamic = configUrl.uppercase() == "DYNAMIC"
         
         val urlToUse = if (isDynamic) {

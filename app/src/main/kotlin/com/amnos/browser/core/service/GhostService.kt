@@ -22,7 +22,7 @@ class GhostService : Service() {
         super.onTaskRemoved(rootIntent)
         
         val sessionManager = SessionManager.getInstance(this)
-        if (!sessionManager.privacyPolicy.absoluteCloakingEnabled) return
+        if (!sessionManager.privacyPolicy.stealthAbsoluteCloaking) return
 
         AmnosLog.w("GhostService", "TASK REMOVAL DETECTED: Swiped from recents. Engaging Emergency Wipe.")
         

@@ -52,7 +52,7 @@ class NavigationHandler(
 
     fun reload() {
         val tab = viewModel.currentTab.value ?: return
-        if (viewModel.privacyPolicy.value.resetIdentityOnRefresh && !tab.currentUrl.isNullOrBlank()) {
+        if (viewModel.privacyPolicy.value.identityResetOnRefresh && !tab.currentUrl.isNullOrBlank()) {
             AmnosLog.i("NavigationHandler", "Reload triggered with 'Identity Reset' enabled. Recreating tab.")
             viewModel.recreateCurrentTab()
             return

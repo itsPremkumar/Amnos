@@ -14,6 +14,7 @@ enum class WebGlMode {
 enum class FingerprintProtectionLevel {
     BALANCED,
     STRICT,
+    TITAN,
     DISABLED
 }
 
@@ -110,10 +111,10 @@ data class PrivacyPolicy(
     val debugAntiDebugger: Boolean = com.amnos.browser.BuildConfig.DEBUG_ANTI_DEBUGGER,
     val debugBlockRemoteDebugging: Boolean = com.amnos.browser.BuildConfig.DEBUG_BLOCK_REMOTE_DEBUGGING,
     val debugBlockForensicLogging: Boolean = com.amnos.browser.BuildConfig.DEBUG_BLOCK_FORENSIC_LOGGING,
-    val debugBlockScreenshots: Boolean = com.amnos.browser.BuildConfig.DEBUG_BLOCK_SCREENSHOTS,
-
-    // Derived Logic (Internal Only)
-    val forceRelaxSecurityForDebug: Boolean = !com.amnos.browser.BuildConfig.DEBUG_LOCKDOWN_MODE,
-    val isJavaScriptEnabled: Boolean = hardwareJavascriptMode != JavaScriptMode.DISABLED,
-    val isRestrictedJavaScript: Boolean = hardwareJavascriptMode == JavaScriptMode.RESTRICTED
-)
+    val debugBlockScreenshots: Boolean = com.amnos.browser.BuildConfig.DEBUG_BLOCK_SCREENSHOTS
+) {
+    val forceRelaxSecurityForDebug: Boolean get() = !debugLockdownMode
+    val isJavaScriptEnabled: Boolean get() = hardwareJavascriptMode != JavaScriptMode.DISABLED
+    val isRestrictedJavaScript: Boolean get() = hardwareJavascriptMode == JavaScriptMode.RESTRICTED
+    val enableRemoteDebugging: Boolean get() = !debugBlockRemoteDebugging
+}

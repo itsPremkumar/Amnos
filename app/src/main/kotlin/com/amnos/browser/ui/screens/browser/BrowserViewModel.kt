@@ -29,6 +29,8 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     var blockedTrackersCount = mutableIntStateOf(0)
     var showSecurityDashboard = mutableStateOf(false)
     var blockedNavigationUrl = mutableStateOf<String?>(null)
+    var isDecoyVisible = mutableStateOf(false)
+    var showAccessibilityWarning = mutableStateOf(false)
     
     // Policy-Linked State
     var privacyPolicy = mutableStateOf(sessionManager.privacyPolicy)
@@ -114,7 +116,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         
         viewModelScope.launch {
             while (true) {
-                RiskEngine.monitor { hardKillSwitch() }
+                RiskEngine.monitor(privacyPolicy.value) { hardKillSwitch() }
                 delay(2000)
             }
         }
@@ -164,10 +166,21 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     fun toggleStrictFirstPartyIsolation(e: Boolean) = policy.toggleGenericPolicy { it.copy(filterStrictFirstPartyIsolation = e) }
     fun toggleWebSockets(e: Boolean) = policy.toggleGenericPolicy { it.copy(filterBlockWebSockets = e) }
     fun toggleRemoteDebugging(e: Boolean) = policy.toggleGenericPolicy { it.copy(debugBlockRemoteDebugging = e) }
-    fun toggleForceRelaxSecurity(e: Boolean) = policy.toggleGenericPolicy { it.copy(forceRelaxSecurityForDebug = e) }
+    fun toggleForceRelaxSecurity(e: Boolean) = policy.toggleGenericPolicy { it.copy(debugLockdownMode = !e) }
 
     fun killSwitch() = purge.initiateKillSwitch(terminateProcess = false)
     fun hardKillSwitch() = purge.initiateKillSwitch(terminateProcess = true)
+
+    // UI Navigation Actions
+    fun openPrivacyChecklist() { uiState.value = BrowserUIState.PRIVACY_CHECKLIST }
+    fun closePrivacyChecklist() { uiState.value = BrowserUIState.HOME }
+    fun openFirewall() { uiState.value = BrowserUIState.FIREWALL }
+    fun closeFirewall() { uiState.value = BrowserUIState.HOME }
+
+    // Web Input Injection
+    fun injectWebInput(text: String) { currentTab.value?.webView?.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_UNKNOWN)) }
+    fun injectWebBackspace() { currentTab.value?.webView?.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DEL)) }
+    fun injectWebSearch() { currentTab.value?.webView?.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_ENTER)) }
 
     // 5. MISC LOGIC
     fun handleSecurityEvent(json: String) {
@@ -198,7 +211,9 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
         firewallBlockedDomains.addAll(DomainPolicyManager.getBlockedDomains())
     }
 
-    internal fun refreshPolicyState() = policy.syncUIState()
+    internal fun refreshPolicyState(): Unit {
+        policy.syncUIState()
+    }
 
     private fun handleSessionTimeout() {
         sessionManager.killAll(terminateProcess = false)
@@ -231,4 +246,17 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     }
 
     var webKeyboardRequested = mutableStateOf(false)
+
+    // Callbacks for legacy/modular handlers
+    internal val progressChangedCallback: (Int) -> Unit = { loadingProgress.intValue = it }
+    internal val trackerBlockedCallback: () -> Unit = { blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount() }
+    internal val navigationCommittedCallback: (String) -> Unit = { url -> 
+        currentTab.value?.currentUrl = url
+        if (uiState.value == BrowserUIState.BROWSING) urlInput.value = url
+    }
+    internal val navigationFailedCallback: (String?) -> Unit = { nav.pendingAddressBarValue = null }
+    internal val keyboardRequestedCallback: (Boolean) -> Unit = { webKeyboardRequested.value = it }
+
+    fun updatePendingAddressBar(value: String?) { nav.pendingAddressBarValue = value }
+    fun updateBlockedTrackersCount() { trackerBlockedCallback() }
 }

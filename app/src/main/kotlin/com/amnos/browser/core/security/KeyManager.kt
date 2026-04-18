@@ -14,7 +14,7 @@ object KeyManager {
     
     fun checkIntegrity(context: Context) {
         val manager = com.amnos.browser.core.session.SessionManager.getInstance(context)
-        if (!manager.privacyPolicy.antiDebuggerEnabled) return
+        if (!manager.privacyPolicy.debugAntiDebugger) return
 
         if (android.os.Debug.isDebuggerConnected() || android.os.Debug.waitingForDebugger()) {
             AmnosLog.e("KeyManager", "ANTI-DEBUGGER TRIGGERED!")

@@ -99,7 +99,7 @@ class SessionManager private constructor(
     }
 
     var privacyPolicy: PrivacyPolicy = PrivacyPolicy().let { initial ->
-        if (BuildConfig.DEBUG) initial else initial.copy(enableRemoteDebugging = false, forceRelaxSecurityForDebug = false)
+        if (BuildConfig.DEBUG) initial else initial.copy(debugBlockRemoteDebugging = true, debugLockdownMode = true)
     }
         private set
 

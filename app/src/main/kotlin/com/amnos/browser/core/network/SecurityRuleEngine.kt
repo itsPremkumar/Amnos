@@ -12,22 +12,22 @@ class SecurityRuleEngine(
 ) {
     fun evaluateRequest(request: WebResourceRequest, topLevelHost: String?, policy: PrivacyPolicy): RequestDecision {
         val rawUrl = request.url.toString()
-        val sanitizedUrl = if (policy.removeTrackingParameters) UrlSanitizer.sanitize(rawUrl) else rawUrl
+        val sanitizedUrl = if (policy.filterRemoveTrackingParams) UrlSanitizer.sanitize(rawUrl) else rawUrl
         val parsed = sanitizedUrl.toHttpUrlOrNull()
 
-        if (isWebSocketUrl(rawUrl) && policy.blockWebSockets) {
+        if (isWebSocketUrl(rawUrl) && policy.filterBlockWebSockets) {
             val host = parsed?.host ?: rawUrl
             AmnosLog.w("SecurityEngine", "BLOCKED: WebSocket refused to $host (Policy: blockWebSockets=true)")
             return RequestDecision(rawUrl, RequestKind.WEBSOCKET, BlockReason.WEBSOCKET)
         }
         
-        if (policy.blockUnsafeMethods && request.method.uppercase(Locale.US) !in listOf("GET", "HEAD")) {
+        if (policy.filterBlockUnsafeMethods && request.method.uppercase(Locale.US) !in listOf("GET", "HEAD")) {
             val kind = classifyRequest(request, parsed)
             AmnosLog.w("SecurityEngine", "BLOCKED: Unsafe method ${request.method} to ${parsed?.host ?: rawUrl}. [Read-only Mode active]")
             return RequestDecision(sanitizedUrl, kind, BlockReason.UNSAFE_METHOD)
         }
 
-        if (request.url.scheme?.equals("http", ignoreCase = true) == true && policy.httpsOnlyEnabled) {
+        if (request.url.scheme?.equals("http", ignoreCase = true) == true && policy.networkHttpsOnly) {
             val kind = classifyRequest(request, parsed)
             AmnosLog.w("SecurityEngine", "BLOCKED: Downgrade attempt (HTTP) to ${parsed?.host ?: rawUrl}. [HTTPS-Only active]")
             return RequestDecision(sanitizedUrl, kind, BlockReason.HTTPS_ONLY)
@@ -41,7 +41,7 @@ class SecurityRuleEngine(
             return RequestDecision(sanitizedUrl, kind, BlockReason.UNSUPPORTED_SCHEME)
         }
 
-        if (parsed != null && isLocalNetworkHost(parsed.host) && policy.blockLocalNetwork) {
+        if (parsed != null && isLocalNetworkHost(parsed.host) && policy.networkBlockLocalNetwork) {
             val kind = classifyRequest(request, parsed)
             AmnosLog.w("SecurityEngine", "BLOCKED: Local network access to ${parsed.host} prohibited for security.")
             return RequestDecision(sanitizedUrl, kind, BlockReason.LOCAL_NETWORK)
@@ -72,17 +72,17 @@ class SecurityRuleEngine(
             return RequestDecision(sanitizedUrl, kind, thirdParty = thirdParty)
         }
 
-        if (policy.blockThirdPartyRequests && thirdParty && !request.isForMainFrame) {
+        if (policy.filterBlockThirdPartyRequests && thirdParty && !request.isForMainFrame) {
             AmnosLog.d("SecurityEngine", "BLOCKED: Third-party Resource (${kind.name}) -> ${parsed.host}")
             return RequestDecision(sanitizedUrl, kind, BlockReason.THIRD_PARTY, thirdParty = true)
         }
 
-        if (policy.blockThirdPartyScripts && thirdParty && kind == RequestKind.SCRIPT) {
+        if (policy.filterBlockThirdPartyScripts && thirdParty && kind == RequestKind.SCRIPT) {
             AmnosLog.d("SecurityEngine", "BLOCKED: Third-party Script -> ${parsed.host}")
             return RequestDecision(sanitizedUrl, kind, BlockReason.THIRD_PARTY_SCRIPT, thirdParty = true)
         }
 
-        if (policy.blockTrackers && !request.isForMainFrame) {
+        if (policy.filterBlockTrackers && !request.isForMainFrame) {
             // FIRST-PARTY BYPASS: Never block resources loaded from the same site the user is visiting.
             // This prevents the AdBlocker from breaking YouTube, Google, etc.
             val isFirstParty = !isThirdPartyHost(parsed.host, topLevelHost)

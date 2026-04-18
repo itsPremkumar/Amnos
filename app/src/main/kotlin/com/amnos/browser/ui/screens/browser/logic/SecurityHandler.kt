@@ -106,7 +106,7 @@ class SecurityHandler(
             )
             return
         }
-        sessionManager.updatePrivacyPolicy { it.copy(forceRelaxSecurityForDebug = enabled) }
+        sessionManager.updatePrivacyPolicy { it.copy(debugLockdownMode = !enabled) }
         viewModel.refreshPolicyState()
         viewModel.reload()
     }

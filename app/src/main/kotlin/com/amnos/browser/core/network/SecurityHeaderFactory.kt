@@ -18,7 +18,7 @@ object SecurityHeaderFactory {
         policy: PrivacyPolicy
     ): Headers {
         val builder = Headers.Builder()
-        val fingerprintEnabled = policy.fingerprintProtectionLevel != FingerprintProtectionLevel.DISABLED
+        val fingerprintEnabled = policy.hardwareFingerprintLevel != FingerprintProtectionLevel.DISABLED
 
         originalHeaders.forEach { (key, value) ->
             val lower = key.lowercase(Locale.US)
@@ -51,7 +51,7 @@ object SecurityHeaderFactory {
         builder.set("Cache-Control", "no-cache, no-store")
         builder.set("Pragma", "no-cache")
 
-        if (!policy.stripReferrers && topLevelHost != null) {
+        if (!policy.filterStripReferrers && topLevelHost != null) {
             builder.set("Referer", "https://$topLevelHost/")
         }
 
@@ -104,28 +104,28 @@ object SecurityHeaderFactory {
         if (policy.forceRelaxSecurityForDebug) return null
         
         if (!policy.isRestrictedJavaScript &&
-            !policy.blockDnsPrefetch &&
-            !policy.blockPreconnect &&
-            !policy.blockWebSockets
+            !policy.networkBlockDnsPrefetch &&
+            !policy.networkBlockPreconnect &&
+            !policy.filterBlockWebSockets
         ) {
             return null
         }
 
         val scriptSources = linkedSetOf("'self'", "https:")
         
-        if (!policy.blockInlineScripts || isCompatibilityCriticalHost(host)) {
+        if (!policy.filterBlockInlineScripts || isCompatibilityCriticalHost(host)) {
             scriptSources.add("'unsafe-inline'")
         }
-        if (!policy.blockEval || isCompatibilityCriticalHost(host)) {
+        if (!policy.filterBlockEval || isCompatibilityCriticalHost(host)) {
             scriptSources.add("'unsafe-eval'")
         }
         
         val scriptSourceStr = scriptSources.joinToString(" ")
         val connectSources = mutableListOf("'self'", "https:")
-        if (!policy.blockWebSockets) connectSources.add("wss:")
+        if (!policy.filterBlockWebSockets) connectSources.add("wss:")
         val connectSourceStr = connectSources.joinToString(" ")
         
-        val workerSource = if (policy.blockServiceWorkers && !isCompatibilityCriticalHost(host)) {
+        val workerSource = if (policy.filterBlockServiceWorkers && !isCompatibilityCriticalHost(host)) {
             "'none'"
         } else {
             "'self' blob:"

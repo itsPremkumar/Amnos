@@ -3,7 +3,6 @@ package com.amnos.browser.core.service
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.content.SharedPreferences
 import com.amnos.browser.core.session.AmnosLog
 
 class StorageService(
@@ -16,14 +15,6 @@ class StorageService(
     val vault = SecureVault(context, webViewDataSuffix)
     private val webPurge = WebStoragePurgeAgent(context)
     private val diskNuke = ForensicFileSystemNuke()
-
-    val securePrefs: SharedPreferences get() = vault.prefs
-
-    fun getVolatileDownloadPath(): String = "memory://downloads-disabled"
-
-    fun downloadEphemeralFile(url: String, userAgent: String) {
-        AmnosLog.w("StorageService", "Download blocked in Pure RAM mode. Asset: $url")
-    }
 
     fun clearVolatileDownloads() { /* No-op in Pure RAM */ }
 

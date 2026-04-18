@@ -32,7 +32,7 @@ class NetworkFetcher(
         var response: okhttp3.Response? = null
         return try {
             val startTime = System.currentTimeMillis()
-            response = DnsManager.secureClient(policy.blockIpv6).newCall(okHttpRequest).execute()
+            response = DnsManager.secureClient(policy.networkBlockIpv6).newCall(okHttpRequest).execute()
             val duration = System.currentTimeMillis() - startTime
             AmnosLog.d("NetworkFetcher", "Proxied response [${response.code}] in ${duration}ms: $httpUrl")
 

@@ -9,6 +9,7 @@ import com.amnos.browser.core.service.StorageService
 import com.amnos.browser.core.session.AmnosLog
 import com.amnos.browser.core.session.SecurityController
 import com.amnos.browser.core.session.TabInstance
+import com.amnos.browser.core.session.TabManager
 import com.amnos.browser.core.security.KeyManager
 
 enum class WipeReason {

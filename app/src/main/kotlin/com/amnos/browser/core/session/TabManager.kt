@@ -85,7 +85,7 @@ class TabManager(
         touchSession()
     }
 
-    fun clearAll(touchSession: () -> Unit? = null) {
+    fun clearAll(touchSession: (() -> Unit)? = null) {
         tabs.forEach { it.webView.surgicalTeardown() }
         tabs.clear()
         touchSession?.invoke()

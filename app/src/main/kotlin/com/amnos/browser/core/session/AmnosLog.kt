@@ -7,7 +7,7 @@ object AmnosLog {
     @Volatile
     private var controllerProvider: (() -> SecurityController?)? = null
     @Volatile
-    private var systemLoggingAllowed: Boolean = !BuildConfig.SECURITY_BLOCK_FORENSIC_LOGGING
+    private var systemLoggingAllowed: Boolean = !BuildConfig.DEBUG_BLOCK_FORENSIC_LOGGING
 
     fun attach(provider: () -> SecurityController?) {
         controllerProvider = provider
