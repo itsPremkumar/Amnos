@@ -80,7 +80,7 @@ fun HomeViewCompact(
 
         AddressSearchBar(viewModel, keyboardViewModel, focusManager)
         
-        SecurityStatusFooter(viewModel)
+        SecurityStatusFooter()
     }
 }
 
@@ -127,7 +127,7 @@ fun HomeViewLandscapeCompact(
         ) {
             AddressSearchBar(viewModel, keyboardViewModel, focusManager)
             Spacer(modifier = Modifier.height(16.dp))
-            SecurityStatusFooter(viewModel)
+            SecurityStatusFooter()
         }
     }
 }
@@ -161,7 +161,7 @@ fun HomeViewExpanded(
         ) {
             AddressSearchBar(viewModel, keyboardViewModel, focusManager)
             Spacer(modifier = Modifier.height(48.dp))
-            SecurityStatusFooter(viewModel)
+            SecurityStatusFooter()
         }
     }
 }
@@ -246,7 +246,7 @@ fun AddressSearchBar(
 }
 
 @Composable
-fun SecurityStatusFooter(viewModel: BrowserViewModel) {
+fun SecurityStatusFooter() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = "Active session — Zero durable state",
