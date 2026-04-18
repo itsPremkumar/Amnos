@@ -268,14 +268,6 @@ class SessionManager private constructor(
     fun loadUrl(tab: TabInstance, rawUrl: String, forceBypassSandbox: Boolean = false): Boolean {
         securityController.logInternal("SessionManager", "loadUrl raw: $rawUrl (bypass=$forceBypassSandbox)", "DEBUG")
         
-        // CIRCUIT BREAKER: If the proxy infrastructure is down, do not allow any navigation.
-        if (!forceBypassSandbox && !loopbackProxyServer.isRunning) {
-            securityController.logInternal("SessionManager", "CRITICAL FAILURE: Proxy infrastructure is OFFLINE. Blocking navigation to prevent leaks.", "FATAL")
-            securityEventRouter.route("{\"type\":\"tamper_detected\",\"source\":\"proxy_offline\"}", null)
-            killAll(terminateProcess = true) // Nuclear exit
-            return false
-        }
-
         val sanitizedUrl = if (forceBypassSandbox) {
             rawUrl
         } else {
