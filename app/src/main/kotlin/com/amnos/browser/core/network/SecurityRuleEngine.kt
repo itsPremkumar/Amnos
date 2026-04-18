@@ -41,7 +41,7 @@ class SecurityRuleEngine(
             return RequestDecision(sanitizedUrl, kind, BlockReason.UNSUPPORTED_SCHEME)
         }
 
-        if (parsed != null && isLocalNetworkHost(parsed.host) && policy.networkBlockLocalNetwork) {
+        if (isLocalNetworkHost(parsed.host) && policy.networkBlockLocalNetwork) {
             val kind = classifyRequest(request, parsed)
             AmnosLog.w("SecurityEngine", "BLOCKED: Local network access to ${parsed.host} prohibited for security.")
             return RequestDecision(sanitizedUrl, kind, BlockReason.LOCAL_NETWORK)

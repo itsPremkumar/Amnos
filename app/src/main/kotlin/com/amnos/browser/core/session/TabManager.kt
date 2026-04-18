@@ -9,14 +9,13 @@ import com.amnos.browser.core.webview.PrivacyWebViewClient
 import com.amnos.browser.core.webview.AmnosWebView
 import com.amnos.browser.core.webview.SecureWebView
 import com.amnos.browser.core.adblock.AdBlocker
-import com.amnos.browser.core.session.AmnosLog
 
 class TabManager(
     private val context: Context,
     private val adBlocker: AdBlocker,
     private val networkSecurityManager: NetworkSecurityManager,
     private val securityController: SecurityController,
-    private val webViewFactory: (Context) -> AmnosWebView = { Context -> SecureWebView(Context) }
+    private val webViewFactory: (Context) -> AmnosWebView = { ctx -> SecureWebView(ctx) }
 ) {
     private val tabs = mutableListOf<TabInstance>()
 

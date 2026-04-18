@@ -56,7 +56,7 @@ class PrivacyWebViewClient(
 
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
         this.webView = view
-        val blockedByJail = navigationGuard.shouldOverride(view, request)
+        val blockedByJail = navigationGuard.shouldOverride(request)
         if (blockedByJail && request?.isForMainFrame == true) {
              // Handle jail block visual if main frame
              // (NavigationGuard already logged, we just return true to stop it)
@@ -66,7 +66,7 @@ class PrivacyWebViewClient(
 
     override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
         this.webView = view
-        return resourceGuard.intercept(view, request, currentHost)
+        return resourceGuard.intercept(request, currentHost)
     }
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {

@@ -14,7 +14,7 @@ class NavigationGuard(
     private val policyProvider: () -> PrivacyPolicy,
     private val onNavigationRequested: (String) -> Boolean
 ) {
-    fun shouldOverride(view: WebView?, request: WebResourceRequest?): Boolean {
+    fun shouldOverride(request: WebResourceRequest?): Boolean {
         request ?: return false
         val uri = request.url ?: return false
         val scheme = uri.scheme?.lowercase() ?: return false

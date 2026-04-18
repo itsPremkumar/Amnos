@@ -58,7 +58,7 @@ fun BrowsingView(viewModel: BrowserViewModel, keyboardViewModel: KeyboardViewMod
         ) {
             viewModel.currentTab.value?.let { tab ->
                 AndroidView(
-                    factory = { ctx ->
+                    factory = { _ ->
                         tab.webView.asView().apply {
                             layoutParams = ViewGroup.LayoutParams(
                                 ViewGroup.LayoutParams.MATCH_PARENT,

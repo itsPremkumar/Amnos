@@ -18,7 +18,7 @@ class ResourceGuard(
     private val policyProvider: () -> PrivacyPolicy,
     private val onTrackerBlocked: () -> Unit
 ) {
-    fun intercept(view: WebView?, request: WebResourceRequest?, currentHost: String?): WebResourceResponse? {
+    fun intercept(request: WebResourceRequest?, currentHost: String?): WebResourceResponse? {
         request ?: return null
         val url = request.url.toString()
         if (url.startsWith("about:", ignoreCase = true) || url.startsWith("data:", ignoreCase = true) || url.startsWith("blob:", ignoreCase = true)) {

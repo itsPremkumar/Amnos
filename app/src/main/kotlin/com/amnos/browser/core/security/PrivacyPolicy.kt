@@ -32,7 +32,7 @@ enum class CamouflageProfile {
 
 data class PrivacyPolicy(
     // --- CLUSTER 1: STEALTH (PASSIVE) ---
-    val stealthCamouflageProfile: CamouflageProfile = when (val cfg = com.amnos.browser.BuildConfig.STEALTH_CAMOUFLAGE_PROFILE.uppercase()) {
+    val stealthCamouflageProfile: CamouflageProfile = when (com.amnos.browser.BuildConfig.STEALTH_CAMOUFLAGE_PROFILE.uppercase()) {
         "CALCULATOR" -> CamouflageProfile.CALCULATOR
         "WEATHER" -> CamouflageProfile.WEATHER
         "DYNAMIC" -> if (System.currentTimeMillis() % 2 == 0L) CamouflageProfile.CALCULATOR else CamouflageProfile.WEATHER
