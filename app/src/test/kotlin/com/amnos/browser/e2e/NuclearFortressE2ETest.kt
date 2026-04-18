@@ -6,6 +6,7 @@ import com.amnos.browser.core.security.FirewallLevel
 import com.amnos.browser.core.security.PrivacyPolicy
 import com.amnos.browser.core.security.FingerprintProtectionLevel
 import com.amnos.browser.core.session.SessionManager
+import com.amnos.browser.core.fingerprint.DeviceProfile
 import com.amnos.browser.core.network.BlockReason
 import com.amnos.browser.ui.screens.browser.BrowserViewModel
 import org.junit.Assert.*

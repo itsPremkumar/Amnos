@@ -94,6 +94,7 @@ class SessionManager private constructor(
 
     private val superWipeEngine by lazy {
         SuperWipeEngine(
+            context = context,
             tabManager = tabManager,
             storageService = storageService,
             securityController = securityController,
@@ -108,6 +109,7 @@ class SessionManager private constructor(
             }
         )
     }
+    val burnState get() = superWipeEngine.burnState
 
     var privacyPolicy: PrivacyPolicy = PrivacyPolicy().let { initial ->
         if (BuildConfig.DEBUG) initial else initial.copy(debugBlockRemoteDebugging = true, debugLockdownMode = true)

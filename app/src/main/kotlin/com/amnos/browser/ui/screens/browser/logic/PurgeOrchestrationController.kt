@@ -1,14 +1,15 @@
 package com.amnos.browser.ui.screens.browser.logic
 
 import androidx.compose.runtime.MutableState
-import androidx.lifecycle.viewModelScope
 import com.amnos.browser.core.session.AmnosLog
 import com.amnos.browser.core.session.SessionManager
 import com.amnos.browser.core.session.TabInstance
+import com.amnos.browser.core.wipe.BurnState
 import com.amnos.browser.ui.screens.browser.BrowserUIState
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 class PurgeOrchestrationController(
     private val scope: CoroutineScope,
@@ -19,34 +20,48 @@ class PurgeOrchestrationController(
     private val urlInput: MutableState<String>,
     private val initializeSession: () -> Unit
 ) {
+    init {
+        scope.launch {
+            sessionManager.burnState.collectLatest { state ->
+                handleBurnStateTransition(state)
+            }
+        }
+    }
+
+    private suspend fun handleBurnStateTransition(state: BurnState) {
+        when (state) {
+            is BurnState.Idle -> {
+                isBurning.value = false
+            }
+            is BurnState.Preparing -> {
+                isBurning.value = true
+                currentTab.value = null // Immediate detachment
+                AmnosLog.w("PurgeController", "Sequence started: Preparing environment.")
+            }
+            is BurnState.Running -> {
+                AmnosLog.i("PurgeController", "Phase: ${state.taskName}")
+            }
+            is BurnState.Completing -> {
+                AmnosLog.d("PurgeController", "Finalizing cleanup...")
+            }
+            is BurnState.Success -> {
+                delay(800) // Visual buffer
+                initializeSession()
+                uiState.value = BrowserUIState.HOME
+                urlInput.value = ""
+                AmnosLog.i("PurgeController", "✔ Sequence Complete. Identity reset.")
+            }
+            is BurnState.Failed -> {
+                AmnosLog.e("PurgeController", "✘ Sequence Failed at task: ${state.taskName}", state.error)
+                // In a production app, we might show a retry or catastrophic failure alert here
+            }
+        }
+    }
+
     fun initiateKillSwitch(terminateProcess: Boolean) {
         scope.launch {
-            try {
-                isBurning.value = true
-                AmnosLog.w("PurgeController", "CRITICAL: Initiating Purge Sequence (Terminate=$terminateProcess)")
-                
-                // 1. UI Detachment
-                currentTab.value = null
-                delay(120)
-                
-                // 2. Core Wipe
-                sessionManager.killAllSuspend(terminateProcess = terminateProcess)
-                
-                if (!terminateProcess) {
-                    delay(1500)
-                    initializeSession()
-                    uiState.value = BrowserUIState.HOME
-                    urlInput.value = ""
-                    AmnosLog.i("PurgeController", "Session Purge Complete. New identity established.")
-                }
-            } catch (e: Exception) {
-                AmnosLog.e("PurgeController", "FATAL error during purge sequence", e)
-            } finally {
-                if (!terminateProcess) {
-                    delay(500)
-                    isBurning.value = false
-                }
-            }
+            AmnosLog.w("PurgeController", "CRITICAL: Manual kill switch triggered.")
+            sessionManager.killAllSuspend(terminateProcess = terminateProcess)
         }
     }
 }

@@ -1,18 +1,17 @@
 package com.amnos.browser.core.wipe
 
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.os.Process
-import com.amnos.browser.core.network.DnsManager
 import com.amnos.browser.core.network.LoopbackProxyServer
 import com.amnos.browser.core.service.StorageService
 import com.amnos.browser.core.session.AmnosLog
 import com.amnos.browser.core.session.SecurityController
-import com.amnos.browser.core.session.TabInstance
 import com.amnos.browser.core.session.TabManager
-import com.amnos.browser.core.security.KeyManager
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
+import com.amnos.browser.core.wipe.tasks.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 enum class WipeReason {
     KILL_SWITCH,
@@ -23,6 +22,7 @@ enum class WipeReason {
 }
 
 class SuperWipeEngine(
+    private val context: Context,
     private val tabManager: TabManager,
     private val storageService: StorageService,
     private val securityController: SecurityController,
@@ -33,6 +33,9 @@ class SuperWipeEngine(
     private val mainHandler = Handler(Looper.getMainLooper())
     private var isWiping = java.util.concurrent.atomic.AtomicBoolean(false)
 
+    private val _burnState = MutableStateFlow<BurnState>(BurnState.Idle)
+    val burnState: StateFlow<BurnState> = _burnState.asStateFlow()
+
     suspend fun execute(reason: WipeReason, terminateProcess: Boolean = false, wipeClipboard: Boolean = true) {
         if (!isWiping.compareAndSet(false, true)) {
             AmnosLog.w("SuperWipeEngine", "ABORT: Wipe already in progress. Ignoring concurrent request.")
@@ -40,81 +43,58 @@ class SuperWipeEngine(
         }
 
         try {
+            _burnState.value = BurnState.Preparing
             AmnosLog.w("SuperWipeEngine", "SUPER WIPE TRIGGERED | Reason: $reason | Terminate: $terminateProcess")
 
-            // Phase 0: Cryptographic Kill Switch
-            AmnosLog.d("SuperWipeEngine", "Phase 0: Cryptographic Kill Switch")
-            KeyManager.obliterateKey()
+            val tasks = listOf(
+                CryptographicTask(context),
+                WebViewTeardownTask(tabManager),
+                StorageSanitizationTask(storageService, securityController, wipeClipboard),
+                MemoryInvalidationTask(securityController),
+                NetworkRotationTask(loopbackProxyServer)
+            )
 
-            // Phase 1: WebView Teardown
-            val activeTabs = tabManager.getTabs()
-            AmnosLog.w("SuperWipeEngine", "Phase 1: CRITICAL WebView Teardown (Count: ${activeTabs.size})")
-            
-            tabManager.clearAll() // Sync teardown and list clear
-
-            // Phase 2 & 5: Storage Sanitization & Service Worker Purge
-            AmnosLog.d("SuperWipeEngine", "Phase 2 & 5: Storage & SW Sanitization")
-            if (wipeClipboard) {
-                com.amnos.browser.core.security.ClipboardVault.wipe()
-                storageService.wipeClipboard()
-            }
-            storageService.clearVolatileDownloads()
-            
-            // SYNCHRONOUS WAIT FOR PURGE COMPLETION
-            suspendCancellableCoroutine<Unit> { continuation ->
-                storageService.superPurge(
-                    onCompleted = {
-                        continuation.resume(Unit)
-                    },
-                    logCallback = securityController::logInternal
-                )
+            tasks.forEach { task ->
+                _burnState.value = BurnState.Running(task.name)
+                val result = task.execute()
+                
+                result.onFailure { error ->
+                    AmnosLog.e("SuperWipeEngine", "FATAL CLUSTER FAILURE: ${task.name} failed!", error)
+                    _burnState.value = BurnState.Failed(error, task.name)
+                    
+                    // EMERGENCY ESCALATION: 
+                    // If a purge task fails, we cannot guarantee security.
+                    // We must terminate the process immediately.
+                    executeHardKill("AUTOMATIC_EMERGENCY_SHUTDOWN")
+                    return@execute // Stop the sequence
+                }
             }
 
-            // Phase 3: Memory Invalidation
-            AmnosLog.d("SuperWipeEngine", "Phase 3: Memory Invalidation")
-            securityController.obliterate()
-            System.gc()
-            System.runFinalization()
-
-            // Phase 4: Network Rotation
-            AmnosLog.d("SuperWipeEngine", "Phase 4: Network Rotation")
-            loopbackProxyServer.stop()
-            DnsManager.destroyAndRebuild()
-
-            // Note: Phase 6 (UI Zeroing) is handled by the UI layer listening to onWipeCompleted
-
-            // Phase 7: Heap Hardening (Best Effort)
-            AmnosLog.d("SuperWipeEngine", "Phase 7: Heap Hardening")
-            hardenHeap()
-
+            _burnState.value = BurnState.Completing
             onNewSessionNeeded()
             onWipeCompleted()
+            _burnState.value = BurnState.Success
 
-            // Phase 8: Process Kill
             if (terminateProcess) {
-                AmnosLog.w("SuperWipeEngine", "Phase 8: Delayed Process Termination initiated (300ms drain window)")
-                mainHandler.postDelayed({
-                    AmnosLog.w("SuperWipeEngine", "EXECUTING HARD PROCESS KILL")
-                    android.os.Process.killProcess(android.os.Process.myPid())
-                    kotlin.system.exitProcess(0)
-                }, 300)
+                executeHardKill("MANUAL_KILL_SWITCH")
             }
+        } catch (e: Exception) {
+            AmnosLog.e("SuperWipeEngine", "FATAL error in sequence runner", e)
+            _burnState.value = BurnState.Failed(e, "Sequence Runner")
+            executeHardKill("SEQUENCE_RUNNER_PANIC")
         } finally {
             if (!terminateProcess) {
                 isWiping.set(false)
+                _burnState.value = BurnState.Idle
             }
         }
     }
 
-    private fun hardenHeap() {
-        try {
-            // Allocate an 8MB array to scrub reusable heap memory segments
-            val buffer = ByteArray(8 * 1024 * 1024)
-            for (i in buffer.indices step 4096) {
-                buffer[i] = 0 // Touch pages
-            }
-        } catch (e: OutOfMemoryError) {
-            AmnosLog.w("SuperWipeEngine", "OOM during heap hardening, skipped")
-        }
+    private fun executeHardKill(reason: String) {
+        AmnosLog.w("SuperWipeEngine", "!!! TERMINATING PROCESS: $reason !!!")
+        mainHandler.postDelayed({
+            android.os.Process.killProcess(android.os.Process.myPid())
+            kotlin.system.exitProcess(0)
+        }, 500)
     }
 }
