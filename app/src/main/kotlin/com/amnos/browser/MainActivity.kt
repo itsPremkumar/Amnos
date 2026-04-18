@@ -97,16 +97,23 @@ class MainActivity : ComponentActivity() {
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
         
         installCrashHandler()
+        
+        val sessionManagerForStartup = SessionManager.getInstance(this, RuntimeSecurityConfig.webViewProfileSuffix)
 
         try {
-            android.webkit.WebView.setDataDirectorySuffix(RuntimeSecurityConfig.webViewProfileSuffix)
-            AmnosLog.d("MainActivity", "WebView data directory suffix set successfully")
+            val suffix = if (sessionManagerForStartup.privacyPolicy.purgePureRamMode) {
+                // Moving the profile to the cache directory makes it even more volatile
+                "../cache/${RuntimeSecurityConfig.webViewProfileSuffix}"
+            } else {
+                RuntimeSecurityConfig.webViewProfileSuffix
+            }
+            android.webkit.WebView.setDataDirectorySuffix(suffix)
+            AmnosLog.d("MainActivity", "WebView data directory suffix set successfully: $suffix")
         } catch (e: Exception) {
             AmnosLog.w("MainActivity", "WebView suffix already set or failed: ${e.message}")
         }
         
-        val sessionManagerForStartup = SessionManager.getInstance(this, RuntimeSecurityConfig.webViewProfileSuffix)
-        if (sessionManagerForStartup.privacyPolicy.stealthAbsoluteCloaking) {
+        if (sessionManagerForStartup.privacyPolicy.stealthAbsoluteCloaking && !sessionManagerForStartup.privacyPolicy.purgePureRamMode) {
             startService(Intent(this, com.amnos.browser.core.service.GhostService::class.java))
         }
 
@@ -376,8 +383,8 @@ class MainActivity : ComponentActivity() {
         intent ?: return null
         
         // V2 SANDBOX GATING: If in Sandbox mode, block ALL inbound intents by default
-        if (::sessionManager.isInitialized && sessionManager.privacyPolicy.purgeSandboxEnabled && sessionManager.privacyPolicy.networkFirewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID) {
-            AmnosLog.w("MainActivity", "INBOUND INTENT BLOCKED: Paranoid Sandbox Mode is ACTIVE.")
+        if (::sessionManager.isInitialized && (sessionManager.privacyPolicy.purgePureRamMode || (sessionManager.privacyPolicy.purgeSandboxEnabled && sessionManager.privacyPolicy.networkFirewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID))) {
+            AmnosLog.w("MainActivity", "INBOUND INTENT BLOCKED: Pure RAM Sandbox Mode is ACTIVE.")
             return null
         }
 
@@ -426,6 +433,12 @@ class MainActivity : ComponentActivity() {
         if (Thread.getDefaultUncaughtExceptionHandler() === crashHandler) {
             Thread.setDefaultUncaughtExceptionHandler(previousUncaughtExceptionHandler)
         }
+        
+        if (::sessionManager.isInitialized && sessionManager.privacyPolicy.purgePureRamMode) {
+            AmnosLog.e("MainActivity", "ABSOLUTE ISOLATION: UI destroyed. Executing Hard Exit.")
+            sessionManager.killAll(terminateProcess = true)
+        }
+        
         super.onDestroy()
     }
 

@@ -5,14 +5,20 @@ import android.content.SharedPreferences
 import com.amnos.browser.core.security.KeyManager
 
 class SecureVault(
-    private val context: Context,
+    private val context: android.content.Context,
     private val suffix: String
 ) {
-    val prefs: SharedPreferences by lazy {
-        KeyManager.getEncryptedSharedPreferences(context, "amnos_secure_prefs_$suffix")
+    private val memoryMap = java.util.concurrent.ConcurrentHashMap<String, Any>()
+
+    fun putString(key: String, value: String) {
+        memoryMap[key] = value
+    }
+
+    fun getString(key: String, default: String? = null): String? {
+        return memoryMap[key] as? String ?: default
     }
 
     fun clear() {
-        prefs.edit().clear().apply()
+        memoryMap.clear()
     }
 }
