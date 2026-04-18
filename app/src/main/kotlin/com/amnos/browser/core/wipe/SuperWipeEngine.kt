@@ -11,6 +11,8 @@ import com.amnos.browser.core.session.SecurityController
 import com.amnos.browser.core.session.TabInstance
 import com.amnos.browser.core.session.TabManager
 import com.amnos.browser.core.security.KeyManager
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 enum class WipeReason {
     KILL_SWITCH,
@@ -31,7 +33,7 @@ class SuperWipeEngine(
     private val mainHandler = Handler(Looper.getMainLooper())
     private var isWiping = java.util.concurrent.atomic.AtomicBoolean(false)
 
-    fun execute(reason: WipeReason, terminateProcess: Boolean = false, wipeClipboard: Boolean = true) {
+    suspend fun execute(reason: WipeReason, terminateProcess: Boolean = false, wipeClipboard: Boolean = true) {
         if (!isWiping.compareAndSet(false, true)) {
             AmnosLog.w("SuperWipeEngine", "ABORT: Wipe already in progress. Ignoring concurrent request.")
             return
@@ -57,10 +59,16 @@ class SuperWipeEngine(
                 storageService.wipeClipboard()
             }
             storageService.clearVolatileDownloads()
-            storageService.superPurge(
-                onWebViewsDestroyed = {}, // We already destroyed them synchronously above
-                logCallback = securityController::logInternal
-            )
+            
+            // SYNCHRONOUS WAIT FOR PURGE COMPLETION
+            suspendCancellableCoroutine<Unit> { continuation ->
+                storageService.superPurge(
+                    onCompleted = {
+                        continuation.resume(Unit)
+                    },
+                    logCallback = securityController::logInternal
+                )
+            }
 
             // Phase 3: Memory Invalidation
             AmnosLog.d("SuperWipeEngine", "Phase 3: Memory Invalidation")

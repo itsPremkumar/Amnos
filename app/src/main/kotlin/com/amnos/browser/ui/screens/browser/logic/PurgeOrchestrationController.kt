@@ -30,7 +30,7 @@ class PurgeOrchestrationController(
                 delay(120)
                 
                 // 2. Core Wipe
-                sessionManager.killAll(terminateProcess = terminateProcess)
+                sessionManager.killAllSuspend(terminateProcess = terminateProcess)
                 
                 if (!terminateProcess) {
                     delay(1500)

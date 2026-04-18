@@ -10,6 +10,10 @@ import androidx.core.content.ContextCompat
 import androidx.webkit.ProxyConfig
 import androidx.webkit.ProxyController
 import androidx.webkit.WebViewFeature
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.amnos.browser.BuildConfig
 import com.amnos.browser.core.adblock.AdBlocker
 import com.amnos.browser.core.fingerprint.DeviceProfile
@@ -303,21 +307,21 @@ class SessionManager private constructor(
     }
 
     fun killAll(terminateProcess: Boolean = false, wipeClipboard: Boolean = true) {
-        if (Looper.myLooper() != Looper.getMainLooper()) {
-            val posted = mainHandler.post {
-                killAll(terminateProcess = terminateProcess, wipeClipboard = wipeClipboard)
-            }
-            if (posted) {
-                return
-            }
-            AmnosLog.w("SessionManager", "Failed to post wipe to main thread. Continuing inline as a fallback.")
+        val shouldTerminate = terminateProcess || privacyPolicy.networkFirewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID
+        
+        // Legacy entry point for non-suspending callers
+        CoroutineScope(Dispatchers.Main).launch {
+            killAllSuspend(terminateProcess = shouldTerminate, wipeClipboard = wipeClipboard)
         }
+    }
 
+    suspend fun killAllSuspend(terminateProcess: Boolean = false, wipeClipboard: Boolean = true) = withContext(Dispatchers.Main) {
         val shouldTerminate = terminateProcess || privacyPolicy.networkFirewallLevel == com.amnos.browser.core.security.FirewallLevel.PARANOID
         val now = SystemClock.elapsedRealtime()
+        
         if (!shouldTerminate && now - lastWipeElapsedRealtime < wipeDebounceMs) {
             AmnosLog.w("SessionManager", "Wipe request ignored because a recent wipe already completed.")
-            return
+            return@withContext
         }
 
         val reason = if (shouldTerminate) WipeReason.KILL_SWITCH else WipeReason.BACKGROUND_WIPE
