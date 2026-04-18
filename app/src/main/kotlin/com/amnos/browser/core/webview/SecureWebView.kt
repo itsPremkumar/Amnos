@@ -115,7 +115,11 @@ class SecureWebView(context: Context) : WebView(context), AmnosWebView {
         isLongClickable = false
         setOnLongClickListener { true }
 
-        importantForAutofill = IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+        // AMNOS OS BLOCKADE: Blind the system's autofill and content capture services
+        importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            importantForContentCapture = View.IMPORTANT_FOR_CONTENT_CAPTURE_NO_EXCLUDE_DESCENDANTS
+        }
 
         configureCookies()
         configureServiceWorkers()

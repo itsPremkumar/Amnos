@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
     private var keyboardGuardListener: android.view.ViewTreeObserver.OnGlobalLayoutListener? = null
     private var pendingLaunchRequest: String? = null
     private var securityReceiverRegistered = false
+    private var isShuttingDown = false
     private val lifecycleHandler = Handler(Looper.getMainLooper())
     private val securityReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
@@ -78,6 +79,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // ABSOLUTE SECRECY: Apply secure window flag before ANY UI is inflated to blind the OS Recents snapshot
+        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         super.onCreate(savedInstanceState)
         
         val filter = android.content.IntentFilter().apply {
@@ -167,9 +170,10 @@ class MainActivity : ComponentActivity() {
                 viewModel = BrowserViewModel(sessionManager)
 
                 sessionManager.registerWipeListener {
-                    if (sessionManager.privacyPolicy.stealthAbsoluteCloaking) {
-                        AmnosLog.d("MainActivity", "Session wipe triggered. Ghosting activity.")
-                        finishAffinity() // Clear all activities from the Task Manager
+                    if (sessionManager.privacyPolicy.purgePureRamMode || sessionManager.privacyPolicy.stealthAbsoluteCloaking) {
+                        AmnosLog.d("MainActivity", "Session wipe completed. Initiating forensic exit.")
+                        isShuttingDown = true
+                        finishAffinity()
                     }
                 }
 
@@ -434,8 +438,9 @@ class MainActivity : ComponentActivity() {
             Thread.setDefaultUncaughtExceptionHandler(previousUncaughtExceptionHandler)
         }
         
-        if (::sessionManager.isInitialized && sessionManager.privacyPolicy.purgePureRamMode) {
-            AmnosLog.e("MainActivity", "ABSOLUTE ISOLATION: UI destroyed. Executing Hard Exit.")
+        if (::sessionManager.isInitialized && sessionManager.privacyPolicy.purgePureRamMode && !isShuttingDown) {
+            isShuttingDown = true
+            AmnosLog.e("MainActivity", "ABSOLUTE ISOLATION: Unscheduled UI destruction. Executing Hard Exit.")
             sessionManager.killAll(terminateProcess = true)
         }
         
