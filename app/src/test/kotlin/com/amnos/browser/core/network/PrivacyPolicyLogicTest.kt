@@ -19,7 +19,7 @@ class PrivacyPolicyLogicTest {
 
     @Test
     fun blockUnsafeMethods_blocksPostRequests() {
-        val policy = PrivacyPolicy(blockUnsafeMethods = true)
+        val policy = PrivacyPolicy(filterBlockUnsafeMethods = true)
         val manager = NetworkSecurityManager(adBlocker) { policy }
         
         val url = "https://example.com"
@@ -33,10 +33,10 @@ class PrivacyPolicyLogicTest {
 
     @Test
     fun blockLocalNetwork_blocksLocalhost() {
-        val policyWithBlock = PrivacyPolicy(blockLocalNetwork = true)
+        val policyWithBlock = PrivacyPolicy(networkBlockLocalNetwork = true)
         val managerWithBlock = NetworkSecurityManager(adBlocker) { policyWithBlock }
         
-        val policyWithoutBlock = PrivacyPolicy(blockLocalNetwork = false)
+        val policyWithoutBlock = PrivacyPolicy(networkBlockLocalNetwork = false)
         val managerWithoutBlock = NetworkSecurityManager(adBlocker) { policyWithoutBlock }
         
         val localUrl = "https://localhost"

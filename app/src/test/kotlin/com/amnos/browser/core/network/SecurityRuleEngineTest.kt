@@ -3,7 +3,7 @@ package com.amnos.browser.core.network
 import android.net.Uri
 import android.webkit.WebResourceRequest
 import com.amnos.browser.core.adblock.AdBlocker
-import com.amnos.browser.core.security.AmnosSandboxMode
+import com.amnos.browser.core.security.FirewallLevel
 import com.amnos.browser.core.security.PrivacyPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -19,9 +19,9 @@ class SecurityRuleEngineTest {
     private val engine = SecurityRuleEngine(adBlocker)
 
     private val paranoidPolicy = PrivacyPolicy(
-        sandboxMode = AmnosSandboxMode.PARANOID,
-        blockThirdPartyRequests = true,
-        blockTrackers = true
+        networkFirewallLevel = FirewallLevel.PARANOID,
+        filterBlockThirdPartyRequests = true,
+        filterBlockTrackers = true
     )
 
     @Test

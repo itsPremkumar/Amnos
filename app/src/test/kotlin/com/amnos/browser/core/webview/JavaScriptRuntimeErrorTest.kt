@@ -204,20 +204,8 @@ class JavaScriptRuntimeErrorTest {
      */
     private fun createTestPrivacyPolicy(): PrivacyPolicy {
         return PrivacyPolicy(
-            domStorageEnabled = true,
-            blockInlineScripts = false,
-            blockWebSockets = true,
-            allowFirstPartyWebSockets = false,
-            blockWebRtc = true,
-            blockDnsPrefetch = true,
-            blockPreconnect = true,
-            blockEval = true,
-            blockServiceWorkers = true,
-            webGlMode = com.amnos.browser.core.security.WebGlMode.DISABLED,
-            strictFirstPartyIsolation = true,
-            fingerprintProtectionLevel = FingerprintProtectionLevel.STRICT,
-            forceRelaxSecurityForDebug = false,
-            javascriptMode = com.amnos.browser.core.security.JavaScriptMode.FULL
+            hardwareFingerprintLevel = FingerprintProtectionLevel.STRICT,
+            hardwareJavascriptMode = com.amnos.browser.core.security.JavaScriptMode.FULL
         )
     }
 }

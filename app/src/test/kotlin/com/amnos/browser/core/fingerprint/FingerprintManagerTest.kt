@@ -1,6 +1,7 @@
 package com.amnos.browser.core.fingerprint
 
 import com.amnos.browser.core.security.FingerprintProtectionLevel
+import com.amnos.browser.core.security.PrivacyPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -10,16 +11,18 @@ class FingerprintManagerTest {
 
     @Test
     fun profileGenerationIsDeterministicPerSessionAndTab() {
-        val first = FingerprintManager.generateCoherentProfile("session-1", "tab-1", FingerprintProtectionLevel.STRICT)
-        val second = FingerprintManager.generateCoherentProfile("session-1", "tab-1", FingerprintProtectionLevel.STRICT)
+        val policy = PrivacyPolicy(hardwareFingerprintLevel = FingerprintProtectionLevel.STRICT)
+        val first = FingerprintManager.generateCoherentProfile("session-1", "tab-1", policy)
+        val second = FingerprintManager.generateCoherentProfile("session-1", "tab-1", policy)
 
         assertEquals(first, second)
     }
 
     @Test
     fun differentTabsReceiveDistinctTabScopedNoise() {
-        val first = FingerprintManager.generateCoherentProfile("session-1", "tab-1", FingerprintProtectionLevel.STRICT)
-        val second = FingerprintManager.generateCoherentProfile("session-1", "tab-2", FingerprintProtectionLevel.STRICT)
+        val policy = PrivacyPolicy(hardwareFingerprintLevel = FingerprintProtectionLevel.STRICT)
+        val first = FingerprintManager.generateCoherentProfile("session-1", "tab-1", policy)
+        val second = FingerprintManager.generateCoherentProfile("session-1", "tab-2", policy)
 
         assertNotEquals(first.tabId, second.tabId)
         assertNotEquals(first.noiseSeed, second.noiseSeed)
@@ -27,10 +30,11 @@ class FingerprintManagerTest {
 
     @Test
     fun generatedProfilesStayWithinAndroidMobileShape() {
+        val policy = PrivacyPolicy(hardwareFingerprintLevel = FingerprintProtectionLevel.BALANCED)
         val profile = FingerprintManager.generateCoherentProfile(
             "session-android",
             "tab-android",
-            FingerprintProtectionLevel.BALANCED
+            policy
         )
 
         assertTrue(profile.userAgent.contains("Android"))
@@ -41,10 +45,11 @@ class FingerprintManagerTest {
 
     @Test
     fun strictProfilesNormalizeHardwareAndTimezone() {
+        val policy = PrivacyPolicy(hardwareFingerprintLevel = FingerprintProtectionLevel.STRICT)
         val profile = FingerprintManager.generateCoherentProfile(
             "session-strict",
             "tab-strict",
-            FingerprintProtectionLevel.STRICT
+            policy
         )
 
         assertEquals(8, profile.hardwareConcurrency)

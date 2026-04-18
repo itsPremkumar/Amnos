@@ -17,7 +17,7 @@ class NetworkSecurityManagerTest {
 
     private val context: Context = RuntimeEnvironment.getApplication()
     private val adBlocker = AdBlocker(context)
-    private val manager = NetworkSecurityManager(adBlocker) { PrivacyPolicy(removeTrackingParameters = true) }
+    private val manager = NetworkSecurityManager(adBlocker) { PrivacyPolicy(filterRemoveTrackingParams = true) }
 
     @Test
     fun rejectsUnsupportedSchemesInNavigationInput() {
@@ -34,6 +34,42 @@ class NetworkSecurityManagerTest {
     }
 
     @Test
+    fun identifiesAndProcessesSearchQueries() {
+        // Single word (like 'youtue') -> Search
+        assertEquals(
+            "https://duckduckgo.com/?q=youtue",
+            manager.sanitizeNavigationUrl("youtue")
+        )
+
+        // Multiple words (with spaces) -> Search
+        assertEquals(
+            "https://duckduckgo.com/?q=how+to+cook",
+            manager.sanitizeNavigationUrl("how to cook")
+        )
+
+        // Single word with trailing slash (common user behavior) -> Search
+        assertEquals(
+            "https://duckduckgo.com/?q=youtube%2F",
+            manager.sanitizeNavigationUrl("youtube/")
+        )
+    }
+
+    @Test
+    fun preservesValidUrlsAndIpAddresses() {
+        // Standard domain -> Direct
+        assertEquals("https://google.com", manager.sanitizeNavigationUrl("google.com"))
+        
+        // IP Address -> Direct
+        assertEquals("https://192.168.1.1", manager.sanitizeNavigationUrl("192.168.1.1"))
+        
+        // Localhost -> Direct
+        assertEquals("https://localhost", manager.sanitizeNavigationUrl("localhost"))
+        
+        // Subdomain -> Direct
+        assertEquals("https://news.bbc.co.uk", manager.sanitizeNavigationUrl("news.bbc.co.uk"))
+    }
+
+    @Test
     fun computesStableSiteKeysAndCrossSiteBoundaries() {
         assertEquals("example.com", manager.siteKeyForUrl("https://sub.example.com/path"))
         assertTrue(manager.isCrossSiteNavigation("https://example.com", "https://another.org"))
@@ -43,7 +79,7 @@ class NetworkSecurityManagerTest {
     @Test
     fun repro_paranoidModeBlocksLegitimateNavigation() {
         // SETUP: Paranoid mode active
-        val paranoidPolicy = PrivacyPolicy(sandboxMode = com.amnos.browser.core.security.AmnosSandboxMode.PARANOID)
+        val paranoidPolicy = PrivacyPolicy(networkFirewallLevel = com.amnos.browser.core.security.FirewallLevel.PARANOID)
         val paranoidManager = NetworkSecurityManager(adBlocker) { paranoidPolicy }
         
         val wikipediaUrl = "https://en.wikipedia.org/wiki/Privacy"
@@ -60,7 +96,7 @@ class NetworkSecurityManagerTest {
     @Test
     fun verify_balancedModeAllowsLegitimateNavigation() {
         // SETUP: Balanced mode (proposed solution)
-        val balancedPolicy = PrivacyPolicy(sandboxMode = com.amnos.browser.core.security.AmnosSandboxMode.BALANCED)
+        val balancedPolicy = PrivacyPolicy(networkFirewallLevel = com.amnos.browser.core.security.FirewallLevel.BALANCED)
         val balancedManager = NetworkSecurityManager(adBlocker) { balancedPolicy }
         
         val wikipediaUrl = "https://en.wikipedia.org/wiki/Privacy"
