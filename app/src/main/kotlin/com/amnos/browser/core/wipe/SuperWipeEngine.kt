@@ -47,11 +47,11 @@ class SuperWipeEngine(
             AmnosLog.w("SuperWipeEngine", "SUPER WIPE TRIGGERED | Reason: $reason | Terminate: $terminateProcess")
 
             val tasks = listOf(
-                CryptographicTask(context),
                 WebViewTeardownTask(tabManager),
+                NetworkRotationTask(loopbackProxyServer),
+                CryptographicTask(context),
                 StorageSanitizationTask(storageService, securityController, wipeClipboard),
-                MemoryInvalidationTask(securityController),
-                NetworkRotationTask(loopbackProxyServer)
+                MemoryInvalidationTask(securityController)
             )
 
             tasks.forEach { task ->
