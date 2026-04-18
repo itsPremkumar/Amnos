@@ -274,10 +274,6 @@ fun SecurityStatusFooter(viewModel: BrowserViewModel) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        TextButton(
-            onClick = viewModel::openPrivacyChecklist
-        ) {
-            Text("Privacy Checklist", color = AccentBlue, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-        }
+
     }
 }
