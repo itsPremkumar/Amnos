@@ -130,7 +130,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
             onStateChanged = stateChangedCallback,
             onProgressChanged = { loadingProgress.intValue = it },
             onTrackerBlocked = { blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount() },
-            onNavigationRequested = nav::handleMainFrameNavigation,
+            onNavigationRequested = { url -> nav.handleMainFrameNavigation(url) { recreateCurrentTab() } },
             onNavigationCommitted = { url -> 
                 currentTab.value?.currentUrl = url
                 if (uiState.value == BrowserUIState.BROWSING) urlInput.value = url
@@ -236,7 +236,7 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
                 onStateChanged = stateChangedCallback,
                 onProgressChanged = { loadingProgress.intValue = it },
                 onTrackerBlocked = { blockedTrackersCount.intValue = sessionManager.securityController.trackerBlockCount() },
-                onNavigationRequested = nav::handleMainFrameNavigation,
+                onNavigationRequested = { url -> nav.handleMainFrameNavigation(url) { recreateCurrentTab() } },
                 onNavigationCommitted = { urlInput.value = it },
                 onNavigationFailed = { nav.pendingAddressBarValue = null },
                 onKeyboardRequested = { webKeyboardRequested.value = it },

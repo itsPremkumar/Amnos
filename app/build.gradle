@@ -189,6 +189,12 @@ android {
             outputFileName = "Amnos-v${version}-${type}.apk"
         }
     }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
 }
 
 dependencies {

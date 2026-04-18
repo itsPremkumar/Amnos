@@ -6,6 +6,7 @@ import com.amnos.browser.core.network.NetworkSecurityManager
 import com.amnos.browser.core.security.PrivacyPolicy
 import com.amnos.browser.core.webview.PrivacyWebChromeClient
 import com.amnos.browser.core.webview.PrivacyWebViewClient
+import com.amnos.browser.core.webview.AmnosWebView
 import com.amnos.browser.core.webview.SecureWebView
 import com.amnos.browser.core.adblock.AdBlocker
 import com.amnos.browser.core.session.AmnosLog
@@ -14,7 +15,8 @@ class TabManager(
     private val context: Context,
     private val adBlocker: AdBlocker,
     private val networkSecurityManager: NetworkSecurityManager,
-    private val securityController: SecurityController
+    private val securityController: SecurityController,
+    private val webViewFactory: (Context) -> AmnosWebView = { Context -> SecureWebView(Context) }
 ) {
     private val tabs = mutableListOf<TabInstance>()
 
@@ -38,7 +40,7 @@ class TabManager(
         val tabId = FingerprintManager.newTabId()
         val profile = FingerprintManager.generateCoherentProfile(activeSessionId, tabId, privacyPolicy)
 
-        val webView = SecureWebView(context)
+        val webView = webViewFactory(context)
         val finalScript = buildInjectionScript(profile)
 
         webView.applyHardening(profile, privacyPolicy, finalScript, onSecurityEvent)
@@ -63,8 +65,8 @@ class TabManager(
             onNavigationFailed = onNavigationFailed
         )
 
-        webView.webViewClient = client
-        webView.webChromeClient = PrivacyWebChromeClient(onProgressChanged)
+        webView.setWebViewClient(client)
+        webView.setWebChromeClient(PrivacyWebChromeClient(onProgressChanged))
 
         val tab = TabInstance(
             sessionId = activeSessionId,

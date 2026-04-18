@@ -1,13 +1,13 @@
 package com.amnos.browser.core.session
 
 import com.amnos.browser.core.fingerprint.DeviceProfile
-import com.amnos.browser.core.webview.SecureWebView
+import com.amnos.browser.core.webview.AmnosWebView
 
 data class TabInstance(
     val sessionId: String,
     val tabId: String,
     val profile: DeviceProfile,
-    val webView: SecureWebView,
+    val webView: AmnosWebView,
     val onKeyboardRequested: (Boolean) -> Unit = {},
     val onSecurityEvent: (String) -> Unit = {},
     var currentUrl: String? = null,

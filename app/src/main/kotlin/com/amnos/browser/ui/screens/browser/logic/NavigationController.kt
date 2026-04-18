@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import com.amnos.browser.core.session.AmnosLog
 import com.amnos.browser.core.session.SessionManager
 import com.amnos.browser.core.session.TabInstance
+import com.amnos.browser.core.webview.AmnosWebView
 import com.amnos.browser.ui.screens.browser.BrowserUIState
 
 class NavigationController(
@@ -60,15 +61,16 @@ class NavigationController(
         currentTab.value?.webView?.reload()
     }
 
-    fun handleMainFrameNavigation(url: String): Boolean {
+    fun handleMainFrameNavigation(url: String, triggerRecreation: () -> Unit): Boolean {
         AmnosLog.i("NavController", "Main-frame navigation requested: $url")
         val tab = currentTab.value ?: return true
         
         if (sessionManager.shouldRecreateForTopLevelNavigation(tab, url)) {
             AmnosLog.w("NavController", "CROSS-SITE isolation trigger. Tab recreation required.")
-            // The actual recreation is orchestrated by the ViewModel to ensure callback integrity
-            return false 
+            triggerRecreation()
+            return true // TRUE tells the old WebView to ABORT loading.
         }
-        return true
+        
+        return false // FALSE tells the current WebView to PROCEED loading normally.
     }
 }

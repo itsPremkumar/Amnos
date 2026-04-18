@@ -24,6 +24,7 @@ import com.amnos.browser.core.security.PrivacyPolicy
 import com.amnos.browser.core.security.WebGlMode
 import com.amnos.browser.core.webview.PrivacyWebChromeClient
 import com.amnos.browser.core.webview.PrivacyWebViewClient
+import com.amnos.browser.core.webview.AmnosWebView
 import com.amnos.browser.core.webview.SecureWebView
 import com.amnos.browser.core.service.StorageService
 import com.amnos.browser.core.security.KeyManager
@@ -34,20 +35,26 @@ import com.amnos.browser.core.network.NetworkTrafficConfigurator
 
 class SessionManager private constructor(
     private val context: Context,
-    private val webViewDataSuffix: String
+    private val webViewDataSuffix: String,
+    private val webViewFactory: (Context) -> AmnosWebView = { Context -> SecureWebView(Context) }
 ) {
     companion object {
         @SuppressLint("StaticFieldLeak")
         @Volatile
         private var INSTANCE: SessionManager? = null
 
-        fun getInstance(context: Context? = null, webViewDataSuffix: String? = null): SessionManager {
+        fun getInstance(
+            context: Context? = null,
+            webViewDataSuffix: String? = null,
+            webViewFactory: ((Context) -> AmnosWebView)? = null
+        ): SessionManager {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: run {
                     val ctx = context?.applicationContext ?: throw IllegalStateException("SessionManager not initialized and no context provided")
                     SessionManager(
                         ctx,
-                        webViewDataSuffix ?: "Amnos_Secure_Profile"
+                        webViewDataSuffix ?: "Amnos_Secure_Profile",
+                        webViewFactory ?: { Context -> SecureWebView(Context) }
                     ).also { INSTANCE = it }
                 }
             }
@@ -66,7 +73,7 @@ class SessionManager private constructor(
     val storageService = StorageService(context, webViewDataSuffix)
     private val networkSecurityManager = NetworkSecurityManager(adBlocker) { privacyPolicy }
     
-    private val tabManager = TabManager(context, adBlocker, networkSecurityManager, securityController)
+    private val tabManager = TabManager(context, adBlocker, networkSecurityManager, securityController, webViewFactory)
     private val securityEventRouter = SecurityEventRouter(securityController)
     
     private val loopbackProxyServer = LoopbackProxyServer(
@@ -104,7 +111,16 @@ class SessionManager private constructor(
         private set
 
     private val baseObfuscatorScript: String by lazy {
-        context.assets.open("FingerprintObfuscator.js").bufferedReader().use { it.readText() }
+        try {
+            context.assets.open("FingerprintObfuscator.js").bufferedReader().use { it.readText() }
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) {
+                AmnosLog.w("SessionManager", "Failed to load FingerprintObfuscator.js, using empty script for test")
+                ""
+            } else {
+                throw e
+            }
+        }
     }
 
         init {

@@ -58,9 +58,12 @@ fun BrowsingView(viewModel: BrowserViewModel, keyboardViewModel: KeyboardViewMod
         ) {
             viewModel.currentTab.value?.let { tab ->
                 AndroidView(
-                    factory = {
-                        tab.webView.apply {
-                            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                    factory = { ctx ->
+                        tab.webView.asView().apply {
+                            layoutParams = ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
+                            )
                         }
                     },
                     modifier = Modifier.fillMaxSize()

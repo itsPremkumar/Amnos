@@ -7,6 +7,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.webkit.CookieManager
+import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -22,7 +23,7 @@ import com.amnos.browser.core.security.PrivacyPolicy
 import com.amnos.browser.core.session.AmnosLog
 import android.net.Uri
 
-class SecureWebView(context: Context) : WebView(context) {
+class SecureWebView(context: Context) : WebView(context), AmnosWebView {
     companion object {
         private const val BRIDGE_NAME = "amnosBridge"
     }
@@ -31,6 +32,20 @@ class SecureWebView(context: Context) : WebView(context) {
     private var fallbackInjectionScript: String? = null
     var isDecommissioned: Boolean = false
         private set
+
+    // WebView's native getWebViewClient, setWebViewClient, etc. fulfill the interface.
+
+    override fun getUrl(): String? = super.getUrl()
+    override fun stopLoading() = super.stopLoading()
+    override fun reload() = super.reload()
+    override fun clearHistory() = super.clearHistory()
+    override fun canGoBack(): Boolean = super.canGoBack()
+    override fun canGoForward(): Boolean = super.canGoForward()
+    override fun goBack() = super.goBack()
+    override fun goForward() = super.goForward()
+    override fun pauseTimers() = super.pauseTimers()
+    override fun resumeTimers() = super.resumeTimers()
+    override fun asView(): View = this
 
     override fun destroy() {
         surgicalTeardown()
@@ -58,7 +73,7 @@ class SecureWebView(context: Context) : WebView(context) {
     }
 
     @Suppress("DEPRECATION")
-    fun applyHardening(
+    override fun applyHardening(
         profile: DeviceProfile,
         policy: PrivacyPolicy,
         injectionScript: String,
@@ -108,7 +123,7 @@ class SecureWebView(context: Context) : WebView(context) {
         installDocumentStartScript(policy, injectionScript)
     }
 
-    fun updateRuntimePolicy(
+    override fun updateRuntimePolicy(
         profile: DeviceProfile,
         policy: PrivacyPolicy,
         injectionScript: String,
@@ -148,7 +163,7 @@ class SecureWebView(context: Context) : WebView(context) {
         }
     }
 
-    fun clearVolatileState() {
+    override fun clearVolatileState() {
         if (Looper.myLooper() != Looper.getMainLooper()) {
             post { clearVolatileState() }
             return
@@ -168,7 +183,7 @@ class SecureWebView(context: Context) : WebView(context) {
         runTeardownStep("clear_volatile_children") { removeAllViews() }
     }
 
-    fun surgicalTeardown() {
+    override fun surgicalTeardown() {
         if (Looper.myLooper() != Looper.getMainLooper()) {
             post { surgicalTeardown() }
             return

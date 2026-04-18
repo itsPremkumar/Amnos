@@ -4,6 +4,8 @@ import com.amnos.browser.core.network.NavigationResolver
 import com.amnos.browser.core.session.AmnosLog
 import com.amnos.browser.ui.screens.browser.BrowserStateReducer
 import com.amnos.browser.core.session.SessionManager
+import com.amnos.browser.core.session.TabInstance
+import com.amnos.browser.core.webview.AmnosWebView
 import com.amnos.browser.ui.screens.browser.BrowserUIState
 import com.amnos.browser.ui.screens.browser.BrowserViewModel
 
