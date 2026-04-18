@@ -26,8 +26,7 @@ import com.amnos.browser.ui.components.security.panels.DebugLockdownPanel
 fun ShieldsTab(viewModel: BrowserViewModel, isWide: Boolean) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .fillMaxWidth()
             .padding(16.dp)
     ) {
         ActiveDefenseHeader(viewModel)
