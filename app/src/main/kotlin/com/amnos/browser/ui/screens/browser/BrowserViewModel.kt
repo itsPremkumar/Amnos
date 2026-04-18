@@ -178,9 +178,9 @@ class BrowserViewModel(private val sessionManager: SessionManager) : ViewModel()
     fun closeFirewall() { uiState.value = BrowserUIState.HOME }
 
     // Web Input Injection
-    fun injectWebInput(text: String) { currentTab.value?.webView?.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_UNKNOWN)) }
-    fun injectWebBackspace() { currentTab.value?.webView?.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DEL)) }
-    fun injectWebSearch() { currentTab.value?.webView?.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_ENTER)) }
+    fun injectWebInput(text: String) { currentTab.value?.webView?.injectInput(text) }
+    fun injectWebBackspace() { currentTab.value?.webView?.injectBackspace() }
+    fun injectWebSearch() { currentTab.value?.webView?.injectSearch() }
 
     // 5. MISC LOGIC
     fun handleSecurityEvent(json: String) {

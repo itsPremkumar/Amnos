@@ -17,6 +17,10 @@ interface AmnosWebView {
     fun getWebChromeClient(): WebChromeClient?
     fun setWebChromeClient(client: WebChromeClient?)
     
+    fun injectInput(text: String)
+    fun injectBackspace()
+    fun injectSearch()
+    
     fun getContext(): Context
     fun getUrl(): String?
     fun loadUrl(url: String)

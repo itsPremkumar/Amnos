@@ -51,6 +51,10 @@ class NuclearFortressE2ETest {
                 override fun getWebChromeClient(): WebChromeClient? = mWebChromeClient
                 override fun setWebChromeClient(client: WebChromeClient?) { mWebChromeClient = client }
                 
+                override fun injectInput(text: String) {}
+                override fun injectBackspace() {}
+                override fun injectSearch() {}
+                
                 override fun getContext(): Context = ctx
                 override fun getUrl(): String? = currentUrl
                 override fun loadUrl(url: String) { currentUrl = url; lastLoadedUrl = url }

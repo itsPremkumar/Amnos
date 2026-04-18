@@ -132,18 +132,18 @@ class SecureWebView(context: Context) : WebView(context), AmnosWebView {
         applyHardening(profile, policy, injectionScript, onSecurityEvent)
     }
 
-    fun injectInput(text: String) {
+    override fun injectInput(text: String) {
         AmnosLog.v("SecureWebView", "Keyboard Input: Injecting ${text.length} character(s)")
         val escaped = text.replace("'", "\\'")
         evaluateJavascript("document.execCommand('insertText', false, '$escaped')", null)
     }
 
-    fun injectBackspace() {
+    override fun injectBackspace() {
         AmnosLog.v("SecureWebView", "Keyboard Input: Injecting backspace")
         evaluateJavascript("document.execCommand('delete', false, null)", null)
     }
 
-    fun injectSearch() {
+    override fun injectSearch() {
         evaluateJavascript("""
             (function() {
                 const active = document.activeElement;
@@ -266,14 +266,17 @@ class SecureWebView(context: Context) : WebView(context), AmnosWebView {
                     }
                 };
                 window.addEventListener('focusin', (e) => {
-                    const el = e.target;
-                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable) {
+                    const path = e.composedPath ? e.composedPath() : [e.target];
+                    const el = path[0];
+                    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) {
+                        // AMNOS HARDENING: Strictly reject system virtual keyboard using Web Standard
+                        if (el.setAttribute) el.setAttribute('inputmode', 'none');
                         notify('keyboard_event', 'show');
                     }
-                });
+                }, true);
                 window.addEventListener('focusout', (e) => {
                     notify('keyboard_event', 'hide');
-                });
+                }, true);
 
                 // AMNOS CLIPBOARD JAIL: Prevent OS clipboard writes. Store in bridge.
                 document.addEventListener('copy', (e) => {
