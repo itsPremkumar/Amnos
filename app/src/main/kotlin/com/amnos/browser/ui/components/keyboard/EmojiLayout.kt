@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -57,32 +59,36 @@ fun EmojiLayout(viewModel: KeyboardViewModel) {
             }
         }
         
-        // Bottom Control Row
+        // Bottom Control Row - Balanced and functional
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(horizontal = 2.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(GlassWhite)
-                    .clickable { viewModel.setLayout(GhostKeyboardLayout.ALPHA) }
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            GhostKey(
+                text = "ABC",
+                modifier = Modifier.weight(1.5f),
+                containerColor = GlassWhite.copy(alpha = 0.2f)
             ) {
-                Text(text = "ABC", color = Color.White)
+                viewModel.setLayout(GhostKeyboardLayout.ALPHA)
             }
             
-            Box(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.1f))
-                    .clickable { viewModel.handleBackspace() }
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
+            GhostKey(
+                text = "space",
+                modifier = Modifier.weight(4f),
+                containerColor = GlassWhite
             ) {
-                Text(text = "⌫", color = Color.White, fontSize = 20.sp)
+                viewModel.handleInput(" ")
+            }
+            
+            GhostKey(
+                icon = Icons.Default.Backspace,
+                modifier = Modifier.weight(1.5f),
+                containerColor = GlassWhite
+            ) {
+                viewModel.handleBackspace()
             }
         }
     }
