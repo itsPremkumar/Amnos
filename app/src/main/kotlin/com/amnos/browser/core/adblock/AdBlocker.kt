@@ -15,6 +15,11 @@ class AdBlocker(context: Context) {
             return false
         }
 
+        if (isBlockedByNuclearList(host)) {
+            AmnosLog.w("AdBlocker", "☢️ NUCLEAR HIT: Blocked Malicious/Phishing Domain -> \$host")
+            return true
+        }
+
         if (isBlockedByDomain(host)) {
             AmnosLog.d("AdBlocker", "Rule Hit: Blocked per Domain List -> $host")
             return true
@@ -42,6 +47,21 @@ class AdBlocker(context: Context) {
             if (currentHost == host) break
             if (!currentHost.contains('.')) {
                 if (blocked.contains(currentHost)) return true
+                break
+            }
+        }
+        return false
+    }
+
+    private fun isBlockedByNuclearList(host: String): Boolean {
+        var currentHost = host
+        val nuclear = registry.nuclearDomains
+        while (currentHost.isNotEmpty()) {
+            if (nuclear.contains(currentHost)) return true
+            currentHost = currentHost.substringAfter('.', "")
+            if (currentHost == host) break
+            if (!currentHost.contains('.')) {
+                if (nuclear.contains(currentHost)) return true
                 break
             }
         }

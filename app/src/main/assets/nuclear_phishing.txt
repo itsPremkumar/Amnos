@@ -1,0 +1,8 @@
+# Nuclear Blocklist: Phishing Domains
+# This list contains known phishing domains.
+# Syncs dynamically in production environments.
+||itunes-apple-update.com^
+||paypal-secure-login.net^
+||amazon-verify-account.com^
+||secure-login-netflix.com^
+||bankofamerica-alert.com^

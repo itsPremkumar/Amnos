@@ -27,6 +27,10 @@ class FilterRegistry(private val context: Context) {
     var blockedDomains: Set<String> = emptySet()
         private set
 
+    @Volatile
+    var nuclearDomains: Set<String> = emptySet()
+        private set
+
     val compiledPatterns: List<Pattern> by lazy {
         knownAdPatterns.mapNotNull { pattern ->
             try {
@@ -48,7 +52,14 @@ class FilterRegistry(private val context: Context) {
             loadList("blocklist.txt", domains)
             loadList("blocklist_comprehensive.txt", domains)
             blockedDomains = domains
+
+            val nuclearSet = linkedSetOf<String>()
+            loadList("nuclear_phishing.txt", nuclearSet)
+            loadList("nuclear_malware.txt", nuclearSet)
+            nuclearDomains = nuclearSet
+
             AmnosLog.d("FilterRegistry", "Total identifiable blocked domains: ${blockedDomains.size}")
+            AmnosLog.d("FilterRegistry", "Total identifiable nuclear domains: ${nuclearDomains.size}")
         } catch (e: Exception) {
             AmnosLog.e("FilterRegistry", "Failed to load blocklists", e)
         }
