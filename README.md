@@ -8,18 +8,87 @@ Amnos is a privacy-first hardened Android browser built on a **Modular Cluster A
 Amnos is not Tor, not a VPN, and not a custom browser engine. It reduces exposure inside Android WebView constraints; it does not provide network-layer anonymity against every observer.
 
 ## Security, Privacy & Anonymity Comparison
-| Dimension | **Amnos (Titan-Hardened)** | **Tor Browser** | **Brave Browser** | **Firefox (Hardened)** | **DuckDuckGo** |
+
+Amnos is engineered for **Forensic Zero-Trace** and **Identity Consistency**, filling a critical gap in the mobile browser landscape. Below is the ultimate breakdown of the privacy browser landscape as of 2024–2025.
+
+### 🏆 The Ultimate Executive Comparison Matrix
+
+| Feature Dimension | **Amnos (Titan)** | **Tor Browser** | **Brave Browser** | **Firefox (Hardened)** | **DuckDuckGo** |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Primary Focus** | Forensic Zero-Trace & Hardening | Network Anonymity | Privacy & Performance | Customization | Casual Privacy |
-| **Engine** | Hardened Poly-Proxied WebView | Gecko (Custom) | Chromium (Custom) | Gecko | Platform WebView |
-| **Persistence** | **100% RAM / Pure Ephemeral** | Ephemeral | Stateful (Default) | Stateful (Default) | One-Tap Cleanup |
-| **Network** | Rotating DoH + Loopback Proxy | **Multi-Hop Onion (3 Nodes)** | DNS-over-HTTPS | DNS-over-HTTPS | Standard |
-| **Forensic Hardening** | **RAM Scrambling & Task Removal** | Basic | None | None | Basic |
-| **Integrity Checks** | **Nuclear Exit (ADB-Detection)** | None | None | None | None |
-| **Fingerprinting** | **Consistent Spoofing + Jitter** | **Uniformity (Same Profile)** | Randomization/Block | Blocking/Resist | Basic Blocking |
-| **Identity Engine** | **High-Entropy Generative** | Uniform Standard | Static Random | Static | Platform Default |
-| **Ad/Tracker Block** | Dual Multi-List (Global/Regex) | Extension Mode | Native Shields | ETP / Manual | Basic Tracker Block|
-| **Clipboard Safety** | **Active Sentinel (Auto-Purge)** | Manual | None | None | None |
+| **Primary Use Case** | **Forensic Sandbox** | High-Risk Anonymity | Daily Privacy | Power Users | Quick Simplicity |
+| **Major Strength** | **Forensic Amnesia** | **Multi-Hop IP** | **Ad-Block Speed** | **Gecko Ecosystem** | **Ease of Use** |
+| **Core Engine** | Hardened WebView | Gecko (Hardened) | Chromium (Custom) | Gecko | Platform WebView |
+| **Net Anonymity** | Rotating DoH + Proxy | **3-Hop Onion** | Standard / DoH | Standard / DoH | Standard |
+| **Persistence** | **Zero-Disk (RAM)** | Ephemeral | Stateful | Stateful | Manual Wipe |
+| **RAM Scrambling** | **Yes (Secure Noise)** | None | None | None | None |
+| **Anti-Debugging** | **Nuclear Exit (ADB)** | None | None | None | None |
+| **Fingerprinting** | **Consistent Spoofing**| **Uniformity** | Random Noise | Block / Resist | Basic |
+| **Ad-Block Engine** | Dual Multi-List | Extension Mode | **Rust-Based Engine**| ETP / uBlock | Tracker Filter |
+| **Ext. Support** | None | Internal Only | None | **Full (uBlock)** | None |
+| **Web Compatibility**| Moderate | Low (Breaks) | **High (Chromium)** | High (Gecko) | High (WebView) |
+| **Account Sync** | **None (Isolated)** | None | Brave Sync | Firefox Account | None |
+
+---
+
+### 🛡️ Comparative Strengths: When to use what?
+
+*   **Choose Tor Browser** if your goal is hiding your **IP address** and physical location from the network itself. It is the absolute gold standard for **Network Anonymity** and evading state-level surveillance of your traffic.
+*   **Choose Brave** if you want the **fastest possible browsing experience** and bulletproof compatibility. Its Rust-based ad-block engine is the best-in-class for performance, making it the perfect daily driver for most users.
+*   **Choose Firefox** if you believe in an **Independent Open Web** and want to use specialized extensions like *uBlock Origin* or *Decentraleyes*. It offers the most customization for users who want to build their own "wall of security."
+*   **Choose DuckDuckGo** if you want **privacy that requires zero effort**. Its "Fire" button and clean UI make it the best choice for non-technical users who want a high-quality private browsing experience without touching a single setting.
+*   **Choose Amnos** if you need a **Forensic Sandbox** that guarantees **Local Device Amnesia**. It is the only choice if you are concerned about physical device inspection, memory-dump forensics, or identity fingerprinting consistency on Android.
+
+---
+
+### 🔍 Advanced Technical Comparison
+
+#### 1. Forensic & Physical Isolation
+| Feature | **Amnos (Titan)** | **Tor Browser** | **Brave Browser** | **DuckDuckGo** |
+| :--- | :--- | :--- | :--- | :--- |
+| **Storage Model** | **Pure RAM (Zero-Disk)** | Ephemeral (Session) | Stateful | Manual Wipe |
+| **RAM Scrambling** | **Yes (Secure Noise)** | No | No | No |
+| **ADB Detection** | **Nuclear Exit (Auto-Kill)** | No | No | No |
+| **Recents Cloaking** | **Yes (Cluster 1)** | No | No | No |
+| **Clipboard Purge** | **Proactive Sentinel** | Manual | None | None |
+
+#### 2. Anti-Fingerprinting & Identity
+| Feature | **Amnos (Titan)** | **Tor Browser** | **Brave Browser** | **Firefox (Hardened)** |
+| :--- | :--- | :--- | :--- | :--- |
+| **General Strategy** | **Generative Consistent Spoofing** | **Uniformity (Sameness)** | Noise Injection | Request Blocking |
+| **UA/GPU Matching** | **Synchronized Templates** | Generic Standard | Randomized | Static |
+| **Timezone/Locale** | **Deterministic (Fixed UTC)** | Standardized | Standard | Standard |
+| **Timing Noise** | **Multi-Layer Jitter** | Standard (100ms) | Basic | None |
+| **Canvas/Audio** | **Deterministic Seeds** | Standardized | Randomization | Blocking |
+
+#### 3. Network Architecture & Hardening
+| Feature | **Amnos (Titan)** | **Tor Browser** | **Brave Browser** | **Firefox (Hardened)** |
+| :--- | :--- | :--- | :--- | :--- |
+| **Routing** | Local Loopback Proxy | **Onion (3-Hop)** | Direct / Tor Tab | Direct |
+| **DNS Strategy** | **Rotating DoH (Dynamic)** | Onion Resolution | Standard DoH | Standard DoH |
+| **WebSocket Control**| **JVM-Level Wrapper** | Blocked | Standard | Standard |
+| **Header Purifier** | **Stripping ETag/L-Mod** | Standard | Basic | Basic |
+| **IPv6 Leakage** | **Active Blocking** | Forced IPv4 | Standard | Standard |
+
+#### 4. Hardware & API Surface Reduction
+| Feature | **Amnos (Titan)** | **Tor Browser** | **Brave Browser** | **DuckDuckGo** |
+| :--- | :--- | :--- | :--- | :--- |
+| **Sensor APIs** | **Auto-Jitter/Undefined** | Blocked | Basic Noise | Basic Block |
+| **Permissions** | **Silent Auto-Denial** | Gated Prompt | Gated Prompt | Gated Prompt |
+| **Media/WebGL** | **Locked Templates** | Standardized | Shielded | Standard |
+| **Service Workers** | **Strict Isolation** | Blocked | Standard | Standard |
+
+---
+
+## Deep Dive: Why Amnos is Different
+
+### 🛡️ The "Nuclear Exit" Mechanic (Integrity)
+Unlike other browsers, Amnos monitors its own integrity via the `RiskEngine`. If an Android Debugger (ADB) is attached—a common first step in forensic extraction—Amnos triggers a **SuperWipe**. This process physically nukes the RAM buffers, wipes all session identifiers, and terminates the process (`System.exit(0)`) within milliseconds, leaving zero forensic debris for an attacker.
+
+### 👤 Generative Identity Consistency
+Most "private" browsers randomize your User-Agent or GPU fingerprints. However, randomness itself is a signal (a "Randomized Profile" is often unique). Amnos uses a **High-Entropy Generative Engine** that synthesizes a logically consistent device profile. If your UA says you are a Pixel 8 Pro, your GPU, screen specs, battery discharge curve, and even your CPU core count will perfectly match a real Pixel 8 Pro.
+
+### 🧹 Forensic RAM Scrambling
+Clearing data is not enough. Amnos implements **Forensic RAM Scrambling** during its PURGE sequence. Before zero-filling memory, it saturates sensitive buffers with cryptographically secure noise. This prevents "Cold Boot" attacks and ensures that even if physical RAM is extracted immediately after a wipe, the data remains unrecoverable.
 
 ## Production posture
 
