@@ -7,6 +7,20 @@ Amnos is a privacy-first hardened Android browser built on a **Modular Cluster A
 
 Amnos is not Tor, not a VPN, and not a custom browser engine. It reduces exposure inside Android WebView constraints; it does not provide network-layer anonymity against every observer.
 
+## Security, Privacy & Anonymity Comparison
+| Dimension | **Amnos (Titan-Hardened)** | **Tor Browser** | **Brave Browser** | **Firefox (Hardened)** | **DuckDuckGo** |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Primary Focus** | Forensic Zero-Trace & Hardening | Network Anonymity | Privacy & Performance | Customization | Casual Privacy |
+| **Engine** | Hardened Poly-Proxied WebView | Gecko (Custom) | Chromium (Custom) | Gecko | Platform WebView |
+| **Persistence** | **100% RAM / Pure Ephemeral** | Ephemeral | Stateful (Default) | Stateful (Default) | One-Tap Cleanup |
+| **Network** | Rotating DoH + Loopback Proxy | **Multi-Hop Onion (3 Nodes)** | DNS-over-HTTPS | DNS-over-HTTPS | Standard |
+| **Forensic Hardening** | **RAM Scrambling & Task Removal** | Basic | None | None | Basic |
+| **Integrity Checks** | **Nuclear Exit (ADB-Detection)** | None | None | None | None |
+| **Fingerprinting** | **Consistent Spoofing + Jitter** | **Uniformity (Same Profile)** | Randomization/Block | Blocking/Resist | Basic Blocking |
+| **Identity Engine** | **High-Entropy Generative** | Uniform Standard | Static Random | Static | Platform Default |
+| **Ad/Tracker Block** | Dual Multi-List (Global/Regex) | Extension Mode | Native Shields | ETP / Manual | Basic Tracker Block|
+| **Clipboard Safety** | **Active Sentinel (Auto-Purge)** | Manual | None | None | None |
+
 ## Production posture
 
 - Cleartext traffic disabled in the manifest and network security config
